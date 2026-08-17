@@ -916,10 +916,20 @@ export function GameEngine() {
 
   function assetUrl(rel) {
     const raw = String(rel || "").trim();
-    if (!raw || isUserMediaUrl(raw)) {
+    if (!raw) {
+      return "";
+    }
+    if (isUserMediaUrl(raw) || /^(https?:)?\/\//i.test(raw)) {
       return raw;
     }
-    return "";
+    const cleaned = raw.replace(/^\/+/, "").replace(/^\.\//, "");
+    try {
+      const href = String((window.location && window.location.href) || "");
+      const base = href.replace(/[^/]*$/, "") || "./";
+      return new URL(cleaned, base).href;
+    } catch (err) {
+      return "./" + cleaned;
+    }
   }
 
   function bindEl(id, type, handler, opts) {
@@ -4314,7 +4324,9 @@ export function GameEngine() {
   let boardBgLoadSeq = 0;
 
   function folderLevelBgSrc(n) {
-    return "/images/bg" + playLevel(n) + ".jpg";
+    const lv = playLevel(n);
+    const fileLv = Math.min(lv, 10);
+    return assetUrl("assets/images/level_" + fileLv + ".jpg");
   }
 
   function shownLevel(value) {
@@ -9597,11 +9609,11 @@ export function GameEngine() {
       const src20 = folderLevelBgSrc(20);
       const fallback = folderLevelBgSrc(LEVEL_BG_MAX);
       diagLog(`bg5=${src5} bg10=${src10} bg11=${src11} bg20=${src20} fallback=${fallback} cap=${LEVEL_BG_MAX}`);
-      const pathOk = src5 === "/images/bg5.jpg"
-        && src10 === "/images/bg10.jpg"
-        && src11 === "/images/bg11.jpg"
-        && src20 === "/images/bg20.jpg"
-        && fallback === "/images/bg20.jpg"
+      const pathOk = /assets\/images\/level_5\.jpg/.test(src5)
+        && /assets\/images\/level_10\.jpg/.test(src10)
+        && src11 === src10
+        && src20 === src10
+        && fallback === src10
         && LEVEL_BG_MAX === 20;
       try {
         updateLevelBackground(5, { fade: false });

@@ -166,6 +166,18 @@ body.has-custom-bg {
   background-repeat: no-repeat;
 }
 
+body.is-bg-load-failed,
+body.is-stock-neon-bg {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--theme-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--theme-grid) 1px, transparent 1px),
+    var(--page-bg);
+  background-size: 40px 40px, 40px 40px, cover;
+  background-position: center;
+  background-repeat: repeat, repeat, no-repeat;
+}
+
 .scene-bg {
   position: fixed;
   inset: 0;

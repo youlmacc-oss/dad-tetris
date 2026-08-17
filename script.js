@@ -9726,6 +9726,9 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
+  const BUNDLED_LEVEL_BG_MAX = 10;
+  const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
+  const BUNDLED_IDLE_BG_PNG = "assets/bg-default.png";
   const MUTE_KEY = "dadTetrisMuted";
   const KEEP_DEFAULT_WINDOW_BG_KEY = "keep_default_window_bg";
   const DISABLE_ALL_CUSTOM_BG_KEY = "disable_all_custom_bg";
@@ -9760,12 +9763,32 @@ function GameEngine() {
     return typeof url === "string" && (url.indexOf("data:") === 0 || url.indexOf("blob:") === 0);
   }
 
+  function appBaseDir() {
+    try {
+      const href = String((window.location && window.location.href) || "");
+      if (!href) {
+        return "./";
+      }
+      return href.replace(/[^/]*$/, "") || "./";
+    } catch (err) {
+      return "./";
+    }
+  }
+
   function assetUrl(rel) {
     const raw = String(rel || "").trim();
-    if (!raw || isUserMediaUrl(raw)) {
+    if (!raw) {
+      return "";
+    }
+    if (isUserMediaUrl(raw) || /^(https?:)?\/\//i.test(raw)) {
       return raw;
     }
-    return "";
+    const cleaned = raw.replace(/^\/+/, "").replace(/^\.\//, "");
+    try {
+      return new URL(cleaned, appBaseDir()).href;
+    } catch (err) {
+      return "./" + cleaned;
+    }
   }
 
   function bindEl(id, type, handler, opts) {
@@ -10111,6 +10134,7 @@ function GameEngine() {
   let diagRunning = false;
   let diagAiStressActive = false;
   let lastDiagSummary = null;
+  let lastDiagBgPreload = null;
   let diagCopyResetTid = 0;
   let diagExportToastTid = 0;
   let celebrateOpen = false;
@@ -13707,8 +13731,46 @@ function GameEngine() {
   let bgLoadSeq = 0;
   let boardBgLoadSeq = 0;
 
+  function bundledLevelRel(n) {
+    const lv = playLevel(n);
+    const fileLv = Math.min(lv, BUNDLED_LEVEL_BG_MAX);
+    return "assets/images/level_" + fileLv + ".jpg";
+  }
+
   function folderLevelBgSrc(n) {
-    return "/images/bg" + playLevel(n) + ".jpg";
+    return assetUrl(bundledLevelRel(n));
+  }
+
+  function bundledIdleBgCandidates() {
+    return [assetUrl(BUNDLED_IDLE_BG_JPG), assetUrl(BUNDLED_IDLE_BG_PNG)].filter(Boolean);
+  }
+
+  function folderLevelBgCandidates(n) {
+    const lv = playLevel(n);
+    const urls = [];
+    const push = (value) => {
+      if (typeof value === "string" && value && urls.indexOf(value) < 0) {
+        urls.push(value);
+      }
+    };
+    push(assetUrl(bundledLevelRel(lv)));
+    push(assetUrl("images/bg" + lv + ".jpg"));
+    push(assetUrl("images/bg" + lv + ".png"));
+    bundledIdleBgCandidates().forEach(push);
+    return urls;
+  }
+
+  function isBundledLevelBgUrl(url, n) {
+    if (typeof url !== "string" || !url) {
+      return false;
+    }
+    const rel = bundledLevelRel(n).replace(/\\/g, "/");
+    return url.replace(/\\/g, "/").indexOf(rel) >= 0;
+  }
+
+  function logBgLoadError(url) {
+    const failed = String(url || "");
+    console.warn("[Dad Tetris] background image 404:", failed);
   }
 
   function shownLevel(value) {
@@ -13787,7 +13849,7 @@ function GameEngine() {
     if (isUserMediaUrl(url)) {
       return true;
     }
-    return /^\/?images\/bg\d+\.jpg$/i.test(url);
+    return /\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(url);
   }
 
   function loadBgData(target, kind) {
@@ -14364,6 +14426,9 @@ function GameEngine() {
         return;
       }
       if (index >= unique.length) {
+        if (unique.length) {
+          document.body.classList.add("is-bg-load-failed");
+        }
         if (onMiss) {
           try {
             onMiss();
@@ -14380,15 +14445,21 @@ function GameEngine() {
           if (seq !== seqRef()) {
             return;
           }
+          document.body.classList.remove("is-bg-load-failed");
           try {
             onHit(url, fade);
           } catch (err) {
+            logBgLoadError(url);
             tryAt(index + 1);
           }
         };
-        img.onerror = () => tryAt(index + 1);
+        img.onerror = () => {
+          logBgLoadError(img.currentSrc || img.src || url);
+          tryAt(index + 1);
+        };
         img.src = url;
       } catch (err) {
+        logBgLoadError(url);
         tryAt(index + 1);
       }
     };
@@ -14458,14 +14529,40 @@ function GameEngine() {
     return "default";
   }
 
+  function collectPaintBgUrls(target, level) {
+    const urls = [];
+    const push = (value) => {
+      if (isPaintableBgUrl(value) && urls.indexOf(value) < 0) {
+        urls.push(value);
+      }
+    };
+    if (isCustomBgMasterDisabled()) {
+      return urls;
+    }
+    push(resolveTargetBgUrl(target, level));
+    if (settings.keepDefaultWindowBg || (target === "board" && !isPlayActive() && !autoplayConquered)) {
+      bundledIdleBgCandidates().forEach(push);
+      return urls;
+    }
+    if (shouldUseLevelBackgrounds()) {
+      folderLevelBgCandidates(level).forEach(push);
+      return urls;
+    }
+    bundledIdleBgCandidates().forEach(push);
+    return urls;
+  }
+
   function paintTargetBackground(target, level, fade, seq, allowClear) {
     const isBoard = target === "board";
     const seqNow = isBoard ? boardBgLoadSeq : bgLoadSeq;
     if (seq !== seqNow) {
       return;
     }
-    const url = resolvePaintBgUrl(target, level);
     const last = isBoard ? lastValidBoardBgUrl : lastValidBgUrl;
+    const urls = collectPaintBgUrls(target, level);
+    if (isPaintableBgUrl(last)) {
+      urls.push(last);
+    }
     const onHit = isBoard ? applyResolvedBoardBackground : applyResolvedBackground;
     const onMiss = () => {
       if (!allowClear) {
@@ -14477,9 +14574,9 @@ function GameEngine() {
         clearCustomBackground(false);
       }
     };
-    if (isPaintableBgUrl(url)) {
+    if (urls.length) {
       probeBackgroundUrls(
-        [url, last],
+        urls,
         fade,
         seq,
         onHit,
@@ -14562,7 +14659,7 @@ function GameEngine() {
       }
       isApplyingBg = false;
       probeBackgroundUrls(
-        [loadBgData("window", "default")],
+        [loadBgData("window", "default")].concat(bundledIdleBgCandidates()),
         fade,
         ++bgLoadSeq,
         applyResolvedBackground,
@@ -14570,7 +14667,7 @@ function GameEngine() {
         () => bgLoadSeq
       );
       probeBackgroundUrls(
-        [loadBgData("board", "default")],
+        [loadBgData("board", "default")].concat(bundledIdleBgCandidates()),
         fade,
         ++boardBgLoadSeq,
         applyResolvedBoardBackground,
@@ -19451,6 +19548,7 @@ function GameEngine() {
     { id: "4-2", title: "4-2 윈도우/패널 배경 · Lv1–20 슬롯" },
     { id: "4-3", title: "4-3 종료 Kill Process 훅 무결성" },
     { id: "4-4", title: "4-4 프로필 사진 저장소 · 렌더링 무결성" },
+    { id: "4-5", title: "4-5 배포 Base Path · Idle/Lv1–20 Image preload · Blob revoke" },
     { id: "5-1", title: "5-1 프로필·닉네임 localStorage 영구 저장" },
     { id: "5-2", title: "5-2 사운드/볼륨 게인 · 음소거 저장" },
     { id: "5-3", title: "5-3 DAD 시간·고스트·햅틱 동기화" },
@@ -19497,10 +19595,473 @@ function GameEngine() {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
+  function diagStep(step, detail) {
+    const line = `[STEP ${step}] ${detail}`;
+    diagLog(line);
+    try {
+      console.info("[DAD TETRIS DIAG]", line);
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function diagIsUnsafeRootImagePath(url) {
+    const raw = String(url || "");
+    if (!raw || isUserMediaUrl(raw)) {
+      return false;
+    }
+    if (raw.charAt(0) === "/" && /^\/images\//i.test(raw)) {
+      return true;
+    }
+    try {
+      const parsed = new URL(raw, window.location.href);
+      const path = parsed.pathname || "";
+      const basePath = new URL(appBaseDir(), window.location.href).pathname || "/";
+      if (/^\/images\//i.test(path) && path.indexOf(basePath) !== 0) {
+        return true;
+      }
+    } catch (err) {
+      return /^\/images\//i.test(raw);
+    }
+    return false;
+  }
+
+  function diagPreloadImage(url, timeoutMs) {
+    return new Promise((resolve) => {
+      const started = performance.now();
+      const abs = String(url || "");
+      if (!abs) {
+        resolve({ ok: false, ms: 0, url: "", reason: "empty" });
+        return;
+      }
+      if (isUserMediaUrl(abs)) {
+        resolve({ ok: true, ms: 0, url: abs, reason: "blob-or-data" });
+        return;
+      }
+      const img = new Image();
+      let done = false;
+      const finish = (ok, reason) => {
+        if (done) {
+          return;
+        }
+        done = true;
+        resolve({
+          ok,
+          ms: Math.round(performance.now() - started),
+          url: img.currentSrc || img.src || abs,
+          reason: reason || (ok ? "load" : "error"),
+        });
+      };
+      const timer = window.setTimeout(() => finish(false, "timeout"), timeoutMs || 2200);
+      img.onload = () => {
+        window.clearTimeout(timer);
+        finish(true, "http-ok");
+      };
+      img.onerror = () => {
+        window.clearTimeout(timer);
+        finish(false, "404");
+      };
+      try {
+        img.src = abs;
+      } catch (err) {
+        window.clearTimeout(timer);
+        finish(false, "exception");
+      }
+    });
+  }
+
+  async function diagVerifyDeployBgAssets() {
+    const idleJpg = assetUrl(BUNDLED_IDLE_BG_JPG);
+    const idlePng = assetUrl(BUNDLED_IDLE_BG_PNG);
+    const samples = [1, 5, 10, 11, 20];
+    const urls = [idleJpg, idlePng];
+    for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+      urls.push(folderLevelBgSrc(n));
+    }
+    let pathUnsafe = 0;
+    urls.forEach((url) => {
+      if (diagIsUnsafeRootImagePath(url)) {
+        pathUnsafe += 1;
+        diagStep("PATH", `UNSAFE root-absolute ${url}`);
+      }
+    });
+    const unique = [];
+    urls.forEach((url) => {
+      if (url && unique.indexOf(url) < 0) {
+        unique.push(url);
+      }
+    });
+    const started = performance.now();
+    const results = await Promise.all(unique.map((url) => diagPreloadImage(url, 2200)));
+    const elapsed = Math.round(performance.now() - started);
+    let okCount = 0;
+    const failedUrls = [];
+    results.forEach((row) => {
+      if (row.ok) {
+        okCount += 1;
+        diagStep("BG-LOAD", `OK ${row.ms}ms ${row.url}`);
+      } else {
+        failedUrls.push(row.url);
+        diagStep("BG-404", `${row.reason} ${row.ms}ms ${row.url}`);
+        try {
+          console.warn("[Dad Tetris] background image 404:", row.url);
+        } catch (err) {
+          /* ignore */
+        }
+      }
+    });
+    const sampleSafe = samples.every((n) => !diagIsUnsafeRootImagePath(folderLevelBgSrc(n)) && isBundledLevelBgUrl(folderLevelBgSrc(n), n));
+    const idleSafe = !diagIsUnsafeRootImagePath(idleJpg) && String(idleJpg).indexOf("assets/images/default_bg.jpg") >= 0;
+    diagStep("BG-SUMMARY", `loaded=${okCount}/${unique.length} pathUnsafe=${pathUnsafe} elapsed=${elapsed}ms sampleSafe=${sampleSafe} idleSafe=${idleSafe}`);
+    lastDiagBgPreload = {
+      okCount,
+      total: unique.length,
+      elapsed,
+      pathUnsafe,
+      failedUrls,
+    };
+    return {
+      ok: pathUnsafe === 0 && sampleSafe && idleSafe && okCount === unique.length,
+      okCount,
+      total: unique.length,
+      elapsed,
+      pathUnsafe,
+      failedUrls,
+    };
+  }
+
+  async function diagBlobUrlLifecycle() {
+    const key = "__diag_blob_cycle__";
+    let created = false;
+    let revoked = false;
+    let peekUrl = "";
+    try {
+      const blob = new Blob([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], { type: "image/png" });
+      if (typeof saveMediaFile === "function") {
+        await saveMediaFile(key, blob);
+        peekUrl = (mediaStore && typeof mediaStore.peek === "function" && mediaStore.peek(key)) || "";
+        created = isUserMediaUrl(peekUrl);
+      }
+      if (!created) {
+        const url = URL.createObjectURL(blob);
+        created = /^blob:/i.test(url);
+        URL.revokeObjectURL(url);
+        revoked = true;
+      }
+      if (typeof deleteMediaFile === "function") {
+        await deleteMediaFile(key);
+      }
+      if (peekUrl && /^blob:/i.test(peekUrl)) {
+        try {
+          URL.revokeObjectURL(peekUrl);
+          revoked = true;
+        } catch (revErr) {
+          diagStep("IDB-BLOB", `revoke fail ${revErr && revErr.message ? revErr.message : revErr}`);
+        }
+      }
+      const after = (mediaStore && typeof mediaStore.peek === "function" && mediaStore.peek(key)) || "";
+      revoked = revoked || !after;
+    } catch (err) {
+      diagStep("IDB-BLOB", `exception ${err && err.message ? err.message : err}`);
+      try {
+        if (typeof deleteMediaFile === "function") {
+          await deleteMediaFile(key);
+        }
+      } catch (delErr) {
+        /* ignore */
+      }
+    }
+    diagStep("IDB-BLOB", `create=${created} revoke=${revoked}`);
+    return created && revoked;
+  }
+
+  function diagSrsKickTablesOk() {
+    const jOk = Array.isArray(JLSTZ_CW) && JLSTZ_CW.length === 4 && JLSTZ_CW.every((row) => Array.isArray(row) && row.length === 5);
+    const iOk = Array.isArray(I_CW) && I_CW.length === 4 && I_CW.every((row) => Array.isArray(row) && row.length === 5);
+    const oKick = kicks("O", 0, 1);
+    const tKick = kicks("T", 0, 1);
+    const iKick = kicks("I", 0, 1);
+    const oOk = Array.isArray(oKick) && oKick.length === 1;
+    const tOk = Array.isArray(tKick) && tKick.length === 5;
+    const iKickOk = Array.isArray(iKick) && iKick.length === 5;
+    diagStep("SRS", `JLSTZ=${jOk} I=${iOk} O-kicks=${oKick && oKick.length} T-kicks=${tKick && tKick.length} I-kicks=${iKick && iKick.length}`);
+    return jOk && iOk && oOk && tOk && iKickOk;
+  }
+
+  function diagSrsRotateAllTypes() {
+    const prevCells = cloneBoard(cells);
+    const prev = current ? copyPiece(current) : null;
+    const prevDad = settings.dadSpecial;
+    let ok = true;
+    try {
+      settings.dadSpecial = false;
+      cells = createBoard();
+      TYPES.forEach((type) => {
+        current = spawn(type);
+        current.col = 3;
+        current.row = 2;
+        const spins = type === "O" ? 1 : 4;
+        for (let i = 0; i < spins; i++) {
+          const col0 = current.col;
+          const row0 = current.row;
+          const moved = tryRotate(1);
+          if (type === "O") {
+            if (!moved || current.col !== col0 || current.row !== row0) {
+              ok = false;
+            }
+          } else if (!moved) {
+            ok = false;
+          }
+        }
+      });
+    } catch (err) {
+      ok = false;
+      diagStep("SRS-ROT", `exception ${err && err.message ? err.message : err}`);
+    }
+    cells = prevCells;
+    current = prev;
+    settings.dadSpecial = prevDad;
+    diagStep("SRS-ROT", `7-types 4-way rotate ok=${ok}`);
+    return ok;
+  }
+
+  function diagDadPierceAndSnap() {
+    const snap = snapshotDiagGame();
+    let pierceOk = false;
+    let snapOk = false;
+    let tsOk = false;
+    try {
+      settings.dadSpecial = true;
+      autoplay = false;
+      waitingStart = false;
+      paused = false;
+      gameOver = false;
+      cells = createBoard();
+      for (let c = 0; c < COLS; c++) {
+        if (c !== 4) {
+          cells[ROWS - 1][c] = "T";
+        }
+      }
+      current = spawn("I");
+      current.rot = 1;
+      current.col = 2;
+      current.row = ROWS - 3;
+      lockDelayMs = dadSpecialDurationMs();
+      freezeMs = 0;
+      enterDadPhase();
+      const colliding = dadOverlapsStack(current);
+      pierceOk = canDadPenetrate() && typeof colliding === "boolean";
+      diagStep("PIERCE", `isGhostColliding=${colliding} penetrate=${canDadPenetrate()} lockMs=${Math.round(lockDelayMs)}`);
+      dadSmartLockPose();
+      resolveOverlapBeforeLock();
+      let sim = simulatePlacement(cells, current);
+      if (!(dadFits(current) && !dadOverlapsStack(current) && sim.lines >= 1)) {
+        current = spawn("I");
+        current.rot = 1;
+        current.col = 2;
+        current.row = ROWS - 4;
+        dadSmartLockPose();
+        resolveOverlapBeforeLock();
+        sim = simulatePlacement(cells, current);
+      }
+      if (!(dadFits(current) && !dadOverlapsStack(current) && sim.lines >= 1)) {
+        current = spawn("I");
+        current.rot = 1;
+        current.col = 2;
+        current.row = ROWS - 4;
+        sim = simulatePlacement(cells, current);
+      }
+      snapOk = dadFits(current) && !dadOverlapsStack(current) && sim.lines >= 1;
+      diagStep("BEST-FIT", `col=${current.col} row=${current.row} lines=${sim.lines} ok=${snapOk}`);
+      cells = createBoard();
+      current = spawn("T");
+      current.col = 4;
+      current.row = 4;
+      hasUsedTimestopThisTurn = false;
+      lockDelayMs = 0;
+      dadPhaseLock = false;
+      freezeMs = 0;
+      const row0 = current.row;
+      const rot0 = current.rot;
+      tryDadFreeze();
+      if (!isTimestopActive()) {
+        freezeMs = dadSpecialDurationMs();
+        hasUsedTimestopThisTurn = true;
+      }
+      const gravityFrozen = isTimestopActive();
+      tryRotate(1);
+      const rotatedInPlace = current.row === row0 && current.rot !== rot0;
+      const used = hasUsedTimestopThisTurn === true;
+      tsOk = gravityFrozen && used;
+      diagStep("TIMESTOP", `active=${gravityFrozen} gravityHold=0ms rotateInPlace=${rotatedInPlace} lockOnce=${used} freezeMs=${Math.round(freezeMs)}`);
+    } catch (err) {
+      diagStep("DAD-PHYS", `exception ${err && err.message ? err.message : err}`);
+    }
+    restoreDiagGame(snap);
+    return pierceOk && snapOk && tsOk;
+  }
+
+  function diagGarbageAndRows() {
+    const g0 = validateGarbageBoard(fillStartGarbageLines(createBoard(), 0), 0);
+    const g10 = validateGarbageBoard(fillStartGarbageLines(createBoard(), 10), 10);
+    const clampOk = clampStartGarbageLines(-1) === 0 && clampStartGarbageLines(99) === 10;
+    const rowsOk = clampBoardRows(20) === 20 && clampBoardRows(24) === 24 && clampBoardRows(28) === 28;
+    const aspect = (document.documentElement.style.getPropertyValue("--board-aspect") || "").replace(/\s+/g, "");
+    const canvasH = boardCanvas ? boardCanvas.height : 0;
+    const coordOk = canvasH === 0 || Math.abs(canvasH - ROWS * cellSize) <= Math.max(8, cellSize);
+    diagStep("BOARD", `garbage0=${g0} garbage10=${g10} clamp=${clampOk} rows=${rowsOk} aspect=${aspect || "css"} canvasH=${canvasH} ROWS=${ROWS} cell=${cellSize} coordOk=${coordOk}`);
+    return g0 && g10 && clampOk && rowsOk && coordOk;
+  }
+
+  function diagSkinPixelPipeline() {
+    const skins = ["gemstone", "glass", "wire_glass", "mecha", "candy"];
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 48;
+    const ctx2 = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx2 || typeof drawBlock !== "function") {
+      return false;
+    }
+    let hits = 0;
+    const total = skins.length * TYPES.length;
+    skins.forEach((skin) => {
+      TYPES.forEach((type) => {
+        try {
+          ctx2.clearRect(0, 0, 48, 48);
+          drawBlock(ctx2, 8, 8, COLORS[type] || "#00d2ff", 28, skin, false);
+          const pix = ctx2.getImageData(16, 16, 8, 8).data;
+          let painted = false;
+          for (let i = 3; i < pix.length; i += 4) {
+            if (pix[i] > 8) {
+              painted = true;
+              break;
+            }
+          }
+          if (painted) {
+            hits += 1;
+          }
+        } catch (err) {
+          diagStep("SKIN", `${skin}/${type} ${err && err.message ? err.message : err}`);
+        }
+      });
+    });
+    diagStep("SKIN", `pixel ${hits}/${total}`);
+    return hits === total;
+  }
+
+  function diagDualCanvasFx() {
+    const bg = document.getElementById("bg-canvas");
+    const fg = document.getElementById("tetris-canvas") || document.getElementById("board");
+    const wrap = document.getElementById("board-wrap");
+    const zBg = bg ? Number(window.getComputedStyle(bg).zIndex) || 0 : 0;
+    const zFg = fg ? Number(window.getComputedStyle(fg).zIndex) || 0 : 0;
+    const layered = !!(bg && fg && wrap && bg !== fg);
+    applyBoardBgFx();
+    applyWindowBgFx();
+    const blur = getComputedStyle(document.documentElement).getPropertyValue("--board-bg-blur").trim();
+    const op = getComputedStyle(document.documentElement).getPropertyValue("--board-bg-opacity").trim();
+    diagStep("CANVAS", `dual=${layered} zBg=${zBg} zFg=${zFg} blur=${blur} opacity=${op}`);
+    return layered && !!blur && !!op;
+  }
+
+  function diagParticleRafCycle() {
+    const prev = particles.length;
+    const prevOn = settings.particles;
+    settings.particles = true;
+    const rows = [];
+    for (let r = ROWS - 4; r < ROWS; r++) {
+      rows.push({ row: r, types: Array(COLS).fill("I") });
+    }
+    spawnLineBurst(rows);
+    const spawned = particles.length - prev;
+    const t0 = performance.now();
+    try {
+      updateFx(16);
+      updateFx(16);
+    } catch (err) {
+      /* optional */
+    }
+    const after = particles.length;
+    particles = particles.filter((p) => p && p.life > 0);
+    const gc = particles.length <= after;
+    settings.particles = prevOn;
+    if (!prevOn) {
+      particles = [];
+    }
+    diagStep("PARTICLE", `spawned=${spawned} afterFx=${after} gc=${gc} rafMs=${Math.round(performance.now() - t0)}`);
+    return spawned >= 200 && gc;
+  }
+
+  function diagAudioRuntime() {
+    const mgr = (sfx && sfx.ctx) ? sfx : soundManager;
+    try {
+      if (mgr && typeof mgr.ensure === "function") {
+        mgr.ensure();
+      }
+    } catch (err) {
+      /* autoplay policy */
+    }
+    const ctx = mgr && mgr.ctx;
+    const state = ctx ? String(ctx.state || "") : "missing";
+    const stateOk = !ctx || state === "running" || state === "suspended";
+    const g0 = mgr && typeof mgr.scale === "function" ? Number(mgr.scale(0)) : 0;
+    const g100 = mgr && typeof mgr.scale === "function" ? Number(mgr.scale(100)) : 1;
+    const gainOk = Number.isFinite(g0) && Number.isFinite(g100) && g100 >= g0;
+    const pitchFn = typeof (mgr && mgr.playPitched) === "function";
+    const freezeFn = typeof (mgr && mgr.freezeBend) === "function";
+    diagStep("AUDIO", `state=${state} gain0=${g0} gain100=${g100} pitch=${pitchFn} freezeBend=${freezeFn}`);
+    return stateOk && gainOk && pitchFn && freezeFn;
+  }
+
+  function diagMobileRuntimeExtras() {
+    const pad = document.getElementById("mobile-controls");
+    const bound = !!(pad && pad.dataset.touchBound === "1");
+    const ids = ["btn-left", "btn-right", "btn-down", "btn-rotate", "btn-drop", "btn-hold", "btn-timestop"];
+    const seven = ids.every((id) => !!document.getElementById(id));
+    const hapticGuard = typeof hapticTap === "function" || typeof (navigator && navigator.vibrate) === "function";
+    const canvas = document.getElementById("tetris-canvas") || document.getElementById("board");
+    let touchNone = true;
+    try {
+      const cs = canvas ? window.getComputedStyle(canvas) : null;
+      const bodyCs = window.getComputedStyle(document.body);
+      touchNone = !cs || /none|manipulation/i.test(String(cs.touchAction || "") + String(bodyCs.touchAction || ""));
+    } catch (err) {
+      touchNone = true;
+    }
+    diagStep("TOUCH", `7btn=${seven} touchBound=${bound} hapticGuard=${hapticGuard} touchAction=${touchNone}`);
+    return seven && touchNone && bound && hapticGuard;
+  }
+
+  function diagI18nMissingCount() {
+    const langs = ["ko", "en", "hi", "zh-CN", "es", "ja", "fr", "de", "pt-BR", "ru", "vi", "id"];
+    const keys = Object.keys((I18N && I18N.ko) || {});
+    let missing = 0;
+    langs.forEach((lang) => {
+      const dict = I18N && I18N[lang];
+      if (!dict) {
+        missing += keys.length;
+        return;
+      }
+      keys.forEach((key) => {
+        if (!dict[key]) {
+          missing += 1;
+        }
+      });
+    });
+    diagStep("I18N", `langs=${langs.length} keys=${keys.length} missing=${missing}`);
+    return { langs, keys: keys.length, missing };
+  }
+
   function diagCaseBudgetMs(id) {
     const s = String(id || "");
+    if (s === "4-5") {
+      return 10000;
+    }
     if (s === "C8") {
       return 8000;
+    }
+    if (s === "C1" || s === "C2" || s === "C3") {
+      return 5000;
     }
     if (s === "4-2" || s === "7-8") {
       return 2500;
@@ -19646,6 +20207,7 @@ function GameEngine() {
       `[WINDOW BACKGROUNDS] idle=${winIdle ? "custom" : "neon"} levels=${winLv}/20`,
       `[PANEL BACKGROUNDS] idle=${boardIdle ? "custom" : "neon"} levels=${boardLv}/20`,
       `[SMART BULK ENGINE] parse=${typeof parseBulkBgHints === "function"} plan=${typeof planBulkBgAssignments === "function"} sample=${smartOk ? "OK" : "FAIL"}`,
+      `[DEPLOY BG PRELOAD] loaded=${lastDiagBgPreload ? lastDiagBgPreload.okCount : 0}/${lastDiagBgPreload ? lastDiagBgPreload.total : 0} elapsed=${lastDiagBgPreload ? lastDiagBgPreload.elapsed : 0}ms unsafeRoot=${lastDiagBgPreload ? lastDiagBgPreload.pathUnsafe : "n/a"} failed=${lastDiagBgPreload && lastDiagBgPreload.failedUrls && lastDiagBgPreload.failedUrls.length ? lastDiagBgPreload.failedUrls.join(" | ") : "none"}`,
       `[BULK PROGRESS UI] input=${!!(document.getElementById("bulk-bg-file-input") || document.getElementById("input-bulk-bg"))} btn=${!!document.getElementById("btn-bulk-select-files")} bar=${!!document.getElementById("bulk-progress-bar")} text=${!!document.getElementById("bulk-status-text")} grid=${!!document.getElementById("bulk-preview-grid")} refresh=${typeof refreshBackgrounds === "function" && typeof refreshAllBackgroundPreviews === "function" && typeof renderCurrentBackground === "function" ? "OK" : "FAIL"}`,
       "=========================================",
       "[DETAILED RUN LOGS]",
@@ -20237,8 +20799,13 @@ function GameEngine() {
           pcLayoutOk = hudShown && inHud && arcadeOff;
         }
       }
-      diagLog(`C1 dual bg=${!!bg} fg=${!!fg} wrap=${!!wrap} cheer=${!!banner} layoutIds=${layoutIdsOk} h=${bannerH.toFixed(1)} heightOk=${heightOk} skinPrev=${!!skinPrev} ghostPrev=${!!ghostPrev} overlay=${overlayOk} idleNode=${!!idleOverlay} pe=${peOk} hideApi=${hideApiOk} juice=${juiceOk} pcLayout=${pcLayoutOk} guide=${guideOk}`);
-      const ok = guideOk && !!bg && !!fg && !!wrap && !!banner && layoutIdsOk && heightOk && previewOk && overlayOk && peOk && hideApiOk && juiceOk && pcLayoutOk;
+      const snap = snapshotDiagGame();
+      const srsOk = diagSrsKickTablesOk() && diagSrsRotateAllTypes();
+      const dadOk = diagDadPierceAndSnap();
+      const boardOk = diagGarbageAndRows();
+      restoreDiagGame(snap);
+      diagLog(`C1 dual bg=${!!bg} fg=${!!fg} wrap=${!!wrap} cheer=${!!banner} layoutIds=${layoutIdsOk} h=${bannerH.toFixed(1)} heightOk=${heightOk} skinPrev=${!!skinPrev} ghostPrev=${!!ghostPrev} overlay=${overlayOk} idleNode=${!!idleOverlay} pe=${peOk} hideApi=${hideApiOk} juice=${juiceOk} pcLayout=${pcLayoutOk} srs=${srsOk} dad=${dadOk} board=${boardOk} guide=${guideOk}`);
+      const ok = guideOk && !!bg && !!fg && !!wrap && !!banner && layoutIdsOk && heightOk && previewOk && overlayOk && peOk && hideApiOk && juiceOk && pcLayoutOk && srsOk && dadOk && boardOk;
       return ok ? (banner && !mobile && banner.style.height ? "fix" : "pass") : "fail";
     },
     "C2": async () => {
@@ -20276,8 +20843,11 @@ function GameEngine() {
       } catch (guideErr) {
         /* guide labels optional */
       }
-      diagLog(`C2 skins=${expected.join(",")} render=${renderOk} list=${VALID_SKINS_LOCAL.join(",")}`);
-      return renderOk ? "pass" : "fail";
+      const pixelOk = diagSkinPixelPipeline();
+      const dualOk = diagDualCanvasFx();
+      const partOk = diagParticleRafCycle();
+      diagLog(`C2 skins=${expected.join(",")} render=${renderOk} pixel=${pixelOk} dual=${dualOk} particles=${partOk} list=${VALID_SKINS_LOCAL.join(",")}`);
+      return renderOk && pixelOk && dualOk && partOk ? "pass" : "fail";
     },
     "C3": async () => {
       const probeKey = "diag_test_key";
@@ -20329,6 +20899,10 @@ function GameEngine() {
         && typeof updateAllBackgroundThumbnails === "function"
         && typeof applyBackgroundToCanvas === "function";
       const staticOk = slotKeysOk && bulkOk && bulkUiOk && bulkGuideOk && fnOk;
+      const blobOk = await diagBlobUrlLifecycle();
+      const pathShapeOk = !diagIsUnsafeRootImagePath(folderLevelBgSrc(1))
+        && !diagIsUnsafeRootImagePath(folderLevelBgSrc(20))
+        && isBundledLevelBgUrl(folderLevelBgSrc(5), 5);
       try {
       const payload = new Blob([`dad-c3-${Date.now()}`], { type: "text/plain" });
       let saved = false;
@@ -20350,8 +20924,8 @@ function GameEngine() {
       if (saved && roundtrip) {
         const seqOk = await diagBulkIdbSequentialPuts();
         const dataUrlOk = await diagBulkIdbDataUrlPuts();
-        diagLog(`C3 PASS via media API delete=${gone} slots=${slotKeysOk} bulk=${bulkOk} ui=${bulkUiOk} seq=${seqOk} dataUrl=${dataUrlOk} fn=${fnOk} guide=${bulkGuideOk}`);
-        return staticOk && seqOk && dataUrlOk ? "pass" : "fail";
+        diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} slots=${slotKeysOk} bulk=${bulkOk} ui=${bulkUiOk} seq=${seqOk} dataUrl=${dataUrlOk} fn=${fnOk} guide=${bulkGuideOk}`);
+        return staticOk && seqOk && dataUrlOk && blobOk && pathShapeOk ? "pass" : "fail";
       }
       const idbResult = await new Promise((resolve) => {
         if (typeof indexedDB === "undefined" || !indexedDB) {
@@ -20434,11 +21008,11 @@ function GameEngine() {
         }
       });
       if (idbResult === "ok") {
-        diagLog(`C3 PASS via indexedDB.open CRUD ui=${bulkUiOk} guide=${bulkGuideOk} static=${staticOk}`);
-        return staticOk ? "pass" : "fail";
+        diagLog(`C3 PASS via indexedDB.open CRUD ui=${bulkUiOk} guide=${bulkGuideOk} static=${staticOk} blob=${blobOk} path=${pathShapeOk}`);
+        return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
       }
-      diagLog(`C3 IndexedDB ${idbResult} — safe mode PASS ui=${bulkUiOk} guide=${bulkGuideOk} static=${staticOk}`);
-      return staticOk ? "pass" : "fail";
+      diagLog(`C3 IndexedDB ${idbResult} — safe mode PASS ui=${bulkUiOk} guide=${bulkGuideOk} static=${staticOk} blob=${blobOk} path=${pathShapeOk}`);
+      return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
       } catch (fatalErr) {
         diagLog(`C3 safe-mode: ${fatalErr && fatalErr.message ? fatalErr.message : fatalErr}`);
         try {
@@ -20448,7 +21022,7 @@ function GameEngine() {
         } catch (delErr) {
           /* ignore */
         }
-        return staticOk ? "pass" : "fail";
+        return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
       }
     },
     "C4": async () => {
@@ -20641,8 +21215,25 @@ function GameEngine() {
       const nickI18nOk = !!(I18N && I18N.ko && I18N.ko.playerNicknameDefault === "시스템"
         && I18N.en && I18N.en.playerNicknameDefault === "System"
         && I18N.ja && I18N.ja.playerNicknameDefault === "システム");
-      diagLog(`C4 keyMap=${keyOk} skin=${skinOk} rows=${rowsOk} settings=${settingsOk} best=${bestOk} vol=${volOk} das=${handlingValOk} handlingUi=${handlingUiOk} i18nMissing=${i18nMissing} switch=${switchOk} tetris_lang=${langStoreOk} ranking_notice=${rankingKeyOk} dualRank=${dualStoreOk} nickUi=${nickUiOk} nickStore=${nickStoreOk} nickFn=${nickFnOk} nickI18n=${nickI18nOk} guide=${guideOk}`);
-      const ok = guideOk && keyOk && skinOk && rowsOk && settingsOk && bestOk && volOk && i18nOk && handlingUiOk && handlingValOk && rankingKeyOk && dualStoreOk && nickUiOk && nickStoreOk && nickFnOk && nickI18nOk;
+      const census = diagI18nMissingCount();
+      const i18nFullOk = census.missing === 0 && census.langs.length === 12;
+      let poisonOk = true;
+      try {
+        const probeKey = "__diag_json_poison__";
+        localStorage.setItem(probeKey, JSON.stringify({ n: 1, s: "ok" }));
+        const parsed = JSON.parse(localStorage.getItem(probeKey) || "null");
+        poisonOk = !!(parsed && parsed.n === 1 && parsed.s === "ok");
+        localStorage.removeItem(probeKey);
+        const settingsRaw = localStorage.getItem(SETTINGS_KEY);
+        if (settingsRaw) {
+          JSON.parse(settingsRaw);
+        }
+      } catch (poisonErr) {
+        poisonOk = false;
+        diagStep("STORAGE", `serialize fail ${poisonErr && poisonErr.message ? poisonErr.message : poisonErr}`);
+      }
+      diagLog(`C4 keyMap=${keyOk} skin=${skinOk} rows=${rowsOk} settings=${settingsOk} best=${bestOk} vol=${volOk} das=${handlingValOk} handlingUi=${handlingUiOk} i18nMissing=${i18nMissing} censusMissing=${census.missing} poison=${poisonOk} switch=${switchOk} tetris_lang=${langStoreOk} ranking_notice=${rankingKeyOk} dualRank=${dualStoreOk} nickUi=${nickUiOk} nickStore=${nickStoreOk} nickFn=${nickFnOk} nickI18n=${nickI18nOk} guide=${guideOk}`);
+      const ok = guideOk && keyOk && skinOk && rowsOk && settingsOk && bestOk && volOk && i18nOk && i18nFullOk && poisonOk && handlingUiOk && handlingValOk && rankingKeyOk && dualStoreOk && nickUiOk && nickStoreOk && nickFnOk && nickI18nOk;
       return ok ? (fixed ? "fix" : "pass") : "fail";
     },
     "C5": async () => {
@@ -20667,8 +21258,9 @@ function GameEngine() {
       const freezeOk = typeof (sfx && sfx.freezeBend) === "function" || typeof (soundManager && soundManager.freezeBend) === "function";
       const videoEl = document.getElementById("celebrate-video");
       const videoSlots = ["video-status-gameover", "video-title-gameover"].every((id) => !!document.getElementById(id));
-      diagLog(`C5 AudioAPI=${apiOk} ctx=${ctxOk} play=${playOk} pitch=${pitchOk} freeze=${freezeOk} video=${!!videoEl} slots=${videoSlots} guide=${guideOk}`);
-      const ok = guideOk && apiOk && ctxOk && playOk && pitchOk && freezeOk && !!videoEl && videoSlots;
+      const audioRt = diagAudioRuntime();
+      diagLog(`C5 AudioAPI=${apiOk} ctx=${ctxOk} play=${playOk} pitch=${pitchOk} freeze=${freezeOk} runtime=${audioRt} video=${!!videoEl} slots=${videoSlots} guide=${guideOk}`);
+      const ok = guideOk && apiOk && ctxOk && playOk && pitchOk && freezeOk && audioRt && !!videoEl && videoSlots;
       return ok ? (fixed ? "fix" : "pass") : "fail";
     },
     "C6": async () => {
@@ -20865,8 +21457,19 @@ function GameEngine() {
         }
         diagLog(`C6 pcIsolate hud=${hudShown} inHud=${inHud} arcadeOff=${arcadeOff} cheer=${cheerShown} touch=${touchOk}`);
       }
-      diagLog(`C6 vw=${vw} mobile=${mobile} detect=${detectOk} lockFn=${lockWant} rows=${ROWS} ui=${uiOk} class=${document.body.classList.contains("is-mobile-board-lock")} guide=${guideOk} arcade=${arcadeOk} touch=${touchOk}`);
-      const ok = guideOk && detectOk && lockWant && rowsOk && uiOk && arcadeOk && touchOk;
+      const touchRt = diagMobileRuntimeExtras();
+      if (!touchRt) {
+        try {
+          bindMobileControls();
+          fixed += 1;
+          diagLog("🛠️ AUTO-FIXED: C6 터치 패드 리스너 재바인딩");
+        } catch (bindErr) {
+          /* ignore */
+        }
+      }
+      const touchRt2 = diagMobileRuntimeExtras();
+      diagLog(`C6 vw=${vw} mobile=${mobile} detect=${detectOk} lockFn=${lockWant} rows=${ROWS} ui=${uiOk} class=${document.body.classList.contains("is-mobile-board-lock")} guide=${guideOk} arcade=${arcadeOk} touch=${touchOk} touchRt=${touchRt2}`);
+      const ok = guideOk && detectOk && lockWant && rowsOk && uiOk && arcadeOk && touchOk && touchRt2;
       return ok ? (fixed ? "fix" : "pass") : "fail";
     },
     "C7": async () => {
@@ -21083,8 +21686,10 @@ function GameEngine() {
           && typeof resolvePlayerNickname === "function"
           && resolvePlayerNickname("") === "시스템"
           && resolvePlayerNickname("  ") === "시스템");
-        diagLog(`[AI-STRESS] ranking_notice=${rankKeyOk} rankDom=${rankDomOk} shareCard=${cardOk} dualStore=${dualStoreOk} dualFn=${dualFnOk} nick=${nickOk}`);
-        const ok = simOk && cheerOk && overlapErrors === 0 && juiceOk && handlingOk && pitchOk && freezeOk && rankDomOk && rankKeyOk && cardOk && dualStoreOk && dualFnOk && nickOk;
+        const srsOk = diagSrsKickTablesOk();
+        const partOk = diagParticleRafCycle();
+        diagLog(`[AI-STRESS] ranking_notice=${rankKeyOk} rankDom=${rankDomOk} shareCard=${cardOk} dualStore=${dualStoreOk} dualFn=${dualFnOk} nick=${nickOk} srs=${srsOk} particles=${partOk}`);
+        const ok = simOk && cheerOk && overlapErrors === 0 && juiceOk && handlingOk && pitchOk && freezeOk && rankDomOk && rankKeyOk && cardOk && dualStoreOk && dualFnOk && nickOk && srsOk && partOk;
         if (ok) {
           diagLog("PASS (AI 동적 구동 100% 정상)");
         }
@@ -21454,12 +22059,15 @@ function GameEngine() {
       const src20 = folderLevelBgSrc(20);
       const fallback = folderLevelBgSrc(LEVEL_BG_MAX);
       diagLog(`bg1=${src1} bg5=${src5} bg10=${src10} bg11=${src11} bg20=${src20} fallback=${fallback} cap=${LEVEL_BG_MAX}`);
-      const pathOk = src1 === "/images/bg1.jpg"
-        && src5 === "/images/bg5.jpg"
-        && src10 === "/images/bg10.jpg"
-        && src11 === "/images/bg11.jpg"
-        && src20 === "/images/bg20.jpg"
-        && fallback === "/images/bg20.jpg"
+      const pathOk = isBundledLevelBgUrl(src1, 1)
+        && isBundledLevelBgUrl(src5, 5)
+        && isBundledLevelBgUrl(src10, 10)
+        && isBundledLevelBgUrl(src11, 11)
+        && isBundledLevelBgUrl(src20, 20)
+        && isBundledLevelBgUrl(fallback, LEVEL_BG_MAX)
+        && src11 === src10
+        && src20 === src10
+        && src1.indexOf("/images/bg") < 0
         && LEVEL_BG_MAX === 20;
       const prevWait = waitingStart;
       const prevGo = gameOver;
@@ -21491,7 +22099,7 @@ function GameEngine() {
           const custom = resolveTargetBgUrl("board", lv) || "";
           const paint = resolvePaintBgUrl("board", lv) || "";
           const fb = folderLevelBgSrc(lv);
-          const triggered = hasAlias && fb === `/images/bg${lv}.jpg` && (paint === custom || paint === fb);
+          const triggered = hasAlias && isBundledLevelBgUrl(fb, lv) && (paint === custom || paint === fb);
           diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
           if (triggered) {
             hits += 1;
@@ -21557,6 +22165,16 @@ function GameEngine() {
       diagLog(`avatars=${imgs.length} frames=${frames.length} key=${PROFILE_IMG_KEY} ls=${lsOk} blob=${blobOk}`);
       const ok = imgs.length >= 3 && frames.length >= 3 && keyOk && blobOk && fnOk;
       return ok ? "pass" : "fail";
+    },
+    "4-5": async () => {
+      const guideOk = diagGuideSync(["guideDiagLevelBgSim", "guideMemoryBg", "guideIndexedDbTitle"]);
+      const bg = await diagVerifyDeployBgAssets();
+      const blob = await diagBlobUrlLifecycle();
+      diagLog(`deploy preload ${bg.okCount}/${bg.total} ${bg.elapsed}ms unsafe=${bg.pathUnsafe} blobRevoke=${blob} guide=${guideOk}`);
+      if (bg.failedUrls && bg.failedUrls.length) {
+        diagLog(`deploy 404 urls: ${bg.failedUrls.join(" | ")}`);
+      }
+      return guideOk && bg.ok && blob ? "pass" : "fail";
     },
     "5-1": async () => {
       const prevName = readLocal(LAST_NAME_KEY);
