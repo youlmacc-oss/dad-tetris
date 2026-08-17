@@ -914,40 +914,42 @@ export function GameEngine() {
     return typeof url === "string" && (url.indexOf("data:") === 0 || url.indexOf("blob:") === 0);
   }
 
-  function assetUrl(rel) {
-    const raw = String(rel || "").trim();
+  function assetBaseHref() {
+    try {
+      const u = new URL(String((window.location && window.location.href) || "http://localhost/"));
+      const last = (u.pathname.split("/").pop() || "");
+      if (!u.pathname.endsWith("/")) {
+        if (/\.(html?|php|aspx?)$/i.test(last)) {
+          u.pathname = u.pathname.slice(0, u.pathname.length - last.length);
+        } else if (!/\.[a-zA-Z0-9]+$/.test(last)) {
+          u.pathname += "/";
+        }
+      }
+      return u.href;
+    } catch (err) {
+      return String((window.location && window.location.href) || "./");
+    }
+  }
+
+  function getAssetUrl(relativePath) {
+    const raw = String(relativePath || "").trim();
     if (!raw) {
       return "";
     }
     if (isUserMediaUrl(raw) || /^(https?:)?\/\//i.test(raw)) {
       return raw;
     }
-    const cleaned = raw.replace(/^\/+/, "").replace(/^\.\//, "");
+    const cleaned = raw.replace(/^\.?\//, "").replace(/^\/+/, "");
     try {
-      const pathname = String((window.location && window.location.pathname) || "/").replace(/\\/g, "/");
-      const segs = pathname.split("/");
-      const last = segs[segs.length - 1] || "";
-      if (last && /\.[a-zA-Z0-9]+$/.test(last)) {
-        segs.pop();
-      }
-      let dir = segs.join("/");
-      if (!dir) {
-        dir = "/";
-      }
-      if (dir.charAt(dir.length - 1) !== "/") {
-        dir += "/";
-      }
-      const proto = String((window.location && window.location.protocol) || "");
-      if (proto === "file:" || dir === "/") {
-        return "./" + cleaned;
-      }
-      if (raw.charAt(0) === "/" && raw.indexOf(dir) === 0) {
-        return raw;
-      }
-      return dir + cleaned;
+      return new URL(cleaned, assetBaseHref()).href;
     } catch (err) {
       return "./" + cleaned;
     }
+  }
+  window.getAssetUrl = getAssetUrl;
+
+  function assetUrl(rel) {
+    return getAssetUrl(rel);
   }
 
   function bindEl(id, type, handler, opts) {
@@ -4344,7 +4346,7 @@ export function GameEngine() {
   function folderLevelBgSrc(n) {
     const lv = playLevel(n);
     const fileLv = Math.min(lv, 10);
-    return "./assets/images/level_" + fileLv + ".jpg";
+    return getAssetUrl("assets/images/level_" + fileLv + ".jpg");
   }
 
   function shownLevel(value) {
@@ -4547,11 +4549,16 @@ export function GameEngine() {
   }
 
   function cssBgImage(url) {
-    return url ? `url("${url}")` : "none";
+    const abs = (!url || isUserMediaUrl(url) || /^(https?:)?\/\//i.test(url)) ? url : getAssetUrl(url);
+    if (!abs) {
+      return "none";
+    }
+    const safe = String(abs).replace(/\\/g, "/").replace(/"/g, "\\\"");
+    return `url("${safe}")`;
   }
 
   function paintBodyBackground(url) {
-    if (!isUserMediaUrl(url)) {
+    if (!url || (!isUserMediaUrl(url) && !/^(https?:)?\/\//i.test(url) && !/\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(url))) {
       document.body.style.removeProperty("background-image");
       document.body.style.removeProperty("background-size");
       document.body.style.removeProperty("background-position");
@@ -4565,7 +4572,7 @@ export function GameEngine() {
   }
 
   function fadeLayerBackground(state, url, fade) {
-    if (!isUserMediaUrl(url)) {
+    if (!url || (!isUserMediaUrl(url) && !/^(https?:)?\/\//i.test(url) && !/\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(url))) {
       url = "";
     }
     const image = cssBgImage(url);
@@ -4651,28 +4658,40 @@ export function GameEngine() {
   }
 
   function applyResolvedBackground(url, fade) {
-    if (!isUserMediaUrl(url)) {
+    const abs = isUserMediaUrl(url) ? url : getAssetUrl(url);
+    if (!abs) {
       clearCustomBackground(!!fade);
       return;
     }
-    lastValidBgUrl = url;
+    lastValidBgUrl = abs;
     document.body.classList.add("has-custom-bg");
-    paintBodyBackground(url);
-    fadeSceneBackground(url, !!fade);
+    try {
+      document.documentElement.style.setProperty("--bg-image", cssBgImage(abs));
+    } catch (err) {
+      /* ignore */
+    }
+    paintBodyBackground(abs);
+    fadeSceneBackground(abs, !!fade);
   }
 
   function applyResolvedBoardBackground(url, fade) {
     const wrap = document.getElementById("board-wrap");
-    if (!isUserMediaUrl(url)) {
+    const abs = isUserMediaUrl(url) ? url : getAssetUrl(url);
+    if (!abs) {
       clearBoardBackground(!!fade);
       return;
     }
-    lastValidBoardBgUrl = url;
+    lastValidBoardBgUrl = abs;
     document.body.classList.add("has-board-bg");
     if (wrap) {
       wrap.classList.add("has-board-bg");
     }
-    fadeBoardBackground(url, !!fade);
+    try {
+      document.documentElement.style.setProperty("--board-bg-image", cssBgImage(abs));
+    } catch (err) {
+      /* ignore */
+    }
+    fadeBoardBackground(abs, !!fade);
     invalidateStaticBackground();
     try {
       renderStaticBackground();
@@ -4685,7 +4704,7 @@ export function GameEngine() {
   function probeBackgroundUrls(urls, fade, seq, onHit, onMiss, seqRef) {
     const unique = [];
     urls.forEach((url) => {
-      if (isUserMediaUrl(url) && unique.indexOf(url) < 0) {
+      if ((isUserMediaUrl(url) || /\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(url) || /^(https?:)?\/\//i.test(url)) && unique.indexOf(url) < 0) {
         unique.push(url);
       }
     });

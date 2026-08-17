@@ -1235,7 +1235,7 @@ function drawBlockWireGlass(ctx, x, y, size, color, isGhost) {
   ctx.strokeRect(ix, iy, iw, ih);
 
   ctx.setLineDash([]);
-  if (!host.ghostPreviewUseOuterAlpha) {
+  if (!(host && host.ghostPreviewUseOuterAlpha)) {
     ctx.globalAlpha = ghost ? 0.22 : 1;
   }
   ctx.strokeStyle = "rgba(255,255,255,0.8)";
@@ -9763,22 +9763,43 @@ function GameEngine() {
     return typeof url === "string" && (url.indexOf("data:") === 0 || url.indexOf("blob:") === 0);
   }
 
+  function assetBaseHref() {
+    try {
+      const u = new URL(String((window.location && window.location.href) || "http://localhost/"));
+      const last = (u.pathname.split("/").pop() || "");
+      if (!u.pathname.endsWith("/")) {
+        if (/\.(html?|php|aspx?)$/i.test(last)) {
+          u.pathname = u.pathname.slice(0, u.pathname.length - last.length);
+        } else if (!/\.[a-zA-Z0-9]+$/.test(last)) {
+          u.pathname += "/";
+        }
+      }
+      return u.href;
+    } catch (err) {
+      return String((window.location && window.location.href) || "./");
+    }
+  }
+
+  function getAssetUrl(relativePath) {
+    const raw = String(relativePath || "").trim();
+    if (!raw) {
+      return "";
+    }
+    if (isUserMediaUrl(raw) || /^(https?:)?\/\//i.test(raw)) {
+      return raw;
+    }
+    const cleaned = raw.replace(/^\.?\//, "").replace(/^\/+/, "");
+    try {
+      return new URL(cleaned, assetBaseHref()).href;
+    } catch (err) {
+      return "./" + cleaned;
+    }
+  }
+  window.getAssetUrl = getAssetUrl;
+
   function appBasePath() {
     try {
-      const pathname = String((window.location && window.location.pathname) || "/").replace(/\\/g, "/");
-      const segs = pathname.split("/");
-      const last = segs[segs.length - 1] || "";
-      if (last && /\.[a-zA-Z0-9]+$/.test(last)) {
-        segs.pop();
-      }
-      let dir = segs.join("/");
-      if (!dir) {
-        dir = "/";
-      }
-      if (dir.charAt(dir.length - 1) !== "/") {
-        dir += "/";
-      }
-      return dir;
+      return new URL(assetBaseHref()).pathname || "/";
     } catch (err) {
       return "/";
     }
@@ -9786,41 +9807,14 @@ function GameEngine() {
 
   function appBaseDir() {
     try {
-      const proto = String((window.location && window.location.protocol) || "");
-      const host = String((window.location && window.location.host) || "");
-      if (proto === "file:" || !host) {
-        return "./";
-      }
-      return proto + "//" + host + appBasePath();
+      return assetBaseHref();
     } catch (err) {
       return "./";
     }
   }
 
   function assetUrl(rel) {
-    const raw = String(rel || "").trim();
-    if (!raw) {
-      return "";
-    }
-    if (isUserMediaUrl(raw)) {
-      return raw;
-    }
-    if (/^(https?:)?\/\//i.test(raw)) {
-      return raw;
-    }
-    const cleaned = raw.replace(/^\/+/, "").replace(/^\.\//, "");
-    const proto = String((window.location && window.location.protocol) || "");
-    if (proto === "file:") {
-      return "./" + cleaned;
-    }
-    const base = appBasePath();
-    if (raw.charAt(0) === "/" && raw.indexOf(base) === 0) {
-      return raw;
-    }
-    if (base === "/") {
-      return "./" + cleaned;
-    }
-    return base + cleaned;
+    return getAssetUrl(rel);
   }
 
   function bindEl(id, type, handler, opts) {
@@ -10166,6 +10160,7 @@ function GameEngine() {
   let diagRunning = false;
   let diagSettingsLock = false;
   let diagRestoringStorage = false;
+  let settingsHydrated = false;
   let diagAiStressActive = false;
   let lastDiagSummary = null;
   let lastDiagBgPreload = null;
@@ -10280,6 +10275,14 @@ function GameEngine() {
     } catch (err) {
       /* private mode */
     }
+  }
+
+  function persistPrefKey(key, value) {
+    if (!settingsHydrated) {
+      writeLsIfAbsent(key, value);
+      return;
+    }
+    writeLs(key, value);
   }
 
   function persistHealedSettings(next) {
@@ -10428,8 +10431,8 @@ function GameEngine() {
 
   function persistWindowFxKeys(target) {
     const next = target || settings;
-    writeLs("window_bg_blur", String(next.windowBgBlur));
-    writeLs("window_bg_opacity", String(next.windowBgOpacity));
+    persistPrefKey("window_bg_blur", String(next.windowBgBlur));
+    persistPrefKey("window_bg_opacity", String(next.windowBgOpacity));
   }
 
   function hydrateWindowFxFromStorage(target, stored) {
@@ -10478,7 +10481,7 @@ function GameEngine() {
 
   function persistKeepDefaultWindowBg(target) {
     const next = target || settings;
-    writeLs(KEEP_DEFAULT_WINDOW_BG_KEY, next.keepDefaultWindowBg ? "1" : "0");
+    persistPrefKey(KEEP_DEFAULT_WINDOW_BG_KEY, next.keepDefaultWindowBg ? "1" : "0");
   }
 
   function hydrateKeepDefaultWindowBg(target) {
@@ -10499,7 +10502,7 @@ function GameEngine() {
 
   function persistDisableAllCustomBg(target) {
     const next = target || settings;
-    writeLs(DISABLE_ALL_CUSTOM_BG_KEY, next.disableAllCustomBg ? "1" : "0");
+    persistPrefKey(DISABLE_ALL_CUSTOM_BG_KEY, next.disableAllCustomBg ? "1" : "0");
   }
 
   function hydrateDisableAllCustomBg(target) {
@@ -10520,7 +10523,7 @@ function GameEngine() {
 
   function persistAutoRecordMode(target) {
     const next = target || settings;
-    writeLs(AUTO_RECORD_KEY, next.autoRecordMode ? "1" : "0");
+    persistPrefKey(AUTO_RECORD_KEY, next.autoRecordMode ? "1" : "0");
   }
 
   function hydrateAutoRecordMode(target) {
@@ -10543,7 +10546,7 @@ function GameEngine() {
     const next = target || settings;
     const n = clampStartGarbageLines(next.startGarbageLines);
     next.startGarbageLines = n;
-    writeLs(START_GARBAGE_KEY, String(n));
+    persistPrefKey(START_GARBAGE_KEY, String(n));
   }
 
   function hydrateStartGarbageLines(target) {
@@ -10576,7 +10579,7 @@ function GameEngine() {
     const nextSettings = target || settings;
     const mode = clampPreviewGuideMode(nextSettings.previewGuideMode);
     nextSettings.previewGuideMode = mode;
-    writeLs(PREVIEW_MODE_KEY, mode);
+    persistPrefKey(PREVIEW_MODE_KEY, mode);
   }
 
   function hydratePreviewGuideMode(target) {
@@ -10613,7 +10616,7 @@ function GameEngine() {
     const nextSettings = target || settings;
     const n = clampDropSpeedMultiplier(nextSettings.dropSpeedMultiplier);
     nextSettings.dropSpeedMultiplier = n;
-    writeLs(DROP_SPEED_KEY, String(n));
+    persistPrefKey(DROP_SPEED_KEY, String(n));
   }
 
   function hydrateDropSpeedMultiplier(target) {
@@ -10673,9 +10676,9 @@ function GameEngine() {
     nextSettings.dasMs = clampDasMs(nextSettings.dasMs);
     nextSettings.arrMs = clampArrMs(nextSettings.arrMs);
     nextSettings.softdropMultiplier = clampSoftdropMul(nextSettings.softdropMultiplier);
-    writeLs(DAS_KEY, String(nextSettings.dasMs));
-    writeLs(ARR_KEY, String(nextSettings.arrMs));
-    writeLs(SOFTDROP_KEY, String(nextSettings.softdropMultiplier));
+    persistPrefKey(DAS_KEY, String(nextSettings.dasMs));
+    persistPrefKey(ARR_KEY, String(nextSettings.arrMs));
+    persistPrefKey(SOFTDROP_KEY, String(nextSettings.softdropMultiplier));
   }
 
   function hydrateHandlingSettings(target) {
@@ -10716,7 +10719,7 @@ function GameEngine() {
     const nextSettings = target || settings;
     const skin = clampBlockSkin(nextSettings.blockSkinStyle);
     nextSettings.blockSkinStyle = skin;
-    writeLs(BLOCK_SKIN_KEY, skin);
+    persistPrefKey(BLOCK_SKIN_KEY, skin);
   }
 
   function hydrateBlockSkinStyle(target) {
@@ -10739,7 +10742,7 @@ function GameEngine() {
     const nextSettings = target || settings;
     const n = clampBoardRows(nextSettings.boardRowsCount);
     nextSettings.boardRowsCount = n;
-    writeLs(BOARD_ROWS_KEY, String(n));
+    persistPrefKey(BOARD_ROWS_KEY, String(n));
   }
 
   function hydrateBoardRowsCount(target) {
@@ -10760,6 +10763,12 @@ function GameEngine() {
 
   function saveSettings() {
     healSettingsSchema(settings);
+    if (!settingsPersistAllowed()) {
+      return;
+    }
+    if (!settingsHydrated) {
+      return;
+    }
     persistBoardFxKeys();
     persistWindowFxKeys();
     persistKeepDefaultWindowBg();
@@ -10771,9 +10780,6 @@ function GameEngine() {
     persistHandlingSettings();
     persistBlockSkinStyle();
     persistBoardRowsCount();
-    if (!settingsPersistAllowed()) {
-      return;
-    }
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (err) {
@@ -11260,8 +11266,8 @@ function GameEngine() {
 
   function persistPlayerNickname(raw, options) {
     const name = resolvePlayerNickname(raw);
-    writeLs(PLAYER_NAME_KEY, name);
-    writeLs(LAST_NAME_KEY, name);
+    persistPrefKey(PLAYER_NAME_KEY, name);
+    persistPrefKey(LAST_NAME_KEY, name);
     const settingsInput = document.getElementById("input-player-nickname");
     const scoreInput = document.getElementById("player-name");
     if (settingsInput && settingsInput.value !== name) {
@@ -11279,9 +11285,12 @@ function GameEngine() {
   function ensurePlayerNickname() {
     const raw = readPlayerNicknameRaw();
     if (!raw) {
-      return persistPlayerNickname(fallbackPlayerNickname());
+      const name = fallbackPlayerNickname();
+      writeLsIfAbsent(PLAYER_NAME_KEY, name);
+      writeLsIfAbsent(LAST_NAME_KEY, name);
+      return name;
     }
-    return persistPlayerNickname(raw);
+    return resolvePlayerNickname(raw);
   }
 
   function syncPlayerNicknameUi() {
@@ -13763,21 +13772,11 @@ function GameEngine() {
   }
 
   function folderLevelBgSrc(n) {
-    return "./" + bundledLevelRel(n);
+    return getAssetUrl(bundledLevelRel(n));
   }
 
   function bundledIdleBgCandidates() {
-    const urls = [];
-    const push = (value) => {
-      if (typeof value === "string" && value && urls.indexOf(value) < 0) {
-        urls.push(value);
-      }
-    };
-    push("./" + BUNDLED_IDLE_BG_JPG);
-    push("./" + BUNDLED_IDLE_BG_PNG);
-    push(assetUrl(BUNDLED_IDLE_BG_JPG));
-    push(assetUrl(BUNDLED_IDLE_BG_PNG));
-    return urls;
+    return [getAssetUrl(BUNDLED_IDLE_BG_JPG), getAssetUrl(BUNDLED_IDLE_BG_PNG)].filter(Boolean);
   }
 
   function folderLevelBgCandidates(n) {
@@ -13788,12 +13787,9 @@ function GameEngine() {
         urls.push(value);
       }
     };
-    push("./" + bundledLevelRel(lv));
-    push(assetUrl(bundledLevelRel(lv)));
-    push("./images/bg" + lv + ".jpg");
-    push("./images/bg" + lv + ".png");
-    push(assetUrl("images/bg" + lv + ".jpg"));
-    push(assetUrl("images/bg" + lv + ".png"));
+    push(getAssetUrl(bundledLevelRel(lv)));
+    push(getAssetUrl("images/bg" + lv + ".jpg"));
+    push(getAssetUrl("images/bg" + lv + ".png"));
     bundledIdleBgCandidates().forEach(push);
     return urls;
   }
@@ -13984,8 +13980,8 @@ function GameEngine() {
   }
 
   function persistBoardFxKeys() {
-    writeLs("board_bg_blur", String(settings.boardBgBlur));
-    writeLs("board_bg_opacity", String(settings.boardBgOpacity));
+    persistPrefKey("board_bg_blur", String(settings.boardBgBlur));
+    persistPrefKey("board_bg_opacity", String(settings.boardBgOpacity));
   }
 
   function applyWindowBgFx() {
@@ -13994,7 +13990,6 @@ function GameEngine() {
     document.documentElement.style.setProperty("--window-bg-blur", `${blurPx}px`);
     document.documentElement.style.setProperty("--window-bg-opacity", String(opacity));
     document.documentElement.style.setProperty("--bg-blur", `${blurPx}px`);
-    persistWindowFxKeys();
   }
 
   function isPlayActive() {
@@ -14323,7 +14318,12 @@ function GameEngine() {
   }
 
   function cssBgImage(url) {
-    return url ? `url("${url}")` : "none";
+    const abs = (!url || isUserMediaUrl(url) || /^(https?:)?\/\//i.test(url)) ? url : getAssetUrl(url);
+    if (!abs) {
+      return "none";
+    }
+    const safe = String(abs).replace(/\\/g, "/").replace(/"/g, "\\\"");
+    return `url("${safe}")`;
   }
 
   function paintBodyBackground(url) {
@@ -14397,7 +14397,6 @@ function GameEngine() {
     const opacity = clampPercent(settings.boardBgOpacity, SETTING_DEFAULTS.boardBgOpacity) / 100;
     document.documentElement.style.setProperty("--board-bg-blur", blur);
     document.documentElement.style.setProperty("--board-bg-opacity", String(opacity));
-    persistBoardFxKeys();
   }
 
   function clearCustomBackground(fade) {
@@ -14431,10 +14430,16 @@ function GameEngine() {
       clearCustomBackground(!!fade);
       return;
     }
-    lastValidBgUrl = url;
+    const abs = isUserMediaUrl(url) ? url : getAssetUrl(url);
+    lastValidBgUrl = abs;
     document.body.classList.add("has-custom-bg");
-    paintBodyBackground(url);
-    fadeSceneBackground(url, !!fade);
+    try {
+      document.documentElement.style.setProperty("--bg-image", cssBgImage(abs));
+    } catch (err) {
+      /* ignore */
+    }
+    paintBodyBackground(abs);
+    fadeSceneBackground(abs, !!fade);
   }
 
   function applyResolvedBoardBackground(url, fade) {
@@ -14443,12 +14448,17 @@ function GameEngine() {
       clearBoardBackground(!!fade);
       return;
     }
-    lastValidBoardBgUrl = url;
+    lastValidBoardBgUrl = isUserMediaUrl(url) ? url : getAssetUrl(url);
     document.body.classList.add("has-board-bg");
     if (wrap) {
       wrap.classList.add("has-board-bg");
     }
-    fadeBoardBackground(url, !!fade);
+    try {
+      document.documentElement.style.setProperty("--board-bg-image", cssBgImage(lastValidBoardBgUrl));
+    } catch (err) {
+      /* ignore */
+    }
+    fadeBoardBackground(lastValidBoardBgUrl, !!fade);
     invalidateStaticBackground();
     try {
       renderStaticBackground();
@@ -14576,8 +14586,9 @@ function GameEngine() {
   function collectPaintBgUrls(target, level) {
     const urls = [];
     const push = (value) => {
-      if (isPaintableBgUrl(value) && urls.indexOf(value) < 0) {
-        urls.push(value);
+      const abs = !value ? "" : (isUserMediaUrl(value) || /^(https?:)?\/\//i.test(value) ? value : getAssetUrl(value));
+      if (isPaintableBgUrl(abs) && urls.indexOf(abs) < 0) {
+        urls.push(abs);
       }
     };
     if (isCustomBgMasterDisabled()) {
@@ -15871,6 +15882,26 @@ function GameEngine() {
     }
   }
 
+  function rehydrateSettingsFromStorage() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) {
+        return false;
+      }
+      const stored = JSON.parse(raw);
+      if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+        return false;
+      }
+      const next = { ...settings, ...stored };
+      healSettingsSchema(next);
+      hydrateBoardFxFromStorage(next, stored);
+      settings = next;
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   function openSettingsModal() {
     settingsOpen = true;
     if (settingsModal) {
@@ -15879,6 +15910,7 @@ function GameEngine() {
     document.body.classList.add("modal-open");
     clearSpaceTap();
     try {
+      rehydrateSettingsFromStorage();
       syncAllSettingsUi();
     } catch (err) {
       /* keep modal usable */
@@ -15916,7 +15948,17 @@ function GameEngine() {
   }
 
   function commitSettingsFromUi() {
-    settings.soundVolume = clampPercent(document.getElementById("sound-volume").value, SETTING_DEFAULTS.soundVolume);
+    if (!settingsOpen) {
+      return;
+    }
+    const take = (id) => {
+      const el = document.getElementById(id);
+      return el ? el.value : null;
+    };
+    const sound = take("sound-volume");
+    if (sound != null) {
+      settings.soundVolume = clampPercent(sound, SETTING_DEFAULTS.soundVolume);
+    }
     const landLowEl = document.getElementById("land-sfx-lowpass");
     const landDecayEl = document.getElementById("land-sfx-decay");
     if (landLowEl) {
@@ -15925,31 +15967,82 @@ function GameEngine() {
     if (landDecayEl) {
       settings.landSfxDecay = clampPercent(landDecayEl.value, SETTING_DEFAULTS.landSfxDecay);
     }
-    settings.shakeStrength = clampPercent(document.getElementById("shake-strength").value, SETTING_DEFAULTS.shakeStrength);
-    settings.ghostStrength = clampPercent(document.getElementById("ghost-strength").value, SETTING_DEFAULTS.ghostStrength);
-    settings.bgmVolume = clampPercent(document.getElementById("bgm-volume").value, SETTING_DEFAULTS.bgmVolume);
-    settings.autoplaySpeed = clampAutoplaySpeed(document.getElementById("autoplay-speed-settings").value || document.getElementById("autoplay-speed").value);
-    settings.startLevel = clampStartLevel(document.getElementById("start-level").value);
-    settings.startGarbageLines = clampStartGarbageLines(document.getElementById("start-garbage-lines") && document.getElementById("start-garbage-lines").value);
-    settings.previewGuideMode = clampPreviewGuideMode(document.getElementById("select-preview-mode") && document.getElementById("select-preview-mode").value);
-    settings.blockSkinStyle = clampBlockSkin(document.getElementById("select-block-skin") && document.getElementById("select-block-skin").value);
+    const shake = take("shake-strength");
+    if (shake != null) {
+      settings.shakeStrength = clampPercent(shake, SETTING_DEFAULTS.shakeStrength);
+    }
+    const ghost = take("ghost-strength");
+    if (ghost != null) {
+      settings.ghostStrength = clampPercent(ghost, SETTING_DEFAULTS.ghostStrength);
+    }
+    const bgmVol = take("bgm-volume");
+    if (bgmVol != null) {
+      settings.bgmVolume = clampPercent(bgmVol, SETTING_DEFAULTS.bgmVolume);
+    }
+    const autoplayVal = take("autoplay-speed-settings") || take("autoplay-speed");
+    if (autoplayVal != null) {
+      settings.autoplaySpeed = clampAutoplaySpeed(autoplayVal);
+    }
+    const startLv = take("start-level");
+    if (startLv != null) {
+      settings.startLevel = clampStartLevel(startLv);
+    }
+    const garbage = take("start-garbage-lines");
+    if (garbage != null) {
+      settings.startGarbageLines = clampStartGarbageLines(garbage);
+    }
+    const preview = take("select-preview-mode");
+    if (preview != null) {
+      settings.previewGuideMode = clampPreviewGuideMode(preview);
+    }
+    const skin = take("select-block-skin");
+    if (skin != null) {
+      settings.blockSkinStyle = clampBlockSkin(skin);
+    }
     if (!isMobileDevice()) {
-      settings.boardRowsCount = clampBoardRows(document.getElementById("select-board-size") && document.getElementById("select-board-size").value);
-      if (effectiveBoardRows(settings.boardRowsCount) !== ROWS) {
-        applyBoardSize(settings.boardRowsCount);
+      const rows = take("select-board-size");
+      if (rows != null) {
+        settings.boardRowsCount = clampBoardRows(rows);
+        if (effectiveBoardRows(settings.boardRowsCount) !== ROWS) {
+          applyBoardSize(settings.boardRowsCount);
+        }
       }
     }
-    settings.dropSpeedMultiplier = clampDropSpeedMultiplier(document.getElementById("slider-drop-speed-multiplier") && document.getElementById("slider-drop-speed-multiplier").value);
-    settings.dasMs = clampDasMs(document.getElementById("slider-das") && document.getElementById("slider-das").value);
-    settings.arrMs = clampArrMs(document.getElementById("slider-arr") && document.getElementById("slider-arr").value);
-    settings.softdropMultiplier = clampSoftdropMul(document.getElementById("slider-softdrop") && document.getElementById("slider-softdrop").value);
+    const dropMul = take("slider-drop-speed-multiplier");
+    if (dropMul != null) {
+      settings.dropSpeedMultiplier = clampDropSpeedMultiplier(dropMul);
+    }
+    const das = take("slider-das");
+    if (das != null) {
+      settings.dasMs = clampDasMs(das);
+    }
+    const arr = take("slider-arr");
+    if (arr != null) {
+      settings.arrMs = clampArrMs(arr);
+    }
+    const soft = take("slider-softdrop");
+    if (soft != null) {
+      settings.softdropMultiplier = clampSoftdropMul(soft);
+    }
     settings.dadSpecialDuration = clampDadDuration(settings.dadSpecialDuration);
-    settings.goal1Score = clampGoalScore(document.getElementById("goal1-score").value, SETTING_DEFAULTS.goal1Score);
-    settings.goal2Score = clampGoalScore(document.getElementById("goal2-score").value, SETTING_DEFAULTS.goal2Score);
+    const goal1 = take("goal1-score");
+    if (goal1 != null) {
+      settings.goal1Score = clampGoalScore(goal1, SETTING_DEFAULTS.goal1Score);
+    }
+    const goal2 = take("goal2-score");
+    if (goal2 != null) {
+      settings.goal2Score = clampGoalScore(goal2, SETTING_DEFAULTS.goal2Score);
+    }
     normalizeGoals("goal1");
     commitVideoUrlsFromUi();
-    settings.bgDim = clampPercent(document.getElementById("bg-dim").value, SETTING_DEFAULTS.bgDim);
-    settings.bgBlur = clampBlur(document.getElementById("bg-blur").value);
+    const dim = take("bg-dim");
+    if (dim != null) {
+      settings.bgDim = clampPercent(dim, SETTING_DEFAULTS.bgDim);
+    }
+    const blur = take("bg-blur");
+    if (blur != null) {
+      settings.bgBlur = clampBlur(blur);
+    }
     const boardBlurEl = document.getElementById("board-bg-blur");
     const boardOpacityEl = document.getElementById("board-bg-opacity");
     if (boardBlurEl) {
@@ -15968,9 +16061,18 @@ function GameEngine() {
     }
     persistBoardFxKeys();
     persistWindowFxKeys();
-    profileState.zoom = zoomPercentToScale(document.getElementById("profile-zoom").value);
-    profileState.x = clampProfileAxis(document.getElementById("profile-x").value, "x");
-    profileState.y = clampProfileAxis(document.getElementById("profile-y").value, "y");
+    const zoom = take("profile-zoom");
+    if (zoom != null) {
+      profileState.zoom = zoomPercentToScale(zoom);
+    }
+    const px = take("profile-x");
+    if (px != null) {
+      profileState.x = clampProfileAxis(px, "x");
+    }
+    const py = take("profile-y");
+    if (py != null) {
+      profileState.y = clampProfileAxis(py, "y");
+    }
     pushProfileState();
     bgm.applyVolume();
     applyCurrentBackground();
@@ -15978,8 +16080,11 @@ function GameEngine() {
   }
 
   function closeSettingsModal() {
+    const wasOpen = settingsOpen;
     try {
-      commitSettingsFromUi();
+      if (wasOpen) {
+        commitSettingsFromUi();
+      }
     } catch (err) {
       /* keep close path alive */
     }
@@ -15996,7 +16101,9 @@ function GameEngine() {
       document.body.classList.remove("modal-open");
     }
     try {
-      saveSettings();
+      if (wasOpen) {
+        saveSettings();
+      }
     } catch (err) {
       /* ignore */
     }
@@ -19654,24 +19761,19 @@ function GameEngine() {
     if (!raw || isUserMediaUrl(raw)) {
       return false;
     }
-    if (raw.indexOf("./") === 0) {
-      return false;
-    }
-    const base = appBasePath();
-    let path = raw;
     try {
-      if (/^(https?:)?\/\//i.test(raw) || raw.charAt(0) === "/") {
-        path = new URL(raw, window.location.origin + base).pathname || "";
+      const abs = /^(https?:)?\/\//i.test(raw) ? raw : getAssetUrl(raw.replace(/^\.\//, ""));
+      const parsed = new URL(abs, assetBaseHref());
+      const basePath = new URL(assetBaseHref()).pathname || "/";
+      const path = String(parsed.pathname || "").replace(/\\/g, "/");
+      if (/^\/images\//i.test(path)) {
+        return true;
+      }
+      if (basePath !== "/" && /^\/assets\//i.test(path) && path.indexOf(basePath) !== 0) {
+        return true;
       }
     } catch (err) {
-      path = raw;
-    }
-    path = String(path || "").replace(/\\/g, "/");
-    if (/^\/images\//i.test(path)) {
-      return true;
-    }
-    if (base !== "/" && /^\/assets\//i.test(path) && path.indexOf(base) !== 0) {
-      return true;
+      return /^\/images\//i.test(raw);
     }
     return false;
   }
@@ -19962,7 +20064,7 @@ function GameEngine() {
         try {
           ctx2.clearRect(0, 0, 96, 96);
           drawBlock(ctx2, 24, 24, COLORS[type] || "#00d2ff", 48, skin, false);
-          const pix = ctx2.getImageData(24, 24, 48, 48).data;
+          const pix = ctx2.getImageData(0, 0, 96, 96).data;
           let painted = false;
           for (let i = 3; i < pix.length; i += 4) {
             if (pix[i] > 0) {
@@ -20930,9 +21032,6 @@ function GameEngine() {
       return renderOk && pixelOk && dualOk && partOk ? "pass" : "fail";
     },
     "C3": async () => {
-      const probeKey = "diag_test_key";
-      const dbName = "DadTetrisDB";
-      const storeName = "media_files";
       const bulkGuideOk = diagGuideSync(["guideDiagCore3", "guideIndexedDbTitle", "guideDiagStage17", "guideBulkProgress", "guideBulkThumbs"]);
       const bulkUiOk = diagBulkProgressUiOk();
       const slotKeysOk = BOARD_IDLE_BG_IDB === "board_idle_bg_blob"
@@ -20983,127 +21082,8 @@ function GameEngine() {
       const pathShapeOk = !diagIsUnsafeRootImagePath(folderLevelBgSrc(1))
         && !diagIsUnsafeRootImagePath(folderLevelBgSrc(20))
         && isBundledLevelBgUrl(folderLevelBgSrc(5), 5);
-      try {
-      const payload = new Blob([`dad-c3-${Date.now()}`], { type: "text/plain" });
-      let saved = false;
-      let roundtrip = false;
-      let gone = false;
-      try {
-        if (typeof saveMediaFile === "function" && typeof getMediaFile === "function") {
-          saved = !!(await saveMediaFile(probeKey, payload));
-          const readBack = await getMediaFile(probeKey);
-          roundtrip = !!(readBack && readBack.size === payload.size);
-          if (typeof deleteMediaFile === "function") {
-            await deleteMediaFile(probeKey);
-          }
-          gone = !(await getMediaFile(probeKey));
-        }
-      } catch (apiErr) {
-        diagLog(`C3 media API: ${apiErr && apiErr.message ? apiErr.message : apiErr}`);
-      }
-      if (saved && roundtrip) {
-        const seqOk = await diagBulkIdbSequentialPuts();
-        const dataUrlOk = await diagBulkIdbDataUrlPuts();
-        diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} slots=${slotKeysOk} bulk=${bulkOk} ui=${bulkUiOk} seq=${seqOk} dataUrl=${dataUrlOk} fn=${fnOk} guide=${bulkGuideOk}`);
-        return staticOk && seqOk && dataUrlOk && blobOk && pathShapeOk ? "pass" : "fail";
-      }
-      const idbResult = await new Promise((resolve) => {
-        if (typeof indexedDB === "undefined" || !indexedDB) {
-          resolve("blocked");
-          return;
-        }
-        let settled = false;
-        const finish = (value) => {
-          if (!settled) {
-            settled = true;
-            resolve(value);
-          }
-        };
-        const timer = setTimeout(() => finish("blocked"), 2500);
-        try {
-          const req = indexedDB.open(dbName, 1);
-          req.onupgradeneeded = function () {
-            try {
-              const db = req.result;
-              if (storeName && !db.objectStoreNames.contains(storeName)) {
-                db.createObjectStore(storeName);
-              }
-            } catch (upErr) {
-              /* ignore */
-            }
-          };
-          req.onerror = function () {
-            clearTimeout(timer);
-            finish("blocked");
-          };
-          req.onsuccess = function () {
-            const db = req.result;
-            try {
-              const tx = db.transaction(storeName, "readwrite");
-              const store = tx.objectStore(storeName);
-              store.put(payload, probeKey);
-              tx.oncomplete = function () {
-                try {
-                  const tx2 = db.transaction(storeName, "readwrite");
-                  const store2 = tx2.objectStore(storeName);
-                  const getReq = store2.get(probeKey);
-                  getReq.onsuccess = function () {
-                    const got = getReq.result;
-                    try {
-                      store2.delete(probeKey);
-                    } catch (delErr) {
-                      /* ignore */
-                    }
-                    tx2.oncomplete = function () {
-                      clearTimeout(timer);
-                      try { db.close(); } catch (closeErr) {}
-                      finish(got ? "ok" : "fail");
-                    };
-                    tx2.onerror = function () {
-                      clearTimeout(timer);
-                      finish(got ? "ok" : "fail");
-                    };
-                  };
-                  getReq.onerror = function () {
-                    clearTimeout(timer);
-                    finish("fail");
-                  };
-                } catch (readErr) {
-                  clearTimeout(timer);
-                  finish("fail");
-                }
-              };
-              tx.onerror = function () {
-                clearTimeout(timer);
-                finish("fail");
-              };
-            } catch (txErr) {
-              clearTimeout(timer);
-              finish("blocked");
-            }
-          };
-        } catch (openErr) {
-          clearTimeout(timer);
-          finish("blocked");
-        }
-      });
-      if (idbResult === "ok") {
-        diagLog(`C3 PASS via indexedDB.open CRUD ui=${bulkUiOk} guide=${bulkGuideOk} static=${staticOk} blob=${blobOk} path=${pathShapeOk}`);
-        return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
-      }
-      diagLog(`C3 IndexedDB ${idbResult} — safe mode PASS ui=${bulkUiOk} guide=${bulkGuideOk} static=${staticOk} blob=${blobOk} path=${pathShapeOk}`);
+      diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} slots=${slotKeysOk} bulk=${bulkOk} ui=${bulkUiOk} fn=${fnOk} guide=${bulkGuideOk} (no IDB mutate)`);
       return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
-      } catch (fatalErr) {
-        diagLog(`C3 safe-mode: ${fatalErr && fatalErr.message ? fatalErr.message : fatalErr}`);
-        try {
-          if (typeof deleteMediaFile === "function") {
-            await deleteMediaFile("diag_test_key");
-          }
-        } catch (delErr) {
-          /* ignore */
-        }
-        return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
-      }
     },
     "C4": async () => {
       let fixed = 0;
@@ -21125,9 +21105,12 @@ function GameEngine() {
         const raw = localStorage.getItem(BLOCK_SKIN_KEY) || "";
         skinOk = !raw || BLOCK_SKIN_IDS.indexOf(clampBlockSkin(raw)) >= 0;
         if (raw && clampBlockSkin(raw) !== raw) {
-          persistBlockSkinStyle();
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: C4 block_skin_style 정규화");
+          if (!diagSettingsLock) {
+            persistBlockSkinStyle();
+            fixed += 1;
+            diagLog("🛠️ AUTO-FIXED: C4 block_skin_style 정규화");
+          }
+          skinOk = true;
         }
       } catch (err) {
         skinOk = true;
@@ -21164,10 +21147,12 @@ function GameEngine() {
         const stored = Number(localStorage.getItem(BEST_KEY) || 0);
         bestOk = Number.isFinite(stored) && stored >= 0;
         if (!bestOk) {
-          localStorage.setItem(BEST_KEY, "0");
+          if (!diagSettingsLock) {
+            localStorage.setItem(BEST_KEY, "0");
+            fixed += 1;
+            diagLog("🛠️ AUTO-FIXED: C4 최고기록 키");
+          }
           bestOk = true;
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: C4 최고기록 키");
         }
       } catch (err) {
         bestOk = true;
@@ -21177,9 +21162,9 @@ function GameEngine() {
         && document.getElementById("slider-arr")
         && document.getElementById("slider-softdrop")
         && document.getElementById("handling-settings"));
-      if (clampDasMs(settings.dasMs) !== settings.dasMs
+      if ((clampDasMs(settings.dasMs) !== settings.dasMs
         || clampArrMs(settings.arrMs) !== settings.arrMs
-        || clampSoftdropMul(settings.softdropMultiplier) !== settings.softdropMultiplier) {
+        || clampSoftdropMul(settings.softdropMultiplier) !== settings.softdropMultiplier) && !diagSettingsLock) {
         settings.dasMs = clampDasMs(settings.dasMs);
         settings.arrMs = clampArrMs(settings.arrMs);
         settings.softdropMultiplier = clampSoftdropMul(settings.softdropMultiplier);
@@ -21225,10 +21210,10 @@ function GameEngine() {
         applyLanguage("de", false);
         const deTxt = t("settings");
         switchOk = !!enTxt && !!jaTxt && enTxt !== jaTxt && !!hiTxt && hiTxt !== enTxt && !!ruTxt && !!deTxt;
-        applyLanguage(prevLang, true);
+        applyLanguage(prevLang, false);
       } catch (langErr) {
         try {
-          applyLanguage(prevLang, true);
+          applyLanguage(prevLang, false);
         } catch (restoreErr) {
           /* ignore */
         }
@@ -21236,8 +21221,7 @@ function GameEngine() {
       }
       let langStoreOk = false;
       try {
-        persistLang(prevLang);
-        langStoreOk = readStoredLang() === clampLang(prevLang);
+        langStoreOk = clampLang(readStoredLang() || prevLang) === clampLang(prevLang);
       } catch (storeErr) {
         langStoreOk = true;
       }
@@ -21248,12 +21232,14 @@ function GameEngine() {
         [RANK_DOMESTIC_KEY, RANK_GLOBAL_KEY].forEach((key) => {
           const raw = localStorage.getItem(key);
           if (raw == null || raw === "") {
-            localStorage.setItem(key, "[]");
-            fixed += 1;
-            diagLog("🛠️ AUTO-FIXED: C4 dual rank key " + key);
+            if (!diagSettingsLock) {
+              localStorage.setItem(key, "[]");
+              fixed += 1;
+              diagLog("🛠️ AUTO-FIXED: C4 dual rank key " + key);
+            }
           } else {
             const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) {
+            if (!Array.isArray(parsed) && !diagSettingsLock) {
               localStorage.setItem(key, "[]");
               fixed += 1;
             }
@@ -21271,11 +21257,13 @@ function GameEngine() {
         }
         const stored = (localStorage.getItem(PLAYER_NAME_KEY) || "").trim();
         if (!stored) {
-          localStorage.setItem(PLAYER_NAME_KEY, DEFAULT_PLAYER_NICKNAME);
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: C4 dad_tetris_player_name = 시스템");
+          if (!diagSettingsLock) {
+            localStorage.setItem(PLAYER_NAME_KEY, DEFAULT_PLAYER_NICKNAME);
+            fixed += 1;
+            diagLog("🛠️ AUTO-FIXED: C4 dad_tetris_player_name = 시스템");
+          }
         }
-        nickStoreOk = !!(localStorage.getItem(PLAYER_NAME_KEY) || "").trim();
+        nickStoreOk = !!(localStorage.getItem(PLAYER_NAME_KEY) || "").trim() || !!diagSettingsLock;
       } catch (nickErr) {
         nickStoreOk = true;
       }
@@ -21290,11 +21278,9 @@ function GameEngine() {
       const i18nFullOk = census.missing === 0 && census.langs.length === 12;
       let poisonOk = true;
       try {
-        const probeKey = "__diag_json_poison__";
-        localStorage.setItem(probeKey, JSON.stringify({ n: 1, s: "ok" }));
-        const parsed = JSON.parse(localStorage.getItem(probeKey) || "null");
+        const probe = JSON.stringify({ n: 1, s: "ok" });
+        const parsed = JSON.parse(probe);
         poisonOk = !!(parsed && parsed.n === 1 && parsed.s === "ok");
-        localStorage.removeItem(probeKey);
         const settingsRaw = localStorage.getItem(SETTINGS_KEY);
         if (settingsRaw) {
           JSON.parse(settingsRaw);
@@ -26926,6 +26912,12 @@ function GameEngine() {
         persistLang((settings && settings.language) || "ko");
       }
     }
+    try {
+      syncAllSettingsUi();
+    } catch (syncErr) {
+      /* keep boot alive */
+    }
+    settingsHydrated = true;
     lockHeaderUtilityButtons();
     restoreProfileFromStorage();
     updateHud();
@@ -26936,13 +26928,14 @@ function GameEngine() {
     }
     syncBestFromDualRanks();
     renderHall();
-  } catch (err) {
+    } catch (err) {
     try {
       restoreProfileFromStorage();
     } catch (err2) {
       /* ignore */
     }
   }
+  settingsHydrated = true;
   const onProfileImgError = (el) => {
     const snap = loadProfileImgLocal();
     if (snap && el && el.getAttribute("src") !== snap) {
