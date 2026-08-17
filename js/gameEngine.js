@@ -924,9 +924,27 @@ export function GameEngine() {
     }
     const cleaned = raw.replace(/^\/+/, "").replace(/^\.\//, "");
     try {
-      const href = String((window.location && window.location.href) || "");
-      const base = href.replace(/[^/]*$/, "") || "./";
-      return new URL(cleaned, base).href;
+      const pathname = String((window.location && window.location.pathname) || "/").replace(/\\/g, "/");
+      const segs = pathname.split("/");
+      const last = segs[segs.length - 1] || "";
+      if (last && /\.[a-zA-Z0-9]+$/.test(last)) {
+        segs.pop();
+      }
+      let dir = segs.join("/");
+      if (!dir) {
+        dir = "/";
+      }
+      if (dir.charAt(dir.length - 1) !== "/") {
+        dir += "/";
+      }
+      const proto = String((window.location && window.location.protocol) || "");
+      if (proto === "file:" || dir === "/") {
+        return "./" + cleaned;
+      }
+      if (raw.charAt(0) === "/" && raw.indexOf(dir) === 0) {
+        return raw;
+      }
+      return dir + cleaned;
     } catch (err) {
       return "./" + cleaned;
     }
@@ -4326,7 +4344,7 @@ export function GameEngine() {
   function folderLevelBgSrc(n) {
     const lv = playLevel(n);
     const fileLv = Math.min(lv, 10);
-    return assetUrl("assets/images/level_" + fileLv + ".jpg");
+    return "./assets/images/level_" + fileLv + ".jpg";
   }
 
   function shownLevel(value) {
