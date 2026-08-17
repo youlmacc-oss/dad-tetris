@@ -147,7 +147,7 @@ export function resetDadCheer() {
     tipEl.textContent = t("cheerTipDefault");
   }
   if (banner) {
-    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce");
+    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce", "is-level");
   }
 }
 
@@ -168,14 +168,20 @@ export function updateCheerMsg(kind, message, tip, options) {
   cheerKind = kind || "status";
   textEl.textContent = message;
   if (badge) {
-    badge.textContent = kind === "freeze" ? "⏳ DAD" : t("cheerBadgeStatus");
+    if (kind === "freeze") {
+      badge.textContent = "⏳ DAD";
+    } else if (kind === "level") {
+      badge.textContent = t("cheerBadgeDad");
+    } else {
+      badge.textContent = t("cheerBadgeStatus");
+    }
   }
   if (tipEl) {
     tipEl.textContent = tip || t("cheerTipDefault");
   }
   const animate = !(options && options.animate === false);
   if (animate) {
-    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce");
+    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce", "is-level");
     void banner.offsetWidth;
     if (kind === "tetris") {
       banner.classList.add("is-tetris");
@@ -187,10 +193,12 @@ export function updateCheerMsg(kind, message, tip, options) {
         banner.classList.add("is-freeze");
       } else if (kind === "over") {
         banner.classList.add("is-over");
+      } else if (kind === "level") {
+        banner.classList.add("is-level");
       }
     }
     window.clearTimeout(cheerResetTimer);
-    cheerResetTimer = window.setTimeout(resetDadCheer, 3000);
+    cheerResetTimer = window.setTimeout(resetDadCheer, kind === "level" ? 4500 : 3000);
   }
   return true;
 }
@@ -328,7 +336,7 @@ export function runDiagnostics() {
   }
 }
 
-export const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
+export const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
 export const GUIDE_CHAPTER_TABS = ["controls", "skins", "board", "dad", "media", "bulk", "lang"];
 
 export function coreDiagPassCount() {

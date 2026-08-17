@@ -182,6 +182,10 @@ export function GameEngine() {
         cheerTipClear3: "🔥 트리플 클리어! 테트리스가 눈앞입니다!",
         cheerTipFreeze: "⏳ 타임스톱 중! 천천히 조준하세요!",
         cheerTipGameover: "👏 다음 판은 바닥부터 더 단단히!",
+        cheerLevelGuideCalm: "💡 LEVEL {lv} - 차분하게 바닥부터 평평하게 채워나가세요!",
+        cheerLevelGuideSpeed: "⚡ LEVEL {lv} - 속도가 빨라집니다! Ghost 블록 위치를 미리 확인하세요.",
+        cheerLevelGuideSpecial: "🔥 LEVEL {lv} - DAD 스페셜 타임스톱(K키)을 적극 활용해 위기를 넘기세요!",
+        cheerLevelGuideMaster: "👑 LEVEL {lv} - 마스터 레벨 도달! 최고의 집중력을 발휘하세요!",
         profileQuota: "저장 용량이 부족합니다. 더 작은 사진을 선택해 주세요.",
         closeAria: "닫기", boardAria: "테트리스 게임판", sidebarAria: "게임 정보",
         hallOpenAria: "명예의 전당 열기", celebrateFrame: "축하 영상",
@@ -548,6 +552,10 @@ export function GameEngine() {
         cheerTipClear3: "🔥 Triple clear! Tetris is next!",
         cheerTipFreeze: "⏳ Time stop on — aim carefully!",
         cheerTipGameover: "👏 Next round, stack even firmer from the bottom!",
+        cheerLevelGuideCalm: "💡 LEVEL {lv} - Stay calm and fill the floor evenly from the bottom!",
+        cheerLevelGuideSpeed: "⚡ LEVEL {lv} - Speed is up! Check the Ghost landing first.",
+        cheerLevelGuideSpecial: "🔥 LEVEL {lv} - Use DAD Special Time Stop (K) to survive the pinch!",
+        cheerLevelGuideMaster: "👑 LEVEL {lv} - Master level! Bring your best focus!",
         profileQuota: "Not enough storage. Please choose a smaller photo.",
         closeAria: "Close", boardAria: "Tetris board", sidebarAria: "Game info",
         hallOpenAria: "Open Hall of Fame", celebrateFrame: "Celebration video",
@@ -941,7 +949,7 @@ export function GameEngine() {
     }
     const cleaned = raw.replace(/^\.?\//, "").replace(/^\/+/, "");
     try {
-      return new URL(cleaned, assetBaseHref()).href;
+      return new URL("./" + cleaned, assetBaseHref()).href;
     } catch (err) {
       return "./" + cleaned;
     }
@@ -2543,7 +2551,10 @@ export function GameEngine() {
     ctx.fillStyle = "#7cf0ff";
     ctx.font = "bold 22px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("DAD TETRIS", 200, 58);
+    const emblem = row.scope === "global"
+      ? (t("rankCardGlobal") || "🌐 DAD TETRIS GLOBAL LEADERBOARD")
+      : (t("rankCardKorea") || "🇰🇷 DAD TETRIS KOREA TOP RECORD");
+    ctx.fillText(emblem, 200, 58);
     ctx.fillStyle = "#e8f6ff";
     ctx.font = "bold 28px sans-serif";
     ctx.fillText(String(row.name || t("dad") || "DAD").slice(0, 16), 200, 160);
@@ -3823,26 +3834,47 @@ export function GameEngine() {
     document.body.classList.toggle("is-extreme-level", (isPlayActive() || autoplayConquered) && isExtremeLevel(level));
   }
 
-  function refreshLevel() {
-    if (isLevelUpdating) {
-      return;
+  function levelGuideCheerKey(lv) {
+    const n = playLevel(lv);
+    if (n >= 15) {
+      return "cheerLevelGuideMaster";
     }
-    isLevelUpdating = true;
+    if (n >= 10) {
+      return "cheerLevelGuideSpecial";
+    }
+    if (n >= 5) {
+      return "cheerLevelGuideSpeed";
+    }
+    return "cheerLevelGuideCalm";
+  }
+
+  function flashLevelGuideCheer(lv) {
+    const n = playLevel(lv);
+    const msg = t(levelGuideCheerKey(n), { lv: n });
+    try {
+      if (typeof flashDadCheer === "function") {
+        flashDadCheer("level", msg, msg);
+      }
+    } catch (err) {
+      /* cheer board optional */
+    }
+  }
+
+  function refreshLevel() {
     try {
       const prevPlay = playLevel(level);
       const start = clampStartLevel(settings.startLevel);
       const nextLevel = start + Math.floor(Math.max(0, Number(lines) || 0) / 10);
       level = Number.isFinite(nextLevel) ? playLevel(nextLevel) : start;
-      if (playLevel(level) !== prevPlay) {
-        applyCurrentBackground({ fade: true });
+      if (playLevel(level) > prevPlay) {
+        paintLevelBgOnLevelUp(level, { fade: true });
+        flashLevelGuideCheer(level);
       }
       syncExtremeLevelFx();
       maybeCelebrateLevel20(prevPlay);
     } catch (err) {
       level = clampStartLevel(settings.startLevel);
       syncExtremeLevelFx();
-    } finally {
-      isLevelUpdating = false;
     }
   }
 
@@ -4654,7 +4686,61 @@ export function GameEngine() {
   }
 
   function shouldUseLevelBackgrounds() {
-    return (isPlayActive() || autoplayConquered) && (settings.levelBgEnabled || autoplay || autoplayConquered);
+    if (isCustomBgMasterDisabled() || settings.keepDefaultWindowBg) {
+      return false;
+    }
+    return isPlayActive() || autoplay || autoplayConquered;
+  }
+
+  function nextLevelFromLines(lineCount) {
+    const start = clampStartLevel(settings.startLevel);
+    const n = start + Math.floor(Math.max(0, Number(lineCount) || 0) / 10);
+    return Number.isFinite(n) ? playLevel(n) : start;
+  }
+
+  function paintLevelBgOnLevelUp(newLevel, options) {
+    const fade = !(options && options.fade === false);
+    const lv = playLevel(newLevel != null ? newLevel : level);
+    if (isCustomBgMasterDisabled()) {
+      try {
+        applyCurrentBackground({ fade });
+      } catch (err) {
+        /* keep play loop alive */
+      }
+      return;
+    }
+    if (settings.keepDefaultWindowBg) {
+      return;
+    }
+    const bundled = folderLevelBgSrc(lv);
+    const customWin = loadBgData("window", lv);
+    const customBoard = loadBgData("board", lv);
+    const winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : "";
+    try {
+      applyResolvedBackground(winUrl, fade);
+    } catch (err) {
+      /* continue board paint */
+    }
+    try {
+      applyResolvedBoardBackground(boardUrl, fade);
+    } catch (err) {
+      /* continue probe */
+    }
+    try {
+      updateLevelBackground(lv, { fade });
+      updateBoardBackground(lv, { fade });
+    } catch (err) {
+      /* immediate CSS already applied */
+    }
+  }
+
+  function applyBackgroundTheme(newLevel, options) {
+    paintLevelBgOnLevelUp(newLevel, options);
+  }
+
+  function loadCurrentLevelBackground(newLevel, options) {
+    paintLevelBgOnLevelUp(newLevel, options && typeof options === "object" ? options : { fade: false });
   }
 
   function applyResolvedBackground(url, fade) {
@@ -4677,7 +4763,7 @@ export function GameEngine() {
   function applyResolvedBoardBackground(url, fade) {
     const wrap = document.getElementById("board-wrap");
     const abs = isUserMediaUrl(url) ? url : getAssetUrl(url);
-    if (!abs) {
+    if (!abs || /(?:^|\/)assets\/images\/level_\d+\./i.test(String(abs).replace(/\\/g, "/")) || /(?:^|\/)images\/bg\d+\./i.test(String(abs).replace(/\\/g, "/"))) {
       clearBoardBackground(!!fade);
       return;
     }
@@ -4773,24 +4859,49 @@ export function GameEngine() {
 
   function updateLevelBackground(level, options) {
     const fade = !(options && options.fade === false);
+    if (isCustomBgMasterDisabled()) {
+      clearCustomBackground(fade);
+      return;
+    }
+    if (settings.keepDefaultWindowBg) {
+      return;
+    }
     const seq = ++bgLoadSeq;
     const url = resolveTargetBgUrl("window", level);
+    const bundled = folderLevelBgSrc(level);
     if (isUserMediaUrl(url)) {
       probeBackgroundUrls(
-        [url, lastValidBgUrl],
+        [url, bundled, lastValidBgUrl],
         fade,
         seq,
         applyResolvedBackground,
-        () => clearCustomBackground(false),
+        () => {
+          if (bundled) {
+            applyResolvedBackground(bundled, fade);
+          }
+        },
         () => bgLoadSeq
       );
       return;
     }
-    clearCustomBackground(fade);
+    if (bundled) {
+      applyResolvedBackground(bundled, fade);
+      return;
+    }
+    if (!lastValidBgUrl) {
+      clearCustomBackground(fade);
+    }
   }
 
   function updateBoardBackground(level, options) {
     const fade = !(options && options.fade === false);
+    if (isCustomBgMasterDisabled()) {
+      clearBoardBackground(fade);
+      return;
+    }
+    if (settings.keepDefaultWindowBg) {
+      return;
+    }
     const seq = ++boardBgLoadSeq;
     const url = resolveTargetBgUrl("board", level);
     if (isUserMediaUrl(url)) {
@@ -4799,12 +4910,16 @@ export function GameEngine() {
         fade,
         seq,
         applyResolvedBoardBackground,
-        () => clearBoardBackground(false),
+        () => {
+          clearBoardBackground(fade);
+        },
         () => boardBgLoadSeq
       );
       return;
     }
-    clearBoardBackground(fade);
+    if (!lastValidBoardBgUrl || /level_\d+\./i.test(String(lastValidBoardBgUrl))) {
+      clearBoardBackground(fade);
+    }
   }
 
   function applyCurrentBackground(options) {
@@ -7600,10 +7715,30 @@ export function GameEngine() {
       spawnLineBurst(fullRows);
       sfx.play(cleared >= 4 || tspin ? "tetris" : "clear", { pitch: juicePitch });
       score += gained;
+      const prevLevel = playLevel(level);
       lines += cleared;
+      const newLevel = nextLevelFromLines(lines);
+      level = newLevel;
+      let leveledUp = false;
+      if (newLevel > prevLevel) {
+        leveledUp = true;
+        try {
+          paintLevelBgOnLevelUp(newLevel, { fade: true });
+        } catch (bgErr) {
+          try {
+            updateLevelBackground(newLevel, { fade: true });
+            updateBoardBackground(newLevel, { fade: true });
+          } catch (bgErr2) {
+            /* keep lock loop alive */
+          }
+        }
+      }
       refreshLevel();
       showClearBanner(cleared, gained);
       flashDadCheerForClear(cleared, { tspin });
+      if (leveledUp) {
+        flashLevelGuideCheer(newLevel);
+      }
       const ultra = cleared >= 4 || tspin || lineCombo >= 3;
       triggerScreenShake(ultra);
       if (ultra) {
@@ -7753,7 +7888,8 @@ export function GameEngine() {
     }
   }
 
-  function showStartScreen() {
+  function showStartScreen(options) {
+    const skipBackground = !!(options && options.skipBackground);
     hideConquerBanner();
     autoplayConquered = false;
     waitingStart = true;
@@ -7776,7 +7912,9 @@ export function GameEngine() {
     draw();
     drawHold();
     syncActionButtons();
-    applyCurrentBackground({ fade: true });
+    if (!skipBackground) {
+      applyCurrentBackground({ fade: true });
+    }
     syncExtremeLevelFx();
   }
 
@@ -8638,7 +8776,7 @@ export function GameEngine() {
     };
     if (!selfCheckOnce || reason === "manual") {
       selfCheckOnce = true;
-      console.info("[DAD TETRIS] 자가 진단 결과", report);
+      /* stable: no boot console */
     }
     return report;
   }
@@ -11632,8 +11770,8 @@ export function GameEngine() {
       diagLog(passLine);
       diagLog(greenLine);
       try {
-        console.info("[DAD TETRIS]", passLine);
-        console.info("[DAD TETRIS]", greenLine);
+        void ( passLine);
+        void ( greenLine);
       } catch (err) {
         /* ignore */
       }
@@ -11644,7 +11782,7 @@ export function GameEngine() {
       const recLine = "[⚡ AUTO RECORD: PASS]";
       diagLog(recLine);
       try {
-        console.info("[DAD TETRIS]", recLine);
+        void ( recLine);
       } catch (err) {
         /* ignore */
       }
@@ -11655,7 +11793,7 @@ export function GameEngine() {
       const garbageLine = "[🧱 GARBAGE LINES: PASS]";
       diagLog(garbageLine);
       try {
-        console.info("[DAD TETRIS]", garbageLine);
+        void ( garbageLine);
       } catch (err) {
         /* ignore */
       }
@@ -11666,7 +11804,7 @@ export function GameEngine() {
       const previewLine = "[🧩 PREVIEW MODE: PASS]";
       diagLog(previewLine);
       try {
-        console.info("[DAD TETRIS]", previewLine);
+        void ( previewLine);
       } catch (err) {
         /* ignore */
       }
@@ -11677,7 +11815,7 @@ export function GameEngine() {
       const dropSpeedLine = "[⏱️ DROP SPEED: PASS]";
       diagLog(dropSpeedLine);
       try {
-        console.info("[DAD TETRIS]", dropSpeedLine);
+        void ( dropSpeedLine);
       } catch (err) {
         /* ignore */
       }
@@ -11688,7 +11826,7 @@ export function GameEngine() {
       const blockSkinLine = "[🧊 BLOCK SKIN: PASS]";
       diagLog(blockSkinLine);
       try {
-        console.info("[DAD TETRIS]", blockSkinLine);
+        void ( blockSkinLine);
       } catch (err) {
         /* ignore */
       }
@@ -11699,7 +11837,7 @@ export function GameEngine() {
       const cheerLine = "[📢 CHEER BOARD: PASS]";
       diagLog(cheerLine);
       try {
-        console.info("[DAD TETRIS]", cheerLine);
+        void ( cheerLine);
       } catch (err) {
         /* ignore */
       }
@@ -11710,7 +11848,7 @@ export function GameEngine() {
       const touchLine = "[📱 MOBILE TOUCH: PASS]";
       diagLog(touchLine);
       try {
-        console.info("[DAD TETRIS]", touchLine);
+        void ( touchLine);
       } catch (err) {
         /* ignore */
       }
@@ -11721,7 +11859,7 @@ export function GameEngine() {
       const storageLine = "[💾 STORAGE: PASS]";
       diagLog(storageLine);
       try {
-        console.info("[DAD TETRIS]", storageLine);
+        void ( storageLine);
       } catch (err) {
         /* ignore */
       }
@@ -11732,7 +11870,7 @@ export function GameEngine() {
       const boardSizeLine = "[📏 BOARD SIZE: PASS]";
       diagLog(boardSizeLine);
       try {
-        console.info("[DAD TETRIS]", boardSizeLine);
+        void ( boardSizeLine);
       } catch (err) {
         /* ignore */
       }
@@ -11743,7 +11881,7 @@ export function GameEngine() {
       const idbLine = "[🗄️ INDEXEDDB: PASS]";
       diagLog(idbLine);
       try {
-        console.info("[DAD TETRIS]", idbLine);
+        void ( idbLine);
       } catch (err) {
         /* ignore */
       }
@@ -11754,7 +11892,7 @@ export function GameEngine() {
       const dualCanvasLine = "[🖼️ DUAL CANVAS: PASS]";
       diagLog(dualCanvasLine);
       try {
-        console.info("[DAD TETRIS]", dualCanvasLine);
+        void ( dualCanvasLine);
       } catch (err) {
         /* ignore */
       }
@@ -11765,7 +11903,7 @@ export function GameEngine() {
       const esmLine = "[📦 ESM MODULES: PASS]";
       diagLog(esmLine);
       try {
-        console.info("[DAD TETRIS]", esmLine);
+        void ( esmLine);
       } catch (err) {
         /* ignore */
       }
@@ -11807,7 +11945,7 @@ export function GameEngine() {
       const coreLine = t("diagCoreSystemsOk");
       diagLog(coreLine);
       try {
-        console.info("[DAD TETRIS]", coreLine);
+        void ( coreLine);
       } catch (err) {
         /* ignore */
       }
@@ -12554,6 +12692,7 @@ export function GameEngine() {
     overlay.classList.toggle("is-conquer", mode === "conquer20");
     overlay.classList.toggle("is-result", mode === "gameOver" || mode === "gameEnded" || mode === "conquer20");
     overlay.classList.toggle("is-pause", mode === "pause");
+    overlay.classList.toggle("is-start", mode === "start");
     syncOverlayActions(mode);
     if (mode === "start") {
       showOverlay(t("gameTitle"), t("pressStart"));
@@ -12578,7 +12717,7 @@ export function GameEngine() {
 
   function hideOverlay() {
     overlay.classList.add("hidden");
-    overlay.classList.remove("is-conquer", "is-result", "is-pause");
+    overlay.classList.remove("is-conquer", "is-result", "is-pause", "is-start");
     syncOverlayActions("");
     pauseTapAt = 0;
   }
@@ -13948,6 +14087,12 @@ export function GameEngine() {
   bindPauseDoubleTap();
   bindMobilePageGuards();
   window.DAD_SELF_CHECK = () => runSelfCheck("manual");
+  window.updateLevelBackground = updateLevelBackground;
+  window.updateBoardBackground = updateBoardBackground;
+  window.paintLevelBgOnLevelUp = paintLevelBgOnLevelUp;
+  window.applyBackgroundTheme = applyBackgroundTheme;
+  window.loadCurrentLevelBackground = loadCurrentLevelBackground;
+  window.initIndexedDB = initIndexedDB;
 
   function bindDadModules() {
     bindSoundManagerHost();
@@ -14036,17 +14181,75 @@ export function GameEngine() {
   }
   resize();
   scheduleResize();
-  showStartScreen();
-  requestAnimationFrame(loop);
-  hydrateMedia().catch(() => {
+  async function initIndexedDB() {
+    await mediaStore.openDb();
+  }
+  async function initApp() {
     try {
-      applyBundledBgm();
+      syncAllSettingsUi();
+    } catch (bootUiErr) {
+      /* keep boot alive */
+    }
+    let idbTimeoutId = 0;
+    try {
+      await Promise.race([
+        hydrateMedia(),
+        new Promise((_, reject) => {
+          idbTimeoutId = window.setTimeout(() => reject(new Error("idb-timeout")), 4000);
+        }),
+      ]);
+    } catch (bootMediaErr) {
+      try {
+        await initIndexedDB();
+      } catch (idbErr) {
+        /* continue with bundled assets */
+      }
+      try {
+        applyBundledBgm();
+      } catch (bgmErr) {
+        /* ignore */
+      }
+      try {
+        applyCurrentBackground({ fade: false });
+      } catch (bgErr) {
+        /* ignore */
+      }
+    } finally {
+      if (idbTimeoutId) {
+        window.clearTimeout(idbTimeoutId);
+      }
+    }
+    try {
+      applyCurrentBackground({ fade: false });
+      if (!settings.keepDefaultWindowBg && (isPlayActive() || autoplay)) {
+        loadCurrentLevelBackground(playLevel(level), { fade: false });
+      }
+    } catch (applyErr) {
+      /* bundled paint optional */
+    }
+    showStartScreen({ skipBackground: true });
+    if (!loopRaf) {
+      lastTime = 0;
+      loopRaf = requestAnimationFrame(loop);
+    }
+  }
+  initApp().catch(() => {
+    try {
+      applyCurrentBackground({ fade: false });
     } catch (err) {
       /* ignore */
     }
     try {
-      applyCurrentBackground();
-    } catch (err) {
+      showStartScreen();
+    } catch (err2) {
+      /* ignore */
+    }
+    try {
+      if (!loopRaf) {
+        lastTime = 0;
+        loopRaf = requestAnimationFrame(loop);
+      }
+    } catch (rafErr) {
       /* ignore */
     }
   });
@@ -14142,7 +14345,7 @@ export function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=1.0.9-stable", { updateViaCache: "none" }).catch(() => {});
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();

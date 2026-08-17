@@ -90,6 +90,23 @@ function logMediaError(err, key, action) {
     return url;
   }
 
+  function reissue(key) {
+    const hit = cache.get(key);
+    if (!hit || !isFileBlob(hit.blob)) {
+      return peek(key);
+    }
+    if (hit.url) {
+      try {
+        URL.revokeObjectURL(hit.url);
+      } catch (err) {
+        /* ignore */
+      }
+    }
+    hit.url = URL.createObjectURL(hit.blob);
+    cache.set(key, hit);
+    return hit.url;
+  }
+
   function peek(key) {
     const hit = cache.get(key);
     return hit ? hit.url : "";
@@ -399,6 +416,7 @@ export const dbManager = {
   getBlob,
   getMediaFile,
   peek,
+  reissue,
   del,
   deleteMediaFile: del,
   copy,
@@ -491,3 +509,7 @@ export function getMediaFile(key) { return dbManager.getMediaFile(key); }
 export function deleteMediaFile(key) { return dbManager.deleteMediaFile(key); }
 export function clearAllMedia() { return dbManager.clearAllMedia(); }
 export function clearMedia() { return dbManager.clearMedia(); }
+
+if (typeof window !== "undefined") {
+  window.MediaStorage = dbManager;
+}

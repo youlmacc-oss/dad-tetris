@@ -47,6 +47,78 @@ export const soundManager = {
       this.ctx = null;
     }
   },
+  ensureGraph() {
+    this.ensure();
+    if (!this.ctx) {
+      return false;
+    }
+    try {
+      if (!this.sfxGain) {
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.connect(this.ctx.destination);
+      }
+      if (!this.bgmGain) {
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.connect(this.ctx.destination);
+      }
+      if (!this.timestopFilter) {
+        this.timestopFilter = this.ctx.createBiquadFilter();
+        this.timestopFilter.type = "lowpass";
+        this.timestopFilter.frequency.value = 18000;
+      }
+      this.connectBgmGraph();
+      this.applyMasterGains();
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+  connectBgmGraph() {
+    const audio = this.bgm && this.bgm.audio;
+    if (!this.ctx || !audio || !this.bgmGain || !this.timestopFilter || this.bgmSource) {
+      return;
+    }
+    try {
+      this.bgmSource = this.ctx.createMediaElementSource(audio);
+      this.bgmSource.connect(this.timestopFilter);
+      this.timestopFilter.connect(this.bgmGain);
+    } catch (err) {
+      /* already connected or autoplay policy */
+    }
+  },
+  applyMasterGains() {
+    if (!host || typeof host.unit !== "function") {
+      return;
+    }
+    const muted = !!this.muted;
+    const sfxOn = !muted && !!st().sound;
+    const bgmOn = !muted && !!st().bgm;
+    const sfxV = sfxOn ? Math.max(0, Math.min(1, host.unit(st().soundVolume, def().soundVolume))) : 0;
+    const bgmV = bgmOn ? Math.max(0, Math.min(1, host.unit(st().bgmVolume, def().bgmVolume))) : 0;
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = sfxV;
+    }
+    if (this.bgmGain) {
+      this.bgmGain.gain.value = bgmV;
+    }
+  },
+  applyTimestopPitch(active) {
+    this.ensureGraph();
+    const on = !!active;
+    this.timestopPitch = on ? 0.55 : 1;
+    if (this.bgm && this.bgm.audio) {
+      try {
+        this.bgm.audio.preservesPitch = false;
+        this.bgm.audio.playbackRate = this.timestopPitch;
+      } catch (err) {
+        /* playbackRate optional */
+      }
+    }
+    if (this.timestopFilter) {
+      this.timestopFilter.frequency.value = on ? 420 : 18000;
+    }
+    return this.timestopPitch;
+  },
   scale(vol) {
     if (!host || typeof host.unit !== "function") {
       return 0;
@@ -268,7 +340,16 @@ export function createSoundManager(nextHost) {
       if (this.fading) {
         return;
       }
-      this.audio.volume = this.targetVolume();
+      if (sfx && typeof sfx.ensureGraph === "function") {
+        sfx.ensureGraph();
+      } else if (sfx && typeof sfx.applyMasterGains === "function") {
+        sfx.applyMasterGains();
+      }
+      if (sfx && sfx.bgmSource) {
+        this.audio.volume = 1;
+      } else {
+        this.audio.volume = this.targetVolume();
+      }
     },
     canPlay() {
       if (!host) {

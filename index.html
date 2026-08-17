@@ -4,13 +4,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Dad Tetris</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="theme-color" content="#00d2ff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DadTetris">
+  <base href="./">
+  <script>
+    (function () {
+      try {
+        var u = new URL(String(location.href || "./"));
+        var last = (u.pathname.split("/").pop() || "");
+        if (!u.pathname.endsWith("/")) {
+          if (/\.(html?|php|aspx?)$/i.test(last)) {
+            u.pathname = u.pathname.slice(0, u.pathname.length - last.length);
+          } else if (!/\.[a-zA-Z0-9]+$/.test(last)) {
+            u.pathname += "/";
+          }
+        }
+        var base = document.querySelector("base");
+        if (base) {
+          base.href = u.href;
+        }
+      } catch (err) { /* keep ./ */ }
+    })();
+  </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070c'/%3E%3Crect x='24' y='8' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='8' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='24' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='40' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3C/svg%3E" type="image/svg+xml">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="style.css?v=20260818_008" type="text/css">
+  <link rel="stylesheet" href="style.css?v=1.0.9-stable" type="text/css">
+  <meta name="dad-tetris-version" content="1.0.9-stable">
   <meta name="dad-ui" content="mobile-overlay-20260818_002">
   <meta name="description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
   <meta property="og:description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
@@ -42,20 +66,34 @@
           <canvas id="bg-canvas" class="board-bg-canvas" width="400" height="800" aria-hidden="true"></canvas>
           <canvas id="tetris-canvas" class="game-canvas" width="400" height="800"></canvas>
         </div>
-        <div id="overlay" class="overlay game-overlay board-idle-card" data-pause-dbltap="1">
+        <div id="overlay" class="overlay game-overlay board-idle-card is-start" data-pause-dbltap="1">
           <div id="idle-overlay" hidden></div>
           <div id="start-prompt-overlay" hidden></div>
-          <div id="start-overlay" class="overlay-card start-overlay-card game-overlay-card profile-start-panel" style="width: 92% !important; max-width: 145px !important; min-width: 120px !important; padding: 10px 6px 8px 6px !important; box-sizing: border-box !important; text-align: center !important; margin: 0 auto !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 4px !important;">
-            <div class="profile-frame profile-avatar-container profile-card popup-avatar overlay-avatar-circle" id="profile-frame" style="width: 48px !important; height: 48px !important; min-width: 48px !important; min-height: 48px !important; max-width: 48px !important; max-height: 48px !important; margin: 0 auto 3px auto !important; display: flex !important; justify-content: center !important; align-items: center !important; border: 2px solid #00f0ff !important; box-shadow: 0 0 10px rgba(0, 240, 255, 0.5), inset 0 0 6px rgba(0, 240, 255, 0.2) !important; border-radius: 50% !important;">
+          <div id="start-overlay" class="overlay-card start-overlay-card game-overlay-card profile-start-panel" data-profile-card="1">
+            <div class="profile-frame profile-avatar-container profile-card popup-avatar overlay-avatar-circle" id="profile-frame">
               <canvas id="profile-main-canvas" class="profile-crop-canvas hidden" width="320" height="320"></canvas>
               <img id="profile-image" class="profile-image profile-avatar-img hidden" alt="프로필 사진">
-              <div id="profile-fallback" class="profile-fallback" style="display: flex !important; align-items: center !important; justify-content: center !important; width: 100% !important; height: 100% !important;">
-                <span class="profile-icon" aria-hidden="true" style="font-size: 26px !important; line-height: 1 !important;">👤</span>
-                <span class="profile-caption" data-i18n="dad" style="display: none !important;">아빠</span>
+              <div id="profile-fallback" class="profile-fallback">
+                <svg class="profile-icon-svg dad-neon-avatar" viewBox="0 0 128 128" aria-hidden="true" focusable="false">
+                  <path fill="#07141c" d="M20 122c8-32 26-46 44-46s36 14 44 46"/>
+                  <path fill="none" stroke="#00d2ff" stroke-width="2.4" d="M28 112c10-18 24-26 36-26s26 8 36 26"/>
+                  <ellipse cx="64" cy="54" rx="28" ry="32" fill="#f0c7a0"/>
+                  <path fill="#1a2438" d="M38 50c2-24 16-36 26-36 14 0 26 10 28 34-8-12-16-16-28-16s-18 4-26 18z"/>
+                  <path fill="#2a3348" d="M42 70c4 18 14 26 22 26s18-8 22-26c-6 8-14 12-22 12s-16-4-22-12z"/>
+                  <path fill="none" stroke="#7cf0ff" stroke-width="6" stroke-linecap="round" d="M34 46c8-18 20-24 30-24s22 6 30 24"/>
+                  <rect x="22" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#7cf0ff" stroke-width="2.6"/>
+                  <rect x="90" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#c084fc" stroke-width="2.6"/>
+                  <rect x="40" y="50" width="48" height="11" rx="4" fill="#001820" stroke="#00f0ff" stroke-width="1.6"/>
+                  <rect x="44" y="53" width="40" height="5" rx="2.2" fill="#7cf0ff"/>
+                  <path fill="none" stroke="#7cf0ff" stroke-width="2.6" stroke-linecap="round" d="M30 68c-8 8-8 16-2 22"/>
+                  <circle cx="30" cy="92" r="4.2" fill="#7cf0ff"/>
+                </svg>
+                <span class="profile-icon" aria-hidden="true">👤</span>
+                <span class="profile-caption" data-i18n="dad">아빠</span>
               </div>
             </div>
-            <h1 id="overlay-title" class="overlay-title popup-title" data-i18n="gameTitle" style="font-size: 11.5px !important; font-weight: 800 !important; color: #00f0ff !important; white-space: nowrap !important; margin: 0 0 4px 0 !important; letter-spacing: -0.3px !important; line-height: 1.2 !important; text-align: center !important; width: 100% !important;">DAD TETRIS</h1>
-            <p id="overlay-hint" class="overlay-hint guide-capsule popup-sub-guide key-guide" data-i18n="pressStart" role="button" tabindex="0" style="font-size: 8.5px !important; font-weight: bold !important; color: #ffffff !important; background: linear-gradient(135deg, #00f0ff, #0072ff) !important; border-radius: 6px !important; padding: 5px 3px !important; margin: 0 auto !important; white-space: nowrap !important; display: block !important; width: 100% !important; box-sizing: border-box !important; line-height: 1.2 !important; text-align: center !important;">게임 시작을 눌러 주세요</p>
+            <h1 id="overlay-title" class="overlay-title popup-title">DAD TETRIS</h1>
+            <p id="overlay-hint" class="overlay-hint guide-capsule popup-sub-guide key-guide" data-i18n="pressStart" role="button" tabindex="0">게임 시작을 눌러 주세요</p>
             <div id="overlay-actions" class="overlay-actions popup-btn-group overlay-btn-row hidden">
               <button type="button" id="overlay-restart" class="overlay-restart-btn popup-btn btn-confirm" data-i18n="overlayRestart">🔄 다시 하기</button>
               <button type="button" id="overlay-quit" class="overlay-quit-btn popup-btn btn-close" data-i18n="overlayQuit">❌ 게임 종료</button>
@@ -78,6 +116,20 @@
               <div class="profile-avatar-container" id="sidebar-profile-frame">
                 <img id="header-profile-img" class="profile-image profile-avatar-img hidden" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
                 <div id="sidebar-profile-fallback" class="profile-fallback">
+                  <svg class="profile-icon-svg dad-neon-avatar" viewBox="0 0 128 128" aria-hidden="true" focusable="false">
+                    <path fill="#07141c" d="M20 122c8-32 26-46 44-46s36 14 44 46"/>
+                    <path fill="none" stroke="#00d2ff" stroke-width="2.4" d="M28 112c10-18 24-26 36-26s26 8 36 26"/>
+                    <ellipse cx="64" cy="54" rx="28" ry="32" fill="#f0c7a0"/>
+                    <path fill="#1a2438" d="M38 50c2-24 16-36 26-36 14 0 26 10 28 34-8-12-16-16-28-16s-18 4-26 18z"/>
+                    <path fill="#2a3348" d="M42 70c4 18 14 26 22 26s18-8 22-26c-6 8-14 12-22 12s-16-4-22-12z"/>
+                    <path fill="none" stroke="#7cf0ff" stroke-width="6" stroke-linecap="round" d="M34 46c8-18 20-24 30-24s22 6 30 24"/>
+                    <rect x="22" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#7cf0ff" stroke-width="2.6"/>
+                    <rect x="90" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#c084fc" stroke-width="2.6"/>
+                    <rect x="40" y="50" width="48" height="11" rx="4" fill="#001820" stroke="#00f0ff" stroke-width="1.6"/>
+                    <rect x="44" y="53" width="40" height="5" rx="2.2" fill="#7cf0ff"/>
+                    <path fill="none" stroke="#7cf0ff" stroke-width="2.6" stroke-linecap="round" d="M30 68c-8 8-8 16-2 22"/>
+                    <circle cx="30" cy="92" r="4.2" fill="#7cf0ff"/>
+                  </svg>
                   <span class="profile-icon" aria-hidden="true">👤</span>
                 </div>
               </div>
@@ -497,13 +549,13 @@
             <span class="guide-badge" data-i18n="guideVizTabDiag">자가진단</span>
             <div class="guide-f9-hero">
               <kbd>F9</kbd>
-              <p class="guide-copy" data-i18n="guideVizF9How">F9 또는 상단 ✏️ 버튼으로 C1~C8 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.</p>
+              <p class="guide-copy" data-i18n="guideVizF9How">F9 또는 상단 ✏️ 버튼으로 C1~C12 E2E 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.</p>
             </div>
             <div class="guide-core-chips" aria-hidden="true">
-              <span>C1</span><span>C2</span><span>C3</span><span>C4</span><span>C5</span><span>C6</span><span>C7</span><span>C8</span>
+              <span>C1</span><span>C2</span><span>C3</span><span>C4</span><span>C5</span><span>C6</span><span>C7</span><span>C8</span><span>C9</span><span>C10</span><span>C11</span><span>C12</span>
             </div>
             <h3 data-i18n="guideDiagTitle">🧪 0.1초 실시간 무결점 자가진단 (Test Runner)</h3>
-            <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 8대 핵심 항목을 순차 비동기 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 핵심 8종이 통과하면 모던 팝업에 [PASS 8/8]이 출력됩니다.</p>
+            <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 12대 핵심 항목(C1~C12)을 순차 비동기 E2E 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 실제 화면·동작 검증이 모두 통과할 때만 [PASS 12/12] ALL GREEN이 출력됩니다.</p>
             <ol class="guide-custom-list guide-diag-core-list">
               <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
               <li data-i18n="guideDiagCore2">2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 렌더러 무결성</li>
@@ -513,8 +565,12 @@
               <li data-i18n="guideDiagCore6">6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드</li>
               <li data-i18n="guideDiagCore7">7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 상호 참조 · 터치 엘리먼트 DOM</li>
               <li data-i18n="guideDiagCore8">8) [AI 동적 스트레스] 오토플레이 15x 충돌·FPS·라인클리어·DAD 전광판</li>
+              <li data-i18n="guideDiagCore9">9) [배경 E2E] 윈도우/게임패널 탭 전환 시 Idle~Lv20 썸네일·타이틀 IndexedDB 동기화, 일괄등록 배지, 기본배경/마스터 비활성 분기</li>
+              <li data-i18n="guideDiagCore10">10) [오디오 인터락] BGM/SFX GainNode.gain.value 0~1 연동, 뮤트 출력 차단, DAD 타임스톱 피치 벤드</li>
+              <li data-i18n="guideDiagCore11">11) [룰/타임스톱] 정지 시간 1,000~10,000ms K키 주입, Standard/Dual Queue 넥스트 레이아웃, 가비지 라인·낙하 배속</li>
+              <li data-i18n="guideDiagCore12">12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 진단 Memory Snapshot 원상 복구</li>
             </ol>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. 핵심 8종이 모두 통과하면 “🎉 모든 핵심 시스템(듀얼 캔버스, 5종 스킨, IndexedDB, DAD 전광판, AI 스트레스)이 100% 완벽하게 가동 중입니다! [PASS 8/8]”가 결과창에 출력됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. C1~C12 실제 화면·동작 검증과 1-1~19-1 전수가 모두 통과할 때만 “🎉 100% ALL GREEN [PASS 12/12]”가 결과창에 출력됩니다.</p>
           </article>
           <article class="guide-card">
             <h3 data-i18n="guideDiagExportTitle">📋 진단 로그 복사 &amp; 파일 저장</h3>
@@ -750,6 +806,20 @@
                   <canvas id="profile-crop-canvas" class="profile-crop-canvas hidden" width="320" height="320"></canvas>
                   <img id="profile-preview" class="profile-image profile-avatar-img hidden" alt="프로필 미리보기">
                   <div id="profile-preview-fallback" class="profile-fallback">
+                    <svg class="profile-icon-svg dad-neon-avatar" viewBox="0 0 128 128" aria-hidden="true" focusable="false">
+                      <path fill="#07141c" d="M20 122c8-32 26-46 44-46s36 14 44 46"/>
+                      <path fill="none" stroke="#00d2ff" stroke-width="2.4" d="M28 112c10-18 24-26 36-26s26 8 36 26"/>
+                      <ellipse cx="64" cy="54" rx="28" ry="32" fill="#f0c7a0"/>
+                      <path fill="#1a2438" d="M38 50c2-24 16-36 26-36 14 0 26 10 28 34-8-12-16-16-28-16s-18 4-26 18z"/>
+                      <path fill="#2a3348" d="M42 70c4 18 14 26 22 26s18-8 22-26c-6 8-14 12-22 12s-16-4-22-12z"/>
+                      <path fill="none" stroke="#7cf0ff" stroke-width="6" stroke-linecap="round" d="M34 46c8-18 20-24 30-24s22 6 30 24"/>
+                      <rect x="22" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#7cf0ff" stroke-width="2.6"/>
+                      <rect x="90" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#c084fc" stroke-width="2.6"/>
+                      <rect x="40" y="50" width="48" height="11" rx="4" fill="#001820" stroke="#00f0ff" stroke-width="1.6"/>
+                      <rect x="44" y="53" width="40" height="5" rx="2.2" fill="#7cf0ff"/>
+                      <path fill="none" stroke="#7cf0ff" stroke-width="2.6" stroke-linecap="round" d="M30 68c-8 8-8 16-2 22"/>
+                      <circle cx="30" cy="92" r="4.2" fill="#7cf0ff"/>
+                    </svg>
                     <span class="profile-icon" aria-hidden="true">👤</span>
                     <span class="profile-caption" data-i18n="dad">아빠</span>
                   </div>
@@ -1101,6 +1171,7 @@
           </button>
           <p class="setting-hint level-bg-hint" data-i18n="levelBgHint">💡 권장 해상도: 1920x1080 (16:9 비율). 다른 해상도의 이미지도 자동으로 화면에 맞춰 적용됩니다.</p>
         </section>
+        <p class="row-title" id="bg-slot-status-title" data-i18n="bgSlotStatusWindow">🖥️ 윈도우 배경 등록 현황</p>
         <article class="level-bg-card level-bg-card-default" data-level-bg="default">
           <div class="level-bg-card-head">
             <div>
@@ -1347,6 +1418,6 @@
   <div id="shutdown-screen" class="shutdown-screen hidden" role="status" aria-live="polite">
     <p id="shutdown-message" data-i18n="gameTerminatedMsg">🎮 모든 게임 프로세스가 안전하게 종료되었습니다. 탭을 닫아주세요.</p>
   </div>
-  <script src="./script.js?v=20260818_008"></script>
+  <script src="./script.js?v=1.0.9-stable"></script>
 </body>
 </html>

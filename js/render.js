@@ -331,16 +331,10 @@ export function drawNeonWell(targetCtx, focusOn) {
   const w = (targetCtx && targetCtx.canvas && targetCtx.canvas.width) || (bgCanvas ? bgCanvas.width : boardCanvas.width);
   const h = (targetCtx && targetCtx.canvas && targetCtx.canvas.height) || (bgCanvas ? bgCanvas.height : boardCanvas.height);
   const [tr, tg, tb] = host.themeRgb();
-  const hasBoard = document.body.classList.contains("has-board-bg");
+  const hasBoard = document.body.classList.contains("has-board-bg")
+    || !!(document.getElementById("board-wrap") && document.getElementById("board-wrap").classList.contains("has-board-bg"));
   if (hasBoard) {
     targetCtx.clearRect(0, 0, w, h);
-    targetCtx.fillStyle = focusOn ? "rgba(10, 21, 34, 0.12)" : "rgba(5, 7, 12, 0.08)";
-    targetCtx.fillRect(0, 0, w, h);
-    const vg = targetCtx.createRadialGradient(w * 0.5, h * 0.38, Math.max(8, w * 0.06), w * 0.5, h * 0.52, Math.max(w, h) * 0.72);
-    vg.addColorStop(0, `rgba(${tr},${tg},${tb},${focusOn ? 0.08 : 0.04})`);
-    vg.addColorStop(1, "rgba(0,0,0,0.08)");
-    targetCtx.fillStyle = vg;
-    targetCtx.fillRect(0, 0, w, h);
     return;
   }
   const g = targetCtx.createLinearGradient(0, 0, w * 0.15, h);
@@ -379,8 +373,12 @@ export function renderStaticBackground() {
   layer.clearRect(0, 0, w, h);
   drawNeonWell(layer, focusOn);
 
+  const hasBoardBg = document.body.classList.contains("has-board-bg")
+    || !!(document.getElementById("board-wrap") && document.getElementById("board-wrap").classList.contains("has-board-bg"));
   layer.save();
-  layer.strokeStyle = focusOn ? `rgba(${tr},${tg},${tb},0.38)` : `rgba(${tr},${tg},${tb},0.18)`;
+  layer.strokeStyle = hasBoardBg
+    ? `rgba(${tr},${tg},${tb},${focusOn ? 0.14 : 0.07})`
+    : (focusOn ? `rgba(${tr},${tg},${tb},0.38)` : `rgba(${tr},${tg},${tb},0.18)`);
   layer.lineWidth = 1;
   layer.beginPath();
   for (let c = 0; c <= COLS; c++) {
@@ -394,6 +392,7 @@ export function renderStaticBackground() {
   layer.stroke();
   layer.restore();
 
+  if (!hasBoardBg) {
   layer.save();
   layer.strokeStyle = `rgba(${tr},${tg},${tb},${focusOn ? 0.7 : 0.45})`;
   layer.lineWidth = Math.max(2, size / 18);
@@ -401,6 +400,7 @@ export function renderStaticBackground() {
   layer.shadowBlur = 14;
   layer.strokeRect(1, 1, COLS * size - 2, ROWS * size - 2);
   layer.restore();
+  }
   host.staticBgDirty = false;
 }
 

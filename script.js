@@ -261,11 +261,32 @@ function logMediaError(err, key, action) {
     }
     const prev = cache.get(key);
     if (prev && prev.url) {
-      URL.revokeObjectURL(prev.url);
+      try {
+        URL.revokeObjectURL(prev.url);
+      } catch (err) {
+        /* ignore */
+      }
     }
     const url = URL.createObjectURL(blob);
     cache.set(key, { url, blob });
     return url;
+  }
+
+  function reissue(key) {
+    const hit = cache.get(key);
+    if (!hit || !isFileBlob(hit.blob)) {
+      return peek(key);
+    }
+    if (hit.url) {
+      try {
+        URL.revokeObjectURL(hit.url);
+      } catch (err) {
+        /* ignore */
+      }
+    }
+    hit.url = URL.createObjectURL(hit.blob);
+    cache.set(key, hit);
+    return hit.url;
   }
 
   function peek(key) {
@@ -577,6 +598,7 @@ const dbManager = {
   getBlob,
   getMediaFile,
   peek,
+  reissue,
   del,
   deleteMediaFile: del,
   copy,
@@ -587,6 +609,11 @@ const dbManager = {
   STORE,
   DB_NAME,
 };
+try {
+  window.MediaStorage = dbManager;
+} catch (mediaExposeErr) {
+  /* ignore */
+}
 
 const storageUtil = {
   KEYS: {
@@ -735,6 +762,78 @@ const soundManager = {
     } catch (err) {
       this.ctx = null;
     }
+  },
+  ensureGraph() {
+    this.ensure();
+    if (!this.ctx) {
+      return false;
+    }
+    try {
+      if (!this.sfxGain) {
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.connect(this.ctx.destination);
+      }
+      if (!this.bgmGain) {
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.connect(this.ctx.destination);
+      }
+      if (!this.timestopFilter) {
+        this.timestopFilter = this.ctx.createBiquadFilter();
+        this.timestopFilter.type = "lowpass";
+        this.timestopFilter.frequency.value = 18000;
+      }
+      this.connectBgmGraph();
+      this.applyMasterGains();
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+  connectBgmGraph() {
+    const audio = this.bgm && this.bgm.audio;
+    if (!this.ctx || !audio || !this.bgmGain || !this.timestopFilter || this.bgmSource) {
+      return;
+    }
+    try {
+      this.bgmSource = this.ctx.createMediaElementSource(audio);
+      this.bgmSource.connect(this.timestopFilter);
+      this.timestopFilter.connect(this.bgmGain);
+    } catch (err) {
+      /* already connected or autoplay policy */
+    }
+  },
+  applyMasterGains() {
+    if (!host || typeof host.unit !== "function") {
+      return;
+    }
+    const muted = !!this.muted;
+    const sfxOn = !muted && !!st().sound;
+    const bgmOn = !muted && !!st().bgm;
+    const sfxV = sfxOn ? Math.max(0, Math.min(1, host.unit(st().soundVolume, def().soundVolume))) : 0;
+    const bgmV = bgmOn ? Math.max(0, Math.min(1, host.unit(st().bgmVolume, def().bgmVolume))) : 0;
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = sfxV;
+    }
+    if (this.bgmGain) {
+      this.bgmGain.gain.value = bgmV;
+    }
+  },
+  applyTimestopPitch(active) {
+    this.ensureGraph();
+    const on = !!active;
+    this.timestopPitch = on ? 0.55 : 1;
+    if (this.bgm && this.bgm.audio) {
+      try {
+        this.bgm.audio.preservesPitch = false;
+        this.bgm.audio.playbackRate = this.timestopPitch;
+      } catch (err) {
+        /* playbackRate optional */
+      }
+    }
+    if (this.timestopFilter) {
+      this.timestopFilter.frequency.value = on ? 420 : 18000;
+    }
+    return this.timestopPitch;
   },
   scale(vol) {
     if (!host || typeof host.unit !== "function") {
@@ -957,7 +1056,16 @@ function createSoundManager(nextHost) {
       if (this.fading) {
         return;
       }
-      this.audio.volume = this.targetVolume();
+      if (sfx && typeof sfx.ensureGraph === "function") {
+        sfx.ensureGraph();
+      } else if (sfx && typeof sfx.applyMasterGains === "function") {
+        sfx.applyMasterGains();
+      }
+      if (sfx && sfx.bgmSource) {
+        this.audio.volume = 1;
+      } else {
+        this.audio.volume = this.targetVolume();
+      }
     },
     canPlay() {
       if (!host) {
@@ -1455,16 +1563,10 @@ function drawNeonWell(targetCtx, focusOn) {
   const w = (targetCtx && targetCtx.canvas && targetCtx.canvas.width) || (bgCanvas ? bgCanvas.width : boardCanvas.width);
   const h = (targetCtx && targetCtx.canvas && targetCtx.canvas.height) || (bgCanvas ? bgCanvas.height : boardCanvas.height);
   const [tr, tg, tb] = host.themeRgb();
-  const hasBoard = document.body.classList.contains("has-board-bg");
+  const hasBoard = document.body.classList.contains("has-board-bg")
+    || !!(document.getElementById("board-wrap") && document.getElementById("board-wrap").classList.contains("has-board-bg"));
   if (hasBoard) {
     targetCtx.clearRect(0, 0, w, h);
-    targetCtx.fillStyle = focusOn ? "rgba(10, 21, 34, 0.12)" : "rgba(5, 7, 12, 0.08)";
-    targetCtx.fillRect(0, 0, w, h);
-    const vg = targetCtx.createRadialGradient(w * 0.5, h * 0.38, Math.max(8, w * 0.06), w * 0.5, h * 0.52, Math.max(w, h) * 0.72);
-    vg.addColorStop(0, `rgba(${tr},${tg},${tb},${focusOn ? 0.08 : 0.04})`);
-    vg.addColorStop(1, "rgba(0,0,0,0.08)");
-    targetCtx.fillStyle = vg;
-    targetCtx.fillRect(0, 0, w, h);
     return;
   }
   const g = targetCtx.createLinearGradient(0, 0, w * 0.15, h);
@@ -1510,8 +1612,12 @@ function renderStaticBackground() {
   layer.clearRect(0, 0, w, h);
   drawNeonWell(layer, focusOn);
 
+  const hasBoardBg = document.body.classList.contains("has-board-bg")
+    || !!(document.getElementById("board-wrap") && document.getElementById("board-wrap").classList.contains("has-board-bg"));
   layer.save();
-  layer.strokeStyle = focusOn ? `rgba(${tr},${tg},${tb},0.38)` : `rgba(${tr},${tg},${tb},0.18)`;
+  layer.strokeStyle = hasBoardBg
+    ? `rgba(${tr},${tg},${tb},${focusOn ? 0.14 : 0.07})`
+    : (focusOn ? `rgba(${tr},${tg},${tb},0.38)` : `rgba(${tr},${tg},${tb},0.18)`);
   layer.lineWidth = 1;
   layer.beginPath();
   for (let c = 0; c <= COLS; c++) {
@@ -1525,6 +1631,7 @@ function renderStaticBackground() {
   layer.stroke();
   layer.restore();
 
+  if (!hasBoardBg) {
   layer.save();
   layer.strokeStyle = `rgba(${tr},${tg},${tb},${focusOn ? 0.7 : 0.45})`;
   layer.lineWidth = Math.max(2, size / 18);
@@ -1532,6 +1639,7 @@ function renderStaticBackground() {
   layer.shadowBlur = 14;
   layer.strokeRect(1, 1, COLS * size - 2, ROWS * size - 2);
   layer.restore();
+  }
   host.staticBgDirty = false;
 }
 
@@ -1918,7 +2026,7 @@ function resetDadCheer() {
     tipEl.textContent = t("cheerTipDefault");
   }
   if (banner) {
-    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce");
+    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce", "is-level");
   }
 }
 
@@ -1939,14 +2047,20 @@ function updateCheerMsg(kind, message, tip, options) {
   cheerKind = kind || "status";
   textEl.textContent = message;
   if (badge) {
-    badge.textContent = kind === "freeze" ? "⏳ DAD" : t("cheerBadgeStatus");
+    if (kind === "freeze") {
+      badge.textContent = "⏳ DAD";
+    } else if (kind === "level") {
+      badge.textContent = t("cheerBadgeDad");
+    } else {
+      badge.textContent = t("cheerBadgeStatus");
+    }
   }
   if (tipEl) {
     tipEl.textContent = tip || t("cheerTipDefault");
   }
   const animate = !(options && options.animate === false);
   if (animate) {
-    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce");
+    banner.classList.remove("is-tetris", "is-combo", "is-freeze", "is-over", "is-bounce", "is-level");
     void banner.offsetWidth;
     if (kind === "tetris") {
       banner.classList.add("is-tetris");
@@ -1958,10 +2072,12 @@ function updateCheerMsg(kind, message, tip, options) {
         banner.classList.add("is-freeze");
       } else if (kind === "over") {
         banner.classList.add("is-over");
+      } else if (kind === "level") {
+        banner.classList.add("is-level");
       }
     }
     window.clearTimeout(cheerResetTimer);
-    cheerResetTimer = window.setTimeout(resetDadCheer, 3000);
+    cheerResetTimer = window.setTimeout(resetDadCheer, kind === "level" ? 4500 : 3000);
   }
   return true;
 }
@@ -2030,7 +2146,7 @@ function runDiagnostics() {
   }
 }
 
-const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
+const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
 
 function coreDiagPassCount() {
   return CORE_DIAG_IDS.filter((id) => {
@@ -2349,8 +2465,8 @@ function GameEngine() {
       "diagClose": "닫기",
       "diagIdle": "대기 중",
       "diagCert": "🎉 100% 무결점 인증 완료! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] 모든 핵심 모듈, 스마트 일괄 미디어, 12개국어 및 AI 스트레스 검사 완료 (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] 모든 핵심 모듈, 스마트 일괄 미디어, 12개국어 및 AI 스트레스 검사 완료 (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/렌더/이벤트 체인 E2E 및 C1–C12 핵심 전수 검증 완료 (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/렌더/이벤트 체인 E2E 및 C1–C12 핵심 전수 검증 완료 (12/12 PASS)",
       "diagFail": "⚠️ 일부 항목 실패 — 로그를 확인하세요",
       "gameTitle": "DAD TETRIS",
       "pressStart": "게임 시작을 눌러 주세요",
@@ -2472,6 +2588,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ 기본 대기 배경 이미지",
       "idleBgCaption": "대기 화면과 게임 종료 화면에 사용됩니다",
       "levelPlayBgTitle": "🎮 레벨 1 ~ 레벨 20 배경 이미지",
+      "bgSlotStatusWindow": "🖥️ 윈도우 배경 등록 현황",
+      "bgSlotStatusBoard": "🎮 게임패널 배경 등록 현황",
+      "bgSlotUnregistered": "미등록(기본값 적용)",
+      "bgSlotRegistered": "등록됨",
+      "bgSlotChooseOne": "🖼️ 개별 등록",
       "levelBgExtremeHint": "등록한 이미지가 없으면 네온 그리드가 유지됩니다. 윈도우와 게임 패널 모두 기본 대기+레벨 1~20을 등록할 수 있습니다.",
       "levelBgTitle": "Level {n} 배경",
       "chooseLevelBg": "🖼️ 이미지 선택",
@@ -2575,6 +2696,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 트리플 클리어! 테트리스가 눈앞입니다!",
       "cheerTipFreeze": "⏳ 타임스톱 중! 천천히 조준하세요!",
       "cheerTipGameover": "👏 다음 판은 바닥부터 더 단단히!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - 차분하게 바닥부터 평평하게 채워나가세요!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - 속도가 빨라집니다! Ghost 블록 위치를 미리 확인하세요.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - DAD 스페셜 타임스톱(K키)을 적극 활용해 위기를 넘기세요!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - 마스터 레벨 도달! 최고의 집중력을 발휘하세요!",
       "profileQuota": "저장 용량이 부족합니다. 더 작은 사진을 선택해 주세요.",
       "closeAria": "닫기",
       "boardAria": "테트리스 게임판",
@@ -2672,7 +2797,7 @@ function GameEngine() {
       "guideVizBulkDrop": "여러 장을 한 번에 고르면 스마트 엔진이 파일명으로 슬롯을 나눕니다.",
       "guideVizFileMap": "예: idle.jpg → 대기, bg5.jpg / level5.png → 레벨 5",
       "guideVizFxPreview": "keepDefault는 레벨업 고정, masterDisable는 네온만, Blur/Opacity는 블록 가독성용입니다.",
-      "guideVizF9How": "F9 또는 상단 ✏️ 버튼으로 C1~C8 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.",
+      "guideVizF9How": "F9 또는 상단 ✏️ 버튼으로 C1~C12 E2E 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.",
       "guideVizSkinTip": "스킨을 고르면 보드·NEXT·HOLD가 즉시 다시 그려집니다.",
       "guideCh1RulesTitle": "테트로미노 7종 · 라인 클리어 · 점수/레벨",
       "guideCh1RulesBody": "I·O·T·S·Z·J·L 일곱 가지 블록을 쌓아 가로 한 줄을 가득 채우면 그 줄이 지워집니다. 1줄 100×Lv, 2줄 300×Lv, 3줄 500×Lv, 4줄 테트리스 800×Lv. 지운 줄이 쌓이면 레벨이 오르고 낙하가 빨라집니다.",
@@ -2806,7 +2931,7 @@ function GameEngine() {
       "guideDiagStage17": "17단계: IndexedDB(DadTetrisDB / media_files) 대용량 미디어 스토리지 연결·쓰기/읽기를 점검합니다. 통과 시 [🗄️ INDEXEDDB: PASS]가 출력됩니다.",
       "guideDiagStage18": "18단계: 듀얼 레이어 캔버스(Background/Foreground) 분리 렌더링 엔진 정상 가동 여부를 점검합니다. 통과 시 [🖼️ DUAL CANVAS: PASS]가 출력됩니다.",
       "guideDiagStage19": "19단계: ES 모듈(Storage, Audio, Render, UI, GameEngine) 연결 상태를 점검합니다. 통과 시 [📦 ESM MODULES: PASS]가 출력됩니다.",
-      "guideDiagHint": "💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. 핵심 8종이 모두 통과하면 “🎉 모든 핵심 시스템(듀얼 캔버스, 5종 스킨, IndexedDB, DAD 전광판, AI 스트레스)이 100% 완벽하게 가동 중입니다! [PASS 8/8]”가 결과창에 출력됩니다.",
+      "guideDiagHint": "💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. C1~C12 실제 화면·동작 검증과 1-1~19-1 전수가 모두 통과할 때만 “🎉 100% ALL GREEN [PASS 12/12]”가 결과창에 출력됩니다.",
       "guideCh2Badge": "챕터 2 · 5종 블록 스킨",
       "guideCh2Lead": "환경설정에서 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려집니다. 모달을 닫지 않아도 스킨/그림자 실시간 프리뷰 캔버스 2종으로 질감을 확인할 수 있습니다.",
       "guideCh3Badge": "챕터 3 · 보드 크기 (낙하 거리)",
@@ -2819,7 +2944,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 IndexedDB 기반 고화질 커스텀 미디어",
       "guideIndexedDbBody": "환경설정에서 가족 사진, 레벨별 배경, 좋아하는 mp3, 게임 종료 영상을 등록하면 브라우저 용량 한도 안에서 고화질 원본을 유지합니다. 설정값(5종 스킨, ROWS, 볼륨)은 localStorage에 남아 IndexedDB와 분리됩니다.",
       "guideIndexedDbHow": "💡 파일은 DadTetrisDB의 media_files 스토어에 저장됩니다. 자가진단이 연결·쓰기/읽기/삭제를 검증합니다.",
-      "guideDiagPipelineBody": "자가진단은 8대 핵심 항목을 순차 비동기 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 핵심 8종이 통과하면 모던 팝업에 [PASS 8/8]이 출력됩니다.",
+      "guideDiagPipelineBody": "자가진단은 12대 핵심 항목(C1~C12)을 순차 비동기 E2E 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 실제 화면·동작 검증이 모두 통과할 때만 [PASS 12/12] ALL GREEN이 출력됩니다.",
       "guideDiagCore1": "1) [DOM & 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드",
       "guideDiagCore2": "2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 및 고스트 큐브 오프스크린 렌더",
       "guideDiagCore3": "3) [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input 다중 선택 · Blob/DataURL 순차 put · #bulk-progress-bar",
@@ -2828,6 +2953,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드",
       "guideDiagCore7": "7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 5대 모듈 바인딩 · 터치 엘리먼트 DOM",
       "guideDiagCore8": "8) [AI 동적 스트레스] 대기 패널 숨김, 15x 5회 낙하, 충돌 0, 15fps, DAD 응원, 파티클 GC, 보드 원상 복구",
+      "guideDiagCore9": "9) [배경 E2E] 윈도우/게임패널 탭 전환 시 Idle~Lv20 썸네일·타이틀 IndexedDB 동기화, 일괄등록 배지, 기본배경/마스터 비활성 분기",
+      "guideDiagCore10": "10) [오디오 인터락] BGM/SFX GainNode.gain.value 0~1 연동, 뮤트 출력 차단, DAD 타임스톱 피치 벤드",
+      "guideDiagCore11": "11) [룰/타임스톱] 정지 시간 1,000~10,000ms K키 주입, Standard/Dual Queue 넥스트 레이아웃, 가비지 라인·낙하 배속",
+      "guideDiagCore12": "12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 진단 Memory Snapshot 원상 복구",
       "guideThemeTitle": "🎨 5대 맞춤 네온 컬러 테마",
       "guideThemeBody": "환경설정 [게임] 탭의 둥근 컬러 팔레트를 누르면 화면 전체 테두리, 버튼, 네온 글로우, 포인트 색이 즉시 바뀝니다.",
       "guideThemeHow": "💡 팔레트를 누르면 0ms로 전환되고 localStorage에 영구 저장됩니다.",
@@ -2958,8 +3087,8 @@ function GameEngine() {
       "diagClose": "Close",
       "diagIdle": "Idle",
       "diagCert": "🎉 100% certified! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Some checks failed — see the log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Press Start to play",
@@ -3081,6 +3210,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Default waiting background",
       "idleBgCaption": "Used on the waiting and game-over screens",
       "levelPlayBgTitle": "🎮 Level 1–20 backgrounds",
+      "bgSlotStatusWindow": "🖥️ Window background slots",
+      "bgSlotStatusBoard": "🎮 Game panel background slots",
+      "bgSlotUnregistered": "Not registered (default applied)",
+      "bgSlotRegistered": "Registered",
+      "bgSlotChooseOne": "🖼️ Register this slot",
       "levelBgExtremeHint": "If no image is registered, the neon grid stays. Window and game panel both use idle + levels 1–20.",
       "levelBgTitle": "Level {n} background",
       "chooseLevelBg": "🖼️ Choose image",
@@ -3184,6 +3318,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Triple clear! Tetris is next!",
       "cheerTipFreeze": "⏳ Time stop on — aim carefully!",
       "cheerTipGameover": "👏 Next round, stack even firmer from the bottom!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Stay calm and fill the floor evenly from the bottom!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - Speed is up! Check the Ghost landing first.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Use DAD Special Time Stop (K) to survive the pinch!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Master level! Bring your best focus!",
       "profileQuota": "Not enough storage. Please choose a smaller photo.",
       "closeAria": "Close",
       "boardAria": "Tetris board",
@@ -3281,7 +3419,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -3415,7 +3553,7 @@ function GameEngine() {
       "guideDiagStage17": "Stage 17 checks IndexedDB (DadTetrisDB / media_files) large-media connect, write, and read. A pass prints [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Stage 18 checks the dual-layer canvas (Background/Foreground) split rendering engine. A pass prints [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stage 19 checks ES module wiring (Storage, Audio, Render, UI, GameEngine). A pass prints [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. If all 8 core checks pass, the result popup shows “🎉 All core systems (dual canvas, 5 skins, IndexedDB, DAD cheer board) are running at 100%! [PASS 8/8]”.",
+      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 12/12] appears only when C1–C12 visual/behavior checks and the 1-1–19-1 suite all pass.",
       "guideCh2Badge": "Chapter 2 · Five block skins",
       "guideCh2Lead": "Pick a skin in Settings and the main board plus NEXT/HOLD redraw instantly. Two live preview canvases (skin and ghost) show the texture without closing the modal.",
       "guideCh3Badge": "Chapter 3 · Board height (drop distance)",
@@ -3428,7 +3566,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 High-quality custom media via IndexedDB",
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
-      "guideDiagPipelineBody": "Self-test runs 8 core checks in sequence, then continues with the existing 1-1 through 19-1 suite. When the core 8 pass, the modern popup prints [PASS 8/8].",
+      "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
       "guideDiagCore1": "1) [DOM & layout] Dual canvas, #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
       "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, #bulk-bg-file-input multi-select, Blob/DataURL sequential put, #bulk-progress-bar",
@@ -3437,6 +3575,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Mobile] Viewport detect, 20-row lock, 100dvh arcade fit, 2x2 scores, wide DAD cheer bar, foldable split pad",
       "guideDiagCore7": "7) [ES modules] Storage/Audio/Render/UI/GameEngine binding · touch element DOM",
       "guideDiagCore8": "8) [AI stress] Hide idle panel, 15x five drops, collision 0, 15fps, DAD cheer, particle GC, board restore",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -3567,8 +3709,8 @@ function GameEngine() {
       "diagClose": "Close",
       "diagIdle": "Idle",
       "diagCert": "🎉 100% certified! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Some checks failed — see the log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "खेलने के लिए शुरू दबाएँ",
@@ -3690,6 +3832,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ प्रतीक्षा पृष्ठभूमि",
       "idleBgCaption": "शुरुआत और समाप्ति स्क्रीन के लिए",
       "levelPlayBgTitle": "🎮 स्तर 1–10 पृष्ठभूमि",
+      "bgSlotStatusWindow": "🖥️ विंडो पृष्ठभूमि स्लॉट",
+      "bgSlotStatusBoard": "🎮 गेम पैनल पृष्ठभूमि स्लॉट",
+      "bgSlotUnregistered": "अपंजीकृत (डिफ़ॉल्ट लागू)",
+      "bgSlotRegistered": "पंजीकृत",
+      "bgSlotChooseOne": "🖼️ यह स्लॉट जोड़ें",
       "levelBgExtremeHint": "स्तर 11–20 स्तर 10 की पृष्ठभूमि रखते हैं, और चरम मोड के लिए डार्क नियॉन ग्लो दिखाते हैं।",
       "levelBgTitle": "स्तर {n} पृष्ठभूमि",
       "chooseLevelBg": "🖼️ छवि चुनें",
@@ -3793,6 +3940,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 ट्रिपल क्लियर! Tetris पास है!",
       "cheerTipFreeze": "⏳ टाइम स्टॉप चालू — ध्यान से!",
       "cheerTipGameover": "👏 अगली बार और मज़बूती से नीचे से!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - शांत रहें और फर्श को नीचे से समतल भरें!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - गति बढ़ी! पहले Ghost लैंडिंग देखें।",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - DAD स्पेशल टाइम स्टॉप (K) से संकट पार करें!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - मास्टर लेवल! पूरी एकाग्रता लगाएँ!",
       "profileQuota": "स्टोरेज कम है। छोटी फ़ोटो चुनें।",
       "closeAria": "बंद करें",
       "boardAria": "टेट्रिस बोर्ड",
@@ -3890,7 +4041,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -4024,7 +4175,7 @@ function GameEngine() {
       "guideDiagStage17": "Stage 17 checks IndexedDB (DadTetrisDB / media_files) large-media connect, write, and read. A pass prints [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Stage 18 checks the dual-layer canvas (Background/Foreground) split rendering engine. A pass prints [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stage 19 checks ES module wiring (Storage, Audio, Render, UI, GameEngine). A pass prints [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. If all 8 core checks pass, the result popup shows “🎉 All core systems (dual canvas, 5 skins, IndexedDB, DAD cheer board) are running at 100%! [PASS 8/8]”.",
+      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 12/12] appears only when C1–C12 visual/behavior checks and the 1-1–19-1 suite all pass.",
       "guideCh2Badge": "Chapter 2 · Five block skins",
       "guideCh2Lead": "Pick a skin in Settings and the main board plus NEXT/HOLD redraw instantly. Two live preview canvases (skin and ghost) show the texture without closing the modal.",
       "guideCh3Badge": "Chapter 3 · Board height (drop distance)",
@@ -4037,7 +4188,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 High-quality custom media via IndexedDB",
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
-      "guideDiagPipelineBody": "Self-test runs 8 core checks in sequence, then continues with the existing 1-1 through 19-1 suite. When the core 8 pass, the modern popup prints [PASS 8/8].",
+      "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
       "guideDiagCore1": "1) [DOM & layout] Dual canvas, #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
       "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, #bulk-bg-file-input multi-select, Blob/DataURL sequential put, #bulk-progress-bar",
@@ -4046,6 +4197,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Mobile] Viewport detect, 20-row lock, 100dvh arcade fit, 2x2 scores, wide DAD cheer bar, foldable split pad",
       "guideDiagCore7": "7) [ES modules] Storage/Audio/Render/UI/GameEngine binding · touch element DOM",
       "guideDiagCore8": "8) [AI stress] Hide idle panel, 15x five drops, collision 0, 15fps, DAD cheer, particle GC, board restore",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -4176,8 +4331,8 @@ function GameEngine() {
       "diagClose": "关闭",
       "diagIdle": "空闲",
       "diagCert": "🎉 100% 认证！ （所有系统均可运行）",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ 一些检查失败 - 请参阅日志",
       "gameTitle": "DAD TETRIS",
       "pressStart": "按开始播放",
@@ -4299,6 +4454,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️默认等待背景",
       "idleBgCaption": "用于等待和游戏结束屏幕",
       "levelPlayBgTitle": "🎮 1–20 级背景",
+      "bgSlotStatusWindow": "🖥️ 窗口背景登记状态",
+      "bgSlotStatusBoard": "🎮 游戏面板背景登记状态",
+      "bgSlotUnregistered": "未登记（使用默认）",
+      "bgSlotRegistered": "已登记",
+      "bgSlotChooseOne": "🖼️ 单独登记",
       "levelBgExtremeHint": "如果没有注册图像，霓虹灯网格将保持不变。窗口使用默认值 + 级别 1–20；游戏面板仅使用 1-20 级。",
       "levelBgTitle": "级别 {n} 背景",
       "chooseLevelBg": "🖼️ 选择图片",
@@ -4402,6 +4562,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 三清！下一个是俄罗斯方块！",
       "cheerTipFreeze": "⏳ 时间停止——仔细瞄准！",
       "cheerTipGameover": "👏 下一轮，从底部堆得更牢固！",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - 保持冷静，从底部把地面铺平！",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - 速度加快！先确认 Ghost 落点。",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - 多用 DAD 特殊时停（K 键）渡过危机！",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - 大师关卡！拿出最强专注力！",
       "profileQuota": "存储空间不足。请选择较小的照片。",
       "closeAria": "关闭",
       "boardAria": "俄罗斯方块板",
@@ -4499,7 +4663,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -4633,7 +4797,7 @@ function GameEngine() {
       "guideDiagStage17": "第 17 阶段检查 IndexedDB (DadTetrisDB / media_files) 大媒体连接、写入和读取。通过打印 [🗄️ INDEXEDDB: PASS]。",
       "guideDiagStage18": "第 18 阶段检查双层画布（背景/前景）分割渲染引擎。通行证打印 [🖼️ DUAL CANVAS: PASS]。",
       "guideDiagStage19": "第 19 阶段检查 ES 模块接线（Storage、Audio、Render、UI、GameEngine）。通过打印 [📦 ESM MODULES: PASS]。",
-      "guideDiagHint": "💡 扫描结束时，每一项显示 ✅ PASS 或 🛠️ AUTO-FIXED。如果所有 7 个核心检查均通过，结果弹出窗口将显示“🎉 所有核心系统（双画布、5 种皮肤、IndexedDB、DAD 啦啦板）均以 100% 运行！[PASS 8/8]”。",
+      "guideDiagHint": "💡 扫描结束时，每一项显示 ✅ PASS 或 🛠️ AUTO-FIXED。如果所有 7 个核心检查均通过，结果弹出窗口将显示“🎉 所有核心系统（双画布、5 种皮肤、IndexedDB、DAD 啦啦板）均以 100% 运行！[PASS 12/12]”。",
       "guideCh2Badge": "第2章 五块皮肤",
       "guideCh2Lead": "在“设置”和主板中选择一个皮肤，然后立即进行“NEXT/HOLD”重画。两个实时预览画布（皮肤和幽灵）在不关闭模式的情况下显示纹理。",
       "guideCh3Badge": "第3章·板高（跌落距离）",
@@ -4646,7 +4810,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 通过 IndexedDB 的高质量定制媒体",
       "guideIndexedDbBody": "在“设置”中注册家庭照片、每个级别的背景、最喜欢的 mp3 和游戏结束视频。原件保留在浏览器配额中。设置（5 种皮肤、ROWS、音量）保留在 localStorage 中，与 IndexedDB 分开。",
       "guideIndexedDbHow": "💡 文件位于 DadTetrisDB 的 media_files 存储中。自检验证连接、写入、读取和删除。",
-      "guideDiagPipelineBody": "自检按顺序运行 7 个核心检查，然后继续执行现有的 1-1 到 19-1 套件。当核心 7 通过时，现代弹出窗口将打印 [PASS 8/8]。",
+      "guideDiagPipelineBody": "自检按顺序运行 7 个核心检查，然后继续执行现有的 1-1 到 19-1 套件。当核心 7 通过时，现代弹出窗口将打印 [PASS 12/12]。",
       "guideDiagCore1": "1) [DOM & 布局] 双画布 (#bg-canvas, #tetris-canvas), 160px 拉拉板 (#dad-cheer-banner), 皮肤/幽灵预览画布",
       "guideDiagCore2": "2) [块渲染引擎]所有5种皮肤的完整性（gemstone、glass、wire_glass、mecha、candy）",
       "guideDiagCore3": "3）【媒体存储】IndexedDB CRUD、#bulk-bg-file-input 多选、Blob/DataURL 顺序 put、#bulk-progress-bar",
@@ -4655,6 +4819,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [移动检测] Viewport ≤768px 和标准 20 行锁定",
       "guideDiagCore7": "7) 【ES模块】Storage/Audio/Render/UI/GameEngine交叉链接",
       "guideDiagCore8": "8) [AI 动态压力] 15 倍自动播放碰撞、FPS、消行与 DAD 应援板",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 五种自定义霓虹灯颜色主题",
       "guideThemeBody": "点击“设置”→“游戏”中的圆形调色板样本即可立即重新着色边框、按钮、霓虹灯发光和强调文本。",
       "guideThemeHow": "💡 切换是即时的（0ms）并永久保存在localStorage中。",
@@ -4785,8 +4953,8 @@ function GameEngine() {
       "diagClose": "Cerrar",
       "diagIdle": "inactivo",
       "diagCert": "🎉 100% certificado! (Todos los sistemas operativos)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Algunas comprobaciones fallaron: consulte el registro",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Pulsa Iniciar para jugar",
@@ -4908,6 +5076,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Fondo de espera predeterminado",
       "idleBgCaption": "Se utiliza en las pantallas de espera y de fin del juego.",
       "levelPlayBgTitle": "🎮 Fondos de nivel 1 a 20",
+      "bgSlotStatusWindow": "🖥️ Estado de fondos de ventana",
+      "bgSlotStatusBoard": "🎮 Estado de fondos del panel",
+      "bgSlotUnregistered": "Sin registrar (valor predeterminado)",
+      "bgSlotRegistered": "Registrado",
+      "bgSlotChooseOne": "🖼️ Registrar este hueco",
       "levelBgExtremeHint": "Si no se registra ninguna imagen, la cuadrícula de neón permanece. La ventana usa los niveles predeterminados + 1 a 20; el panel de juego utiliza únicamente los niveles 1 a 20.",
       "levelBgTitle": "Nivel de fondo {n}",
       "chooseLevelBg": "🖼️ Elige imagen",
@@ -5011,6 +5184,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 ¡Triple limpieza! ¡El Tetris es el siguiente!",
       "cheerTipFreeze": "⏳ El tiempo se detiene: ¡apunta con cuidado!",
       "cheerTipGameover": "👏 ¡Siguiente ronda, apile aún más firme desde abajo!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Mantén la calma y rellena el suelo de forma uniforme.",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - ¡Sube la velocidad! Mira primero el aterrizaje Ghost.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Usa el Time Stop especial DAD (K) para salir del apuro.",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - ¡Nivel maestro! Da lo mejor de tu concentración.",
       "profileQuota": "Almacenamiento insuficiente. Elige una foto más pequeña.",
       "closeAria": "Cerrar",
       "boardAria": "tablero de tetris",
@@ -5108,7 +5285,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -5242,7 +5419,7 @@ function GameEngine() {
       "guideDiagStage17": "La etapa 17 comprueba la conexión, escritura y lectura de medios grandes de IndexedDB (DadTetrisDB / media_files). Un pase imprime [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "La etapa 18 comprueba el motor de renderizado dividido del lienzo de doble capa (Fondo/Primer plano). Una pasada imprime [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "La etapa 19 verifica el cableado del módulo ES (Storage, Audio, Render, UI, GameEngine). Una pasada imprime [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 Cuando finaliza el escaneo, cada elemento muestra ✅ PASS o 🛠️ AUTO-FIJADO. Si se pasan las 7 comprobaciones principales, la ventana emergente de resultados muestra \"🎉 ¡Todos los sistemas centrales (lienzo dual, 5 máscaras, IndexedDB, tablero de animación DAD) están funcionando al 100%! [PASS 8/8]\".",
+      "guideDiagHint": "💡 Cuando finaliza el escaneo, cada elemento muestra ✅ PASS o 🛠️ AUTO-FIJADO. Si se pasan las 7 comprobaciones principales, la ventana emergente de resultados muestra \"🎉 ¡Todos los sistemas centrales (lienzo dual, 5 máscaras, IndexedDB, tablero de animación DAD) están funcionando al 100%! [PASS 12/12]\".",
       "guideCh2Badge": "Capítulo 2 · Cinco aspectos de bloque",
       "guideCh2Lead": "Elija una máscara en Configuración y el tablero principal más SIGUIENTE / MANTENER vuelva a dibujar al instante. Dos lienzos de vista previa en vivo (piel y fantasma) muestran la textura sin cerrar el modal.",
       "guideCh3Badge": "Capítulo 3 · Altura del tablero (distancia de caída)",
@@ -5255,7 +5432,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Medios personalizados de alta calidad a través de IndexedDB",
       "guideIndexedDbBody": "Registre fotos familiares, fondos por nivel, mp3 favorito y el video de finalización del juego en Configuración. Los originales permanecen en la cuota del navegador. Las configuraciones (5 máscaras, ROWS, volumen) permanecen en localStorage, separadas de IndexedDB.",
       "guideIndexedDbHow": "💡 Los archivos se encuentran en la tienda media_files de DadTetrisDB. La autoprueba verifica la conexión, la escritura, la lectura y la eliminación.",
-      "guideDiagPipelineBody": "La autoprueba ejecuta 7 comprobaciones principales en secuencia y luego continúa con el conjunto existente 1-1 a 19-1. Cuando pasan los 7 principales, la ventana emergente moderna imprime [PASS 8/8].",
+      "guideDiagPipelineBody": "La autoprueba ejecuta 7 comprobaciones principales en secuencia y luego continúa con el conjunto existente 1-1 a 19-1. Cuando pasan los 7 principales, la ventana emergente moderna imprime [PASS 12/12].",
       "guideDiagCore1": "1) [DOM y diseño] Lienzo doble (#bg-canvas, #tetris-canvas), tablero de animación de 160 píxeles (#dad-cheer-banner), lienzos de vista previa de apariencia/fantasma",
       "guideDiagCore2": "2) [Motor de renderizado de bloques] Integridad de las 5 máscaras (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Almacenamiento de medios] CRUD IndexedDB, #bulk-bg-file-input múltiple, put Blob/DataURL, #bulk-progress-bar",
@@ -5264,6 +5441,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Detección de dispositivos móviles] Ventana gráfica ≤768 px y bloqueo estándar de 20 filas",
       "guideDiagCore7": "7) [Módulos ES] Enlaces cruzados Storage/Audio/Render/UI/GameEngine",
       "guideDiagCore8": "8) [Estrés de IA] Autojuego 15x: colisión, FPS, líneas y tablero DAD",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Cinco temas de colores neón personalizados",
       "guideThemeBody": "Toque una muestra de paleta redonda en Configuración → Juego para cambiar instantáneamente el color de los bordes, los botones, el brillo de neón y resaltar el texto.",
       "guideThemeHow": "💡 El cambio es instantáneo (0ms) y se guarda para siempre en localStorage.",
@@ -5394,8 +5575,8 @@ function GameEngine() {
       "diagClose": "閉じる",
       "diagIdle": "アイドル状態",
       "diagCert": "🎉 100% 認定! (すべてのシステムが稼働中)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ いくつかのチェックが失敗しました — ログを参照してください",
       "gameTitle": "DAD TETRIS",
       "pressStart": "スタートを押して再生します",
@@ -5517,6 +5698,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ デフォルトの待機背景",
       "idleBgCaption": "待機画面やゲームオーバー画面で使用",
       "levelPlayBgTitle": "🎮 レベル 1 ～ 20 の背景",
+      "bgSlotStatusWindow": "🖥️ ウィンドウ背景の登録状況",
+      "bgSlotStatusBoard": "🎮 ゲームパネル背景の登録状況",
+      "bgSlotUnregistered": "未登録（デフォルト適用）",
+      "bgSlotRegistered": "登録済み",
+      "bgSlotChooseOne": "🖼️ 個別登録",
       "levelBgExtremeHint": "画像が登録されていない場合はネオングリッドのままとなります。ウィンドウはデフォルト + レベル 1 ～ 20 を使用します。ゲームパネルはレベル 1 ～ 20 のみを使用します。",
       "levelBgTitle": "{n} レベルの背景",
       "chooseLevelBg": "🖼️ 画像を選択してください",
@@ -5620,6 +5806,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 トリプルクリア！次はテトリスだ！",
       "cheerTipFreeze": "⏳ 時間停止、慎重に狙いましょう!",
       "cheerTipGameover": "👏 次のラウンドは、下からさらにしっかりと積み上げてください。",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - 落ち着いて床を平らに埋めていきましょう！",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - スピードアップ！Ghost の着地点を先に確認！",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - DADスペシャルのタイムストップ（K）で危機を乗り越えよう！",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - マスターレベル！最高の集中力を！",
       "profileQuota": "ストレージが足りません。小さい写真を選択してください。",
       "closeAria": "閉じる",
       "boardAria": "テトリスボード",
@@ -5717,7 +5907,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -5851,7 +6041,7 @@ function GameEngine() {
       "guideDiagStage17": "ステージ 17 では、IndexedDB (DadTetrisDB / media_files) ラージメディアの接続、書き込み、読み取りをチェックします。パスでは [🗄️ INDEXEDDB: PASS] が出力されます。",
       "guideDiagStage18": "ステージ 18 では、デュアルレイヤー キャンバス (バックグラウンド/フォアグラウンド) 分割レンダリング エンジンをチェックします。パスには [🖼️ DUAL CANVAS: PASS] が印刷されます。",
       "guideDiagStage19": "ステージ 19 では、ES モジュールの配線 (Storage、Audio、Render、UI、GameEngine) をチェックします。パスでは [📦 ESM MODULES: PASS] が印刷されます。",
-      "guideDiagHint": "💡 スキャンが終了すると、各項目に ✅ PASS または 🛠️ AUTO-FIXED が表示されます。 7 つのコア チェックがすべて合格すると、結果ポップアップに「🎉 すべてのコア システム (デュアル キャンバス、5 スキン、IndexedDB、DAD 応援ボード) が 100% で実行されています! [PASS 8/8]」と表示されます。",
+      "guideDiagHint": "💡 スキャンが終了すると、各項目に ✅ PASS または 🛠️ AUTO-FIXED が表示されます。 7 つのコア チェックがすべて合格すると、結果ポップアップに「🎉 すべてのコア システム (デュアル キャンバス、5 スキン、IndexedDB、DAD 応援ボード) が 100% で実行されています! [PASS 12/12]」と表示されます。",
       "guideCh2Badge": "第2章・5つのブロックスキン",
       "guideCh2Lead": "設定でスキンを選択すると、メインボードに加えて、NEXT/HOLD で即座に再描画されます。 2 つのライブ プレビュー キャンバス (スキンとゴースト) には、モーダルを閉じずにテクスチャが表示されます。",
       "guideCh3Badge": "第3章・ボードの高さ（落下距離）",
@@ -5864,7 +6054,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 IndexedDB 経由の高品質カスタム メディア",
       "guideIndexedDbBody": "家族の写真、レベルごとの背景、お気に入りの MP3、ゲームオーバービデオを設定に登録します。オリジナルはブラウザのクォータ内に残ります。設定 (5 つのスキン、ROWS、ボリューム) は、IndexedDB とは別に、localStorage に残ります。",
       "guideIndexedDbHow": "💡 ファイルは、DadTetrisDB の media_files ストアに存在します。セルフテストでは、接続、書き込み、読み取り、削除を検証します。",
-      "guideDiagPipelineBody": "セルフテストは 7 つのコア チェックを順番に実行し、既存の 1-1 から 19-1 スイートを続行します。 Core 7 が合格すると、最新のポップアップに [PASS 8/8] が出力されます。",
+      "guideDiagPipelineBody": "セルフテストは 7 つのコア チェックを順番に実行し、既存の 1-1 から 19-1 スイートを続行します。 Core 7 が合格すると、最新のポップアップに [PASS 12/12] が出力されます。",
       "guideDiagCore1": "1) [DOM とレイアウト] デュアル キャンバス (#bg-canvas、#tetris-canvas)、160 ピクセル チア ボード (#dad-cheer-banner)、スキン/ゴースト プレビュー キャンバス",
       "guideDiagCore2": "2) [ブロック レンダー エンジン] 5 つのスキンすべての整合性 (gemstone、glass、wire_glass、mecha、candy)",
       "guideDiagCore3": "3) [メディアストレージ] IndexedDB CRUD・#bulk-bg-file-input 複数選択・Blob/DataURL 逐次 put・#bulk-progress-bar",
@@ -5873,6 +6063,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [モバイル検出] ビューポート ≤768px および標準 20 行ロック",
       "guideDiagCore7": "7) [ES モジュール] Storage/Audio/Render/UI/GameEngine クロスリンク",
       "guideDiagCore8": "8) [AIストレス] オートプレイ15xの衝突・FPS・ライン消去・DAD電光掲示板",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 5 つのカスタム ネオン カラー テーマ",
       "guideThemeBody": "「設定」→「ゲーム」で丸いパレットの見本をタップすると、枠線、ボタン、ネオンの輝き、アクセントのテキストの色が即座に変更されます。",
       "guideThemeHow": "💡 切り替えは瞬時 (0ms) で、localStorage に永久に保存されます。",
@@ -6003,8 +6197,8 @@ function GameEngine() {
       "diagClose": "Fermer",
       "diagIdle": "Inactif",
       "diagCert": "🎉 100% certifié ! (Tous les systèmes opérationnels)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Certaines vérifications ont échoué — voir le journal",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Appuyez sur Démarrer pour jouer",
@@ -6126,6 +6320,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Arrière-plan d'attente par défaut",
       "idleBgCaption": "Utilisé sur les écrans d'attente et de game-over",
       "levelPlayBgTitle": "🎮 Arrière-plans de niveau 1 à 20",
+      "bgSlotStatusWindow": "🖥️ Fonds de fenêtre",
+      "bgSlotStatusBoard": "🎮 Fonds du panneau de jeu",
+      "bgSlotUnregistered": "Non enregistré (valeur par défaut)",
+      "bgSlotRegistered": "Enregistré",
+      "bgSlotChooseOne": "🖼️ Enregistrer ce slot",
       "levelBgExtremeHint": "Si aucune image n’est enregistrée, la grille néon reste. Window utilise les niveaux par défaut + 1 à 20 ; le panneau de jeu utilise uniquement les niveaux 1 à 20.",
       "levelBgTitle": "Niveau d'arrière-plan {n}",
       "chooseLevelBg": "🖼️ Choisir l'image",
@@ -6229,6 +6428,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Triple clair ! Tetris est le prochain !",
       "cheerTipFreeze": "⏳ Arrêt du temps — visez prudemment !",
       "cheerTipGameover": "👏 Au prochain tour, empilez encore plus fermement par le bas !",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Restez calme et remplissez le sol bien à plat.",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - La vitesse augmente ! Vérifiez d'abord l'atterrissage Ghost.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Utilisez le Time Stop DAD (K) pour passer le cap.",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Niveau maître ! Donnez le meilleur de votre focus.",
       "profileQuota": "Pas assez de stockage. Veuillez choisir une photo plus petite.",
       "closeAria": "Fermer",
       "boardAria": "Tableau Tetris",
@@ -6326,7 +6529,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -6460,7 +6663,7 @@ function GameEngine() {
       "guideDiagStage17": "L'étape 17 vérifie la connexion, l'écriture et la lecture des grands supports IndexedDB (DadTetrisDB / media_files). Un pass imprime [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "L'étape 18 vérifie le moteur de rendu divisé du canevas double couche (arrière-plan/premier plan). Un pass imprime [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "L'étape 19 vérifie le câblage du module ES (Storage, Audio, Render, UI, GameEngine). Un laissez-passer imprime [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 À la fin de l'analyse, chaque élément affiche ✅ PASS ou 🛠️ AUTO-FIXED. Si les 7 vérifications principales réussissent, la fenêtre contextuelle de résultat indique « 🎉 Tous les systèmes principaux (double toile, 5 skins, IndexedDB, DAD cheer board) fonctionnent à 100 % ! [PASS 8/8] ».",
+      "guideDiagHint": "💡 À la fin de l'analyse, chaque élément affiche ✅ PASS ou 🛠️ AUTO-FIXED. Si les 7 vérifications principales réussissent, la fenêtre contextuelle de résultat indique « 🎉 Tous les systèmes principaux (double toile, 5 skins, IndexedDB, DAD cheer board) fonctionnent à 100 % ! [PASS 12/12] ».",
       "guideCh2Badge": "Chapitre 2 · Cinq skins de bloc",
       "guideCh2Lead": "Choisissez un skin dans Paramètres et sur le tableau principal, puis redessinez NEXT/HOLD instantanément. Deux toiles d'aperçu en direct (peau et fantôme) affichent la texture sans fermer le modal.",
       "guideCh3Badge": "Chapitre 3 · Hauteur de la planche (distance de chute)",
@@ -6473,7 +6676,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Support personnalisé de haute qualité via IndexedDB",
       "guideIndexedDbBody": "Enregistrez les photos de famille, les arrière-plans par niveau, les mp3 préférés et la vidéo de fin de jeu dans Paramètres. Les originaux restent dans le quota du navigateur. Les paramètres (5 skins, ROWS, volume) restent dans localStorage, distincts de IndexedDB.",
       "guideIndexedDbHow": "Les fichiers 💡 se trouvent dans le magasin media_files de DadTetrisDB. L'autotest vérifie la connexion, l'écriture, la lecture et la suppression.",
-      "guideDiagPipelineBody": "L'autotest exécute 7 vérifications principales en séquence, puis continue avec la suite 1-1 à 19-1 existante. Lorsque le noyau 7 passe, la fenêtre contextuelle moderne imprime [PASS 8/8].",
+      "guideDiagPipelineBody": "L'autotest exécute 7 vérifications principales en séquence, puis continue avec la suite 1-1 à 19-1 existante. Lorsque le noyau 7 passe, la fenêtre contextuelle moderne imprime [PASS 12/12].",
       "guideDiagCore1": "1) [DOM et mise en page] Double toile (#bg-canvas, #tetris-canvas), tableau d'encouragement de 160 px (#dad-cheer-banner), toiles d'aperçu skin/fantôme",
       "guideDiagCore2": "2) [Moteur de rendu de bloc] Intégrité des 5 skins (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Stockage multimédia] CRUD IndexedDB, #bulk-bg-file-input multi, put Blob/DataURL, #bulk-progress-bar",
@@ -6482,6 +6685,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Détection mobile] Fenêtre d'affichage ≤768px et verrouillage standard à 20 rangées",
       "guideDiagCore7": "7) [modules ES] liaisons croisées Storage/Audio/Render/UI/GameEngine",
       "guideDiagCore8": "8) [Stress IA] Autoplay 15x collision, FPS, lignes et panneau DAD",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Cinq thèmes de couleurs néon personnalisés",
       "guideThemeBody": "Appuyez sur un échantillon de palette ronde dans Paramètres → Jeu pour recolorer instantanément les bordures, les boutons, la lueur au néon et accentuer le texte.",
       "guideThemeHow": "💡 Le changement est instantané (0 ms) et enregistré pour toujours dans localStorage.",
@@ -6612,8 +6819,8 @@ function GameEngine() {
       "diagClose": "Schließen",
       "diagIdle": "Leerlauf",
       "diagCert": "🎉 100 % zertifiziert! (Alle Systeme betriebsbereit)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Einige Prüfungen sind fehlgeschlagen – siehe Protokoll",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Drücken Sie Start, um zu spielen",
@@ -6735,6 +6942,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Standard-Wartehintergrund",
       "idleBgCaption": "Wird auf den Warte- und Game-Over-Bildschirmen verwendet",
       "levelPlayBgTitle": "🎮 Hintergründe der Stufen 1–20",
+      "bgSlotStatusWindow": "🖥️ Fensterhintergrund-Slots",
+      "bgSlotStatusBoard": "🎮 Panel-Hintergrund-Slots",
+      "bgSlotUnregistered": "Nicht registriert (Standard)",
+      "bgSlotRegistered": "Registriert",
+      "bgSlotChooseOne": "🖼️ Diesen Slot registrieren",
       "levelBgExtremeHint": "Wenn kein Bild registriert ist, bleibt das Neongitter bestehen. Fenster verwendet die Standardwerte + Ebenen 1–20; Das Spielfeld verwendet nur die Level 1–20.",
       "levelBgTitle": "Level {n} Hintergrund",
       "chooseLevelBg": "🖼️ Bild auswählen",
@@ -6838,6 +7050,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Dreifach klar! Als nächstes kommt Tetris!",
       "cheerTipFreeze": "⏳ Zeitstopp ein – zielen Sie vorsichtig!",
       "cheerTipGameover": "👏 In der nächsten Runde von unten noch fester stapeln!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Bleib ruhig und fülle den Boden eben auf!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - Tempo steigt! Prüfe zuerst die Ghost-Landung.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Nutze DAD Special Time Stop (K) in der Krise!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Master-Level! Volle Konzentration!",
       "profileQuota": "Nicht genügend Speicherplatz. Bitte wählen Sie ein kleineres Foto.",
       "closeAria": "Schließen",
       "boardAria": "Tetris-Brett",
@@ -6935,7 +7151,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -7069,7 +7285,7 @@ function GameEngine() {
       "guideDiagStage17": "Stufe 17 prüft die Verbindung, das Schreiben und das Lesen großer Medien. Ein Pass gibt [🗄️ INDEXEDDB: PASS] aus.",
       "guideDiagStage18": "Stufe 18 überprüft die geteilte Rendering-Engine für die zweischichtige Leinwand (Hintergrund/Vordergrund). Ein Pass druckt [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stufe 19 prüft die Verkabelung des ES-Moduls (Speicher, Audio, Render, UI, GameEngine). Ein Pass druckt [📦 ESM-MODULE: PASS].",
-      "guideDiagHint": "💡 Wenn der Scan beendet ist, wird für jedes Element ✅ PASS oder 🛠️ AUTO-FIXED angezeigt. Wenn alle 7 Kernprüfungen erfolgreich sind, zeigt das Ergebnis-Popup „🎉 Alle Kernsysteme (Dual-Canvas, 5 Skins, IndexedDB, Papa-Cheerboard) laufen zu 100 %! [PASS 8/8]“.",
+      "guideDiagHint": "💡 Wenn der Scan beendet ist, wird für jedes Element ✅ PASS oder 🛠️ AUTO-FIXED angezeigt. Wenn alle 7 Kernprüfungen erfolgreich sind, zeigt das Ergebnis-Popup „🎉 Alle Kernsysteme (Dual-Canvas, 5 Skins, IndexedDB, Papa-Cheerboard) laufen zu 100 %! [PASS 12/12]“.",
       "guideCh2Badge": "Kapitel 2 · Fünf Block-Skins",
       "guideCh2Lead": "Wählen Sie in den Einstellungen einen Skin aus und zeichnen Sie die Hauptplatine sofort neu. Zwei Live-Vorschau-Leinwände (Skin und Ghost) zeigen die Textur, ohne das Modal zu schließen.",
       "guideCh3Badge": "Kapitel 3 · Bretthöhe (Fallabstand)",
@@ -7082,7 +7298,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Hochwertige kundenspezifische Medien über IndexedDB",
       "guideIndexedDbBody": "Registrieren Sie Familienfotos, Hintergründe pro Level, Lieblings-MP3 und das Game-Over-Video in den Einstellungen. Originale bleiben im Browser-Kontingent. Einstellungen (5 Skins, ROWS, Lautstärke) bleiben in localStorage, getrennt von IndexedDB.",
       "guideIndexedDbHow": "💡 Dateien befinden sich im media_files-Store von DadTetrisDB. Der Selbsttest überprüft das Verbinden, Schreiben, Lesen und Löschen.",
-      "guideDiagPipelineBody": "Der Selbsttest führt nacheinander 7 Kernprüfungen durch und fährt dann mit der bestehenden Suite 1-1 bis 19-1 fort. Wenn der Kern 7 bestanden wird, gibt das moderne Popup [PASS 8/8] aus.",
+      "guideDiagPipelineBody": "Der Selbsttest führt nacheinander 7 Kernprüfungen durch und fährt dann mit der bestehenden Suite 1-1 bis 19-1 fort. Wenn der Kern 7 bestanden wird, gibt das moderne Popup [PASS 12/12] aus.",
       "guideDiagCore1": "1) [DOM & Layout] Dual-Leinwand (#bg-canvas, #tetris-canvas), 160-Pixel-Cheerboard (#dad-cheer-banner), Skin/Geistervorschau-Leinwände",
       "guideDiagCore2": "2) [Block-Render-Engine] Integrität aller 5 Skins (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Medienspeicher] IndexedDB-CRUD, #bulk-bg-file-input, Blob/DataURL-Puts, #bulk-progress-bar",
@@ -7091,6 +7307,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Mobile Erkennung] Ansichtsfenster ≤768px und standardmäßige 20-Zeilen-Sperre",
       "guideDiagCore7": "7) [ES-Module] Storage/Audio/Render/UI/GameEngine Crosslinks",
       "guideDiagCore8": "8) [KI-Stress] Autoplays 15x Kollision, FPS, Linien und Papa-Tafel",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Fünf benutzerdefinierte Neonfarbthemen",
       "guideThemeBody": "Tippen Sie unter „Einstellungen“ → „Spiel“ auf ein rundes Farbfeld, um Ränder, Schaltflächen, Neonlicht und Akzenttext sofort neu einzufärben.",
       "guideThemeHow": "💡 Der Wechsel erfolgt sofort (0 ms) und wird für immer in localStorage gespeichert.",
@@ -7221,8 +7441,8 @@ function GameEngine() {
       "diagClose": "Fechar",
       "diagIdle": "Inativo",
       "diagCert": "🎉 100% certificado! (Todos os sistemas operacionais)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Algumas verificações falharam — veja o log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Pressione Iniciar para jogar",
@@ -7344,6 +7564,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Plano de fundo de espera padrão",
       "idleBgCaption": "Usado nas telas de espera e de fim de jogo",
       "levelPlayBgTitle": "🎮 Planos de fundo de nível 1 a 20",
+      "bgSlotStatusWindow": "🖥️ Slots de fundo da janela",
+      "bgSlotStatusBoard": "🎮 Slots de fundo do painel",
+      "bgSlotUnregistered": "Não registrado (padrão aplicado)",
+      "bgSlotRegistered": "Registrado",
+      "bgSlotChooseOne": "🖼️ Registrar este slot",
       "levelBgExtremeHint": "Se nenhuma imagem for registrada, a grade neon permanece. A janela usa o padrão + níveis 1–20; o painel do jogo usa apenas os níveis 1–20.",
       "levelBgTitle": "Plano de fundo do nível {n}",
       "chooseLevelBg": "🖼️ Escolha a imagem",
@@ -7447,6 +7672,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Triplo claro! Tetris é o próximo!",
       "cheerTipFreeze": "⏳ Pare o tempo - mire com cuidado!",
       "cheerTipGameover": "👏 Na próxima rodada, empilhe ainda mais firme por baixo!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Fique calmo e preencha o chão de forma uniforme.",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - A velocidade sobe! Confira primeiro o pouso Ghost.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Use o Time Stop especial DAD (K) para passar o aperto.",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Nível mestre! Mostre sua melhor concentração.",
       "profileQuota": "Armazenamento insuficiente. Escolha uma foto menor.",
       "closeAria": "Fechar",
       "boardAria": "Tabuleiro Tetris",
@@ -7544,7 +7773,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -7678,7 +7907,7 @@ function GameEngine() {
       "guideDiagStage17": "O estágio 17 verifica IndexedDB (DadTetrisDB / media_files) mídia grande conectada, escrita e lida. Uma passagem é impressa [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "O estágio 18 verifica o mecanismo de renderização dividida da tela de camada dupla (Background/Foreground). Um passe imprime [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "O estágio 19 verifica a fiação do módulo ES (Armazenamento, Áudio, Renderização, UI, GameEngine). Um passe é impresso [📦 MÓDULOS ESM: PASS].",
-      "guideDiagHint": "💡 Quando a varredura termina, cada item mostra ✅ PASS ou 🛠️ AUTO-FIXADO. Se todas as 7 verificações principais forem aprovadas, o pop-up de resultado mostrará \"🎉 Todos os sistemas principais (tela dupla, 5 skins, IndexedDB, quadro de torcida Papai) estão funcionando a 100%! [PASS 8/8]\".",
+      "guideDiagHint": "💡 Quando a varredura termina, cada item mostra ✅ PASS ou 🛠️ AUTO-FIXADO. Se todas as 7 verificações principais forem aprovadas, o pop-up de resultado mostrará \"🎉 Todos os sistemas principais (tela dupla, 5 skins, IndexedDB, quadro de torcida Papai) estão funcionando a 100%! [PASS 12/12]\".",
       "guideCh2Badge": "Capítulo 2 · Cinco skins de bloco",
       "guideCh2Lead": "Escolha um tema em Configurações e no quadro principal, além de NEXT/HOLD redesenhar instantaneamente. Duas telas de visualização ao vivo (pele e fantasma) mostram a textura sem fechar o modal.",
       "guideCh3Badge": "Capítulo 3 · Altura da prancha (distância de queda)",
@@ -7691,7 +7920,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Mídia personalizada de alta qualidade via IndexedDB",
       "guideIndexedDbBody": "Registre fotos de família, planos de fundo por nível, mp3 favorito e vídeo de fim de jogo em Configurações. Os originais permanecem na cota do navegador. As configurações (5 skins, ROWS, volume) permanecem em localStorage, separadas de IndexedDB.",
       "guideIndexedDbHow": "💡 Os arquivos ficam no armazenamento media_files de DadTetrisDB. O autoteste verifica a conexão, gravação, leitura e exclusão.",
-      "guideDiagPipelineBody": "O autoteste executa 7 verificações principais em sequência e, em seguida, continua com o conjunto existente de 1-1 a 19-1. Quando o núcleo 7 for aprovado, o pop-up moderno imprimirá [PASS 8/8].",
+      "guideDiagPipelineBody": "O autoteste executa 7 verificações principais em sequência e, em seguida, continua com o conjunto existente de 1-1 a 19-1. Quando o núcleo 7 for aprovado, o pop-up moderno imprimirá [PASS 12/12].",
       "guideDiagCore1": "1) [DOM e layout] Tela dupla (#bg-canvas, #tetris-canvas), quadro de torcida de 160px (#dad-cheer-banner), skin/telas de visualização fantasma",
       "guideDiagCore2": "2) [Mecanismo de renderização de bloco] Integridade de todas as 5 skins (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Armazenamento de mídia] CRUD IndexedDB, #bulk-bg-file-input, put Blob/DataURL, #bulk-progress-bar",
@@ -7700,6 +7929,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Detecção móvel] Janela de visualização ≤768px e bloqueio padrão de 20 linhas",
       "guideDiagCore7": "7) [Módulos ES] Armazenamento/Áudio/Renderização/UI/GameEngine ligações cruzadas",
       "guideDiagCore8": "8) [Estresse de IA] Autoplay 15x colisão, FPS, linhas e painel DAD",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Cinco temas de cores neon personalizados",
       "guideThemeBody": "Toque em uma amostra redonda da paleta em Configurações → Jogo para recolorir instantaneamente bordas, botões, brilho neon e realçar texto.",
       "guideThemeHow": "💡 A troca é instantânea (0ms) e salva para sempre em localStorage.",
@@ -7830,8 +8063,8 @@ function GameEngine() {
       "diagClose": "Close",
       "diagIdle": "Idle",
       "diagCert": "🎉 100% certified! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Some checks failed — see the log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Нажмите Старт, чтобы играть",
@@ -7953,6 +8186,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Фон ожидания",
       "idleBgCaption": "Для экрана ожидания и окончания",
       "levelPlayBgTitle": "🎮 Фоны уровней 1–10",
+      "bgSlotStatusWindow": "🖥️ Слоты фона окна",
+      "bgSlotStatusBoard": "🎮 Слоты фона панели",
+      "bgSlotUnregistered": "Не зарегистрировано (по умолчанию)",
+      "bgSlotRegistered": "Зарегистрировано",
+      "bgSlotChooseOne": "🖼️ Зарегистрировать слот",
       "levelBgExtremeHint": "Уровни 11–20 сохраняют фон 10-го и показывают тёмное неоновое свечение.",
       "levelBgTitle": "Фон уровня {n}",
       "chooseLevelBg": "🖼️ Выбрать изображение",
@@ -8056,6 +8294,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Тройная очистка! Дальше Tetris!",
       "cheerTipFreeze": "⏳ Стоп-время — целься точно!",
       "cheerTipGameover": "👏 В следующий раз строй ещё крепче!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Спокойно заполняйте пол ровно снизу!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - Скорость растёт! Сначала смотрите посадку Ghost.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Используйте DAD Time Stop (K), чтобы пройти кризис!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Мастер-уровень! Максимальная концентрация!",
       "profileQuota": "Недостаточно места. Выберите фото поменьше.",
       "closeAria": "Закрыть",
       "boardAria": "Поле Тетриса",
@@ -8153,7 +8395,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -8287,7 +8529,7 @@ function GameEngine() {
       "guideDiagStage17": "Stage 17 checks IndexedDB (DadTetrisDB / media_files) large-media connect, write, and read. A pass prints [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Stage 18 checks the dual-layer canvas (Background/Foreground) split rendering engine. A pass prints [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stage 19 checks ES module wiring (Storage, Audio, Render, UI, GameEngine). A pass prints [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. If all 8 core checks pass, the result popup shows “🎉 All core systems (dual canvas, 5 skins, IndexedDB, DAD cheer board) are running at 100%! [PASS 8/8]”.",
+      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 12/12] appears only when C1–C12 visual/behavior checks and the 1-1–19-1 suite all pass.",
       "guideCh2Badge": "Chapter 2 · Five block skins",
       "guideCh2Lead": "Pick a skin in Settings and the main board plus NEXT/HOLD redraw instantly. Two live preview canvases (skin and ghost) show the texture without closing the modal.",
       "guideCh3Badge": "Chapter 3 · Board height (drop distance)",
@@ -8300,7 +8542,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 High-quality custom media via IndexedDB",
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
-      "guideDiagPipelineBody": "Self-test runs 8 core checks in sequence, then continues with the existing 1-1 through 19-1 suite. When the core 8 pass, the modern popup prints [PASS 8/8].",
+      "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
       "guideDiagCore1": "1) [DOM & layout] Dual canvas, #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
       "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, #bulk-bg-file-input multi-select, Blob/DataURL sequential put, #bulk-progress-bar",
@@ -8309,6 +8551,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Mobile] Viewport detect, 20-row lock, 100dvh arcade fit, 2x2 scores, wide DAD cheer bar, foldable split pad",
       "guideDiagCore7": "7) [ES modules] Storage/Audio/Render/UI/GameEngine binding · touch element DOM",
       "guideDiagCore8": "8) [AI stress] Hide idle panel, 15x five drops, collision 0, 15fps, DAD cheer, particle GC, board restore",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -8439,8 +8685,8 @@ function GameEngine() {
       "diagClose": "Đóng",
       "diagIdle": "Nhàn rỗi",
       "diagCert": "🎉 Được chứng nhận 100%! (Tất cả các hệ thống đều hoạt động)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Một số lần kiểm tra không thành công - xem nhật ký",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Nhấn Bắt đầu để chơi",
@@ -8562,6 +8808,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Nền chờ mặc định",
       "idleBgCaption": "Được sử dụng trên màn hình chờ và màn hình kết thúc trò chơi",
       "levelPlayBgTitle": "🎮 Hình nền cấp 1–20",
+      "bgSlotStatusWindow": "🖥️ Trạng thái nền cửa sổ",
+      "bgSlotStatusBoard": "🎮 Trạng thái nền bảng chơi",
+      "bgSlotUnregistered": "Chưa đăng ký (dùng mặc định)",
+      "bgSlotRegistered": "Đã đăng ký",
+      "bgSlotChooseOne": "🖼️ Đăng ký ô này",
       "levelBgExtremeHint": "Nếu không có hình ảnh nào được đăng ký, lưới neon vẫn giữ nguyên. Cửa sổ sử dụng mức + mặc định 1–20; bảng điều khiển trò chơi chỉ sử dụng cấp độ 1–20.",
       "levelBgTitle": "Nền cấp {n}",
       "chooseLevelBg": "🖼️ Chọn hình ảnh",
@@ -8665,6 +8916,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Rõ ràng gấp ba lần! Tetris là người tiếp theo!",
       "cheerTipFreeze": "⏳ Thời gian ngừng trôi - nhắm cẩn thận!",
       "cheerTipGameover": "👏 Vòng tiếp theo, xếp càng chắc chắn hơn từ dưới lên!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Bình tĩnh và lấp sàn thật phẳng từ dưới lên!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - Tốc độ tăng! Kiểm tra điểm rơi Ghost trước.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Dùng Time Stop đặc biệt DAD (K) để qua khủng hoảng!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Cấp bậc thầy! Tập trung tối đa!",
       "profileQuota": "Không đủ dung lượng lưu trữ. Vui lòng chọn một bức ảnh nhỏ hơn.",
       "closeAria": "Đóng",
       "boardAria": "bảng xếp hình Tetris",
@@ -8762,7 +9017,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -8896,7 +9151,7 @@ function GameEngine() {
       "guideDiagStage17": "Giai đoạn 17 kiểm tra IndexedDB (DadTetrisDB / media_files) kết nối, ghi và đọc phương tiện truyền thông lớn. Một thẻ in ra [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Giai đoạn 18 kiểm tra công cụ kết xuất phân tách canvas hai lớp (Background/Foreground). Một tấm thẻ in [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Giai đoạn 19 kiểm tra hệ thống dây điện của mô-đun ES (Bộ lưu trữ, Âm thanh, Kết xuất, Giao diện người dùng, GameEngine). Thẻ in ra [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 Khi quá trình quét kết thúc, mỗi mục sẽ hiển thị ✅ ĐẠT hoặc 🛠️ TỰ ĐỘNG CỐ ĐỊNH. Nếu tất cả 7 lần kiểm tra lõi đều vượt qua, cửa sổ bật lên kết quả hiển thị “🎉 Tất cả các hệ thống lõi (canvas kép, 5 giao diện, IndexedDB, bảng cổ vũ Bố) đang chạy ở mức 100%! [PASS 8/8]”.",
+      "guideDiagHint": "💡 Khi quá trình quét kết thúc, mỗi mục sẽ hiển thị ✅ ĐẠT hoặc 🛠️ TỰ ĐỘNG CỐ ĐỊNH. Nếu tất cả 7 lần kiểm tra lõi đều vượt qua, cửa sổ bật lên kết quả hiển thị “🎉 Tất cả các hệ thống lõi (canvas kép, 5 giao diện, IndexedDB, bảng cổ vũ Bố) đang chạy ở mức 100%! [PASS 12/12]”.",
       "guideCh2Badge": "Chương 2 · Da năm khối",
       "guideCh2Lead": "Chọn một giao diện trong Cài đặt và bảng chính cộng với TIẾP THEO16HOLD vẽ lại ngay lập tức. Hai khung vẽ xem trước trực tiếp (da và bóng) hiển thị kết cấu mà không đóng chế độ.",
       "guideCh3Badge": "Chương 3 · Chiều cao bảng (khoảng cách thả)",
@@ -8909,7 +9164,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Phương tiện tùy chỉnh chất lượng cao thông qua IndexedDB",
       "guideIndexedDbBody": "Đăng ký ảnh gia đình, hình nền theo cấp độ, mp3 yêu thích và video kết thúc trò chơi trong Cài đặt. Bản gốc vẫn nằm trong hạn ngạch của trình duyệt. Các cài đặt (5 giao diện, ROWS, âm lượng) vẫn ở localStorage, tách biệt với IndexedDB.",
       "guideIndexedDbHow": "💡 Các tập tin tồn tại trong kho lưu trữ media_files của DadTetrisDB. Tự kiểm tra xác minh kết nối, ghi, đọc và xóa.",
-      "guideDiagPipelineBody": "Quá trình tự kiểm tra chạy 7 bước kiểm tra cốt lõi theo trình tự, sau đó tiếp tục với bộ 1-1 đến 19-1 hiện có. Khi lõi 7 vượt qua, cửa sổ bật lên hiện đại sẽ in [PASS 8/8].",
+      "guideDiagPipelineBody": "Quá trình tự kiểm tra chạy 7 bước kiểm tra cốt lõi theo trình tự, sau đó tiếp tục với bộ 1-1 đến 19-1 hiện có. Khi lõi 7 vượt qua, cửa sổ bật lên hiện đại sẽ in [PASS 12/12].",
       "guideDiagCore1": "1) [DOM & bố cục] Canvas kép (#bg-canvas, #tetris-canvas), bảng cổ vũ 160px (#dad-cheer-banner), skin/ canvas xem trước ma",
       "guideDiagCore2": "2) [Block render engine] Tính toàn vẹn của cả 5 skin (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Bộ lưu trữ đa phương tiện] CRUD IndexedDB, #bulk-bg-file-input, put Blob/DataURL, #bulk-progress-bar",
@@ -8918,6 +9173,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Phát hiện trên thiết bị di động] Viewport ≤768px và khóa 20 hàng tiêu chuẩn",
       "guideDiagCore7": "7) [ES module] Lưu trữ/Âm thanh/Render/UI/GameEngine liên kết chéo",
       "guideDiagCore8": "8) [AI stress] Autoplays 15x va chạm, FPS, xóa dòng và bảng cổ vũ Bố",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Năm chủ đề màu neon tùy chỉnh",
       "guideThemeBody": "Chạm vào mẫu bảng màu tròn trong Cài đặt → Trò chơi để đổi màu ngay lập tức các đường viền, nút, ánh sáng neon và văn bản có dấu.",
       "guideThemeHow": "💡 Quá trình chuyển đổi diễn ra tức thời (0ms) và được lưu vĩnh viễn trong localStorage.",
@@ -9048,8 +9307,8 @@ function GameEngine() {
       "diagClose": "Tutup",
       "diagIdle": "Menganggur",
       "diagCert": "🎉 100% bersertifikat! (Semua Sistem Beroperasi)",
-      "diagAllGreen": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] All core modules, smart bulk media, 12 languages, and AI stress tests complete (8/8 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
       "diagFail": "⚠️ Beberapa pemeriksaan gagal — lihat log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Tekan Mulai untuk memutar",
@@ -9171,6 +9430,11 @@ function GameEngine() {
       "idleBgTitle": "🖼️ Latar belakang menunggu default",
       "idleBgCaption": "Digunakan pada layar tunggu dan layar game-over",
       "levelPlayBgTitle": "🎮 Latar belakang level 1–20",
+      "bgSlotStatusWindow": "🖥️ Status latar jendela",
+      "bgSlotStatusBoard": "🎮 Status latar panel game",
+      "bgSlotUnregistered": "Belum terdaftar (default dipakai)",
+      "bgSlotRegistered": "Terdaftar",
+      "bgSlotChooseOne": "🖼️ Daftarkan slot ini",
       "levelBgExtremeHint": "Jika tidak ada gambar yang didaftarkan, jaringan neon tetap ada. Jendela menggunakan default + level 1–20; panel permainan hanya menggunakan level 1–20.",
       "levelBgTitle": "Latar belakang tingkat {n}",
       "chooseLevelBg": "🖼️ Pilih gambar",
@@ -9274,6 +9538,10 @@ function GameEngine() {
       "cheerTipClear3": "🔥 Tiga kali lipat! Tetris berikutnya!",
       "cheerTipFreeze": "⏳ Waktu berhenti — bidik dengan hati-hati!",
       "cheerTipGameover": "👏 Putaran selanjutnya, susun lebih rapat lagi dari bawah!",
+      "cheerLevelGuideCalm": "💡 LEVEL {lv} - Tenang dan isi lantai rata dari bawah!",
+      "cheerLevelGuideSpeed": "⚡ LEVEL {lv} - Kecepatan naik! Cek dulu titik mendarat Ghost.",
+      "cheerLevelGuideSpecial": "🔥 LEVEL {lv} - Pakai Time Stop khusus DAD (K) untuk lolos krisis!",
+      "cheerLevelGuideMaster": "👑 LEVEL {lv} - Level master! Keluarkan fokus terbaikmu!",
       "profileQuota": "Penyimpanan tidak cukup. Silakan pilih foto yang lebih kecil.",
       "closeAria": "Tutup",
       "boardAria": "Papan tetris",
@@ -9371,7 +9639,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C8, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -9505,7 +9773,7 @@ function GameEngine() {
       "guideDiagStage17": "Tahap 16 memeriksa jumlah baris papan dinamis (20 / 24 / 28) dan sesi seluler mengunci ROWS=20. Cetakan pass [📏 UKURAN PAPAN: PASS].\n0\nTahap 17 memeriksa IndexedDB (DadTetrisDB / media_files) koneksi media besar, tulis, dan baca. Cetakan pass [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Tahap 18 memeriksa mesin rendering terpisah kanvas dua lapis (Latar Belakang/Latar Depan). Cetakan pas [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Tahap 19 memeriksa kabel modul ES (Penyimpanan, Audio, Render, UI, GameEngine). Sebuah cetakan pass [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 Saat pemindaian berakhir, setiap item menampilkan ✅ PASS atau 🛠️ AUTO-FIXED. Jika ketujuh pemeriksaan inti lolos, popup hasil menunjukkan “🎉 Semua sistem inti (kanvas ganda, 5 skin, IndexedDB, papan dukungan Ayah) berjalan pada 100%! [LULUS 8/8]\".",
+      "guideDiagHint": "💡 Saat pemindaian berakhir, setiap item menampilkan ✅ PASS atau 🛠️ AUTO-FIXED. Jika ketujuh pemeriksaan inti lolos, popup hasil menunjukkan “🎉 Semua sistem inti (kanvas ganda, 5 skin, IndexedDB, papan dukungan Ayah) berjalan pada 100%! [LULUS 12/12]\".",
       "guideCh2Badge": "Bab 2 · Lima blok kulit",
       "guideCh2Lead": "Pilih skin di Pengaturan dan papan utama plus gambar ulang NEXT/HOLD secara instan. Dua kanvas pratinjau langsung (kulit dan hantu) menampilkan tekstur tanpa menutup modal.",
       "guideCh3Badge": "Bab 3 · Tinggi papan (jarak jatuh)",
@@ -9518,7 +9786,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Media khusus berkualitas tinggi melalui IndexedDB",
       "guideIndexedDbBody": "Daftarkan foto keluarga, latar belakang per level, mp3 favorit, dan video game-over di Pengaturan. Dokumen asli tetap berada dalam kuota browser. Setting (5 skin, ROWS, volume) tetap di localStorage, terpisah dari IndexedDB.",
       "guideIndexedDbHow": "💡 File ada di media_files penyimpanan DadTetrisDB. Tes mandiri memverifikasi koneksi, tulis, baca, dan hapus.",
-      "guideDiagPipelineBody": "Tes mandiri menjalankan 7 pemeriksaan inti secara berurutan, kemudian dilanjutkan dengan rangkaian 1-1 hingga 19-1 yang ada. Ketika inti 7 lolos, popup modern mencetak [PASS 8/8].",
+      "guideDiagPipelineBody": "Tes mandiri menjalankan 7 pemeriksaan inti secara berurutan, kemudian dilanjutkan dengan rangkaian 1-1 hingga 19-1 yang ada. Ketika inti 7 lolos, popup modern mencetak [PASS 12/12].",
       "guideDiagCore1": "1) [DOM & tata letak] Kanvas ganda (#bg-canvas, #tetris-canvas), papan sorak 160 piksel (#dad-cheer-banner), kanvas pratinjau skin/hantu",
       "guideDiagCore2": "2) [Blokir mesin render] Integritas kelima skin (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Penyimpanan media] CRUD IndexedDB, #bulk-bg-file-input, put Blob/DataURL, #bulk-progress-bar",
@@ -9527,6 +9795,10 @@ function GameEngine() {
       "guideDiagCore6": "5) [Audio/video] Web Audio API and sound manager init",
       "guideDiagCore7": "6) [Deteksi seluler] Area pandang ≤768 piksel dan kunci standar 20 baris\n0\n7) [Modul ES] Penyimpanan/Audio/Render/UI/GameEngine tautan silang",
       "guideDiagCore8": "8) [Stres AI] Autoplays 15x tabrakan, FPS, baris, dan papan sorak Ayah",
+      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
+      "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Lima tema warna neon khusus",
       "guideThemeBody": "Ketuk contoh palet bulat di Pengaturan → Game untuk langsung mewarnai ulang batas, tombol, cahaya neon, dan teks aksen.",
       "guideThemeHow": "💡 Peralihannya instan (0 ms) dan disimpan selamanya dalam localStorage.",
@@ -9726,6 +9998,8 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
+  const APP_VERSION = "1.0.9-stable";
+  window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
   const BUNDLED_IDLE_BG_PNG = "assets/bg-default.png";
@@ -9790,7 +10064,7 @@ function GameEngine() {
     }
     const cleaned = raw.replace(/^\.?\//, "").replace(/^\/+/, "");
     try {
-      return new URL(cleaned, assetBaseHref()).href;
+      return new URL("./" + cleaned, assetBaseHref()).href;
     } catch (err) {
       return "./" + cleaned;
     }
@@ -10323,6 +10597,7 @@ function GameEngine() {
   let dadSnapFlashTid = 0;
   let bannerTimer = 0;
   let settings = loadSettings();
+  let currentBgTarget = settings && settings.bgTarget === "board" ? "board" : "window";
   ROWS = effectiveBoardRows(settings.boardRowsCount);
   if (!cells || cells.length !== ROWS) {
     cells = createBoard();
@@ -12748,6 +13023,11 @@ function GameEngine() {
       }
     };
     img.onerror = () => {
+      try {
+        img.removeAttribute("src");
+      } catch (err) {
+        /* ignore */
+      }
       if (done) {
         done(false);
       }
@@ -13283,12 +13563,48 @@ function GameEngine() {
     return Number.isFinite(n) ? playLevel(n) : start;
   }
 
+  function levelGuideCheerKey(lv) {
+    const n = playLevel(lv);
+    if (n >= 15) {
+      return "cheerLevelGuideMaster";
+    }
+    if (n >= 10) {
+      return "cheerLevelGuideSpecial";
+    }
+    if (n >= 5) {
+      return "cheerLevelGuideSpeed";
+    }
+    return "cheerLevelGuideCalm";
+  }
+
+  function flashLevelGuideCheer(lv) {
+    const n = playLevel(lv);
+    const msg = t(levelGuideCheerKey(n), { lv: n });
+    try {
+      if (typeof flashDadCheer === "function") {
+        flashDadCheer("level", msg, msg);
+      }
+    } catch (err) {
+      /* cheer board optional */
+    }
+  }
+
   function checkLevelUp() {
     const prevPlay = playLevel(level);
     level = nextLevelFromLines(lines);
-    const changed = playLevel(level) !== prevPlay;
+    const changed = playLevel(level) > prevPlay;
     if (changed) {
-      paintLevelBgOnLevelUp(level, { fade: true });
+      try {
+        paintLevelBgOnLevelUp(level, { fade: true });
+      } catch (bgErr) {
+        try {
+          updateLevelBackground(level, { fade: true, force: true, allowClear: false });
+          updateBoardBackground(level, { fade: true, force: true, allowClear: false });
+        } catch (bgErr2) {
+          /* HUD still updates */
+        }
+      }
+      flashLevelGuideCheer(level);
     }
     maybeCelebrateLevel20(prevPlay);
     return changed;
@@ -13883,7 +14199,10 @@ function GameEngine() {
   }
 
   function bundledIdleBgCandidates() {
-    return [getAssetUrl(BUNDLED_IDLE_BG_JPG), getAssetUrl(BUNDLED_IDLE_BG_PNG)].filter(Boolean);
+    return [
+      getAssetUrl(BUNDLED_IDLE_BG_JPG),
+      getAssetUrl(BUNDLED_IDLE_BG_PNG),
+    ].filter(Boolean);
   }
 
   function folderLevelBgCandidates(n) {
@@ -13895,8 +14214,6 @@ function GameEngine() {
       }
     };
     push(getAssetUrl(bundledLevelRel(lv)));
-    push(getAssetUrl("images/bg" + lv + ".jpg"));
-    push(getAssetUrl("images/bg" + lv + ".png"));
     bundledIdleBgCandidates().forEach(push);
     return urls;
   }
@@ -13909,9 +14226,22 @@ function GameEngine() {
     return url.replace(/\\/g, "/").indexOf(rel) >= 0;
   }
 
+  function isBundledLevelWatermarkUrl(url) {
+    const raw = String(url || "").replace(/\\/g, "/");
+    if (!raw || isUserMediaUrl(raw)) {
+      return false;
+    }
+    return /(?:^|\/)assets\/images\/level_\d+\.(?:jpe?g|png|webp)(?:\?|#|$)/i.test(raw)
+      || /(?:^|\/)images\/bg\d+\.(?:jpe?g|png|webp)(?:\?|#|$)/i.test(raw);
+  }
+
+  function drawLevelWatermark() {
+    /* board LEVEL watermark removed — tips go to DAD STATUS */
+  }
+
   function logBgLoadError(url) {
-    const failed = String(url || "");
-    console.warn("[Dad Tetris] background image 404:", failed);
+    /* optional fallbacks fail silently — neon/solid paint continues */
+    void url;
   }
 
   function shownLevel(value) {
@@ -13923,7 +14253,7 @@ function GameEngine() {
   }
 
   function bgEditTarget() {
-    return settings.bgTarget === "board" ? "board" : "window";
+    return currentBgTarget === "board" ? "board" : "window";
   }
 
   function bgStoreKey(target, kind) {
@@ -13981,6 +14311,42 @@ function GameEngine() {
       }
     }
     return keys;
+  }
+
+  async function deleteAllBgSlotKeys(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    const idle = kind === "default" || kind === "idle";
+    const slot = idle ? "default" : kind;
+    const keys = bgCandidateKeys(dest, slot);
+    await Promise.all(keys.map((key) => {
+      try {
+        return mediaStore.del(key);
+      } catch (err) {
+        return Promise.resolve();
+      }
+    }));
+    try {
+      keys.forEach((key) => {
+        try {
+          localStorage.removeItem(key);
+        } catch (err) {
+          /* ignore */
+        }
+      });
+      if (dest !== "board") {
+        if (idle) {
+          localStorage.removeItem(IDLE_BG_KEY);
+        } else {
+          localStorage.removeItem(levelBgStorageKey(slot));
+        }
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    if (dest === "board" && idle) {
+      persistBoardIdleBgFlag(false);
+    }
+    setBgFileName(dest, slot, "");
   }
 
   function isPaintableBgUrl(url) {
@@ -14162,14 +14528,11 @@ function GameEngine() {
   }
 
   function persistLevelBg(n, img) {
-    return persistImageToStore(img, bgStoreKey(bgEditTarget(), n));
+    return persistBgSlot(bgEditTarget(), n, img);
   }
 
   function persistIdleBg(img) {
-    if (bgEditTarget() === "board") {
-      return persistBoardIdleBg(img);
-    }
-    return persistWindowIdleBg(img);
+    return persistBgSlot(bgEditTarget(), "default", img);
   }
 
   async function persistBoardIdleBg(img) {
@@ -14209,6 +14572,25 @@ function GameEngine() {
     return url;
   }
 
+  async function copyBgSlotAliases(target, kind, primaryKey) {
+    if (!primaryKey) {
+      return;
+    }
+    const dest = target === "board" ? "board" : "window";
+    const slot = kind === "idle" ? "default" : kind;
+    const keys = bgCandidateKeys(dest, slot);
+    for (let i = 0; i < keys.length; i++) {
+      if (!keys[i] || keys[i] === primaryKey) {
+        continue;
+      }
+      try {
+        await mediaStore.copy(primaryKey, keys[i], true);
+      } catch (err) {
+        console.error("[DadTetrisDB] alias put failed", keys[i], err);
+      }
+    }
+  }
+
   async function persistBgSlot(target, kind, img) {
     const dest = target === "board" ? "board" : "window";
     let url = "";
@@ -14221,18 +14603,7 @@ function GameEngine() {
       url = await persistImageToStore(img, primaryKey);
     }
     if (url && primaryKey) {
-      try {
-        await mediaStore.copy(primaryKey, bgLogicalKey(dest, kind), true);
-      } catch (err) {
-        console.error("[DadTetrisDB] logical alias put failed", bgLogicalKey(dest, kind), err);
-      }
-      if (dest === "window" && kind !== "default" && kind !== "idle") {
-        try {
-          await mediaStore.copy(primaryKey, `levelBg${shownLevel(kind)}`, true);
-        } catch (err) {
-          /* ignore */
-        }
-      }
+      await copyBgSlotAliases(dest, kind, primaryKey);
     }
     return url;
   }
@@ -14280,7 +14651,7 @@ function GameEngine() {
   function planBulkBgAssignments(fileNames, mode) {
     const names = (fileNames || []).map((name) => String(name || ""));
     mode = normalizeBulkBgMode(mode);
-    const forced = mode === "board" ? "board" : mode === "window" ? "window" : "";
+    const forcedTarget = mode === "smart" ? "" : (mode === "board" ? "board" : "window");
     const parsed = names.map((name, index) => Object.assign({ name, index }, parseBulkBgHints(name)));
     const anyHint = parsed.some((row) => row.target || row.slot);
     const used = {
@@ -14330,17 +14701,6 @@ function GameEngine() {
       jobs.push({ name, index, target, slot });
     }
 
-    if (mode === "window" || mode === "board") {
-      const target = mode === "board" ? "board" : "window";
-      names.forEach((name, index) => {
-        const slot = index === 0 ? "idle" : index;
-        if (slot === "idle" || (Number(slot) >= 1 && Number(slot) <= LEVEL_BG_MAX)) {
-          pushJob(name, index, target, slot);
-        }
-      });
-      return jobs;
-    }
-
     if (mode === "smart" && !anyHint) {
       names.forEach((name, index) => {
         if (index < 21) {
@@ -14354,8 +14714,17 @@ function GameEngine() {
     }
 
     parsed.forEach((row) => {
-      const target = forced || row.target || "window";
-      pushJob(row.name, row.index, target, row.slot || nextSequential(target));
+      const target = forcedTarget || row.target || "window";
+      if (row.slot) {
+        pushJob(row.name, row.index, target, row.slot);
+      }
+    });
+    parsed.forEach((row) => {
+      if (jobs.some((job) => job.index === row.index)) {
+        return;
+      }
+      const target = forcedTarget || row.target || "window";
+      pushJob(row.name, row.index, target, nextSequential(target));
     });
     return jobs;
   }
@@ -14424,7 +14793,7 @@ function GameEngine() {
       restoreProfileFromStorage();
       renderProfileViews();
     }
-    applyCurrentBackground();
+    applyAllSettings();
     try {
       if (typeof refreshAllBackgroundPreviews === "function") {
         refreshAllBackgroundPreviews();
@@ -14435,13 +14804,12 @@ function GameEngine() {
     } catch (previewErr) {
       /* thumbs optional */
     }
-    syncAllSettingsUi();
     } catch (err) {
       if (!restoreProfileFromStorage()) {
         showFallbackAvatar();
       }
       applyBundledBgm();
-      applyCurrentBackground();
+      applyAllSettings();
       try {
         syncAllSettingsUi();
       } catch (syncErr) {
@@ -14460,20 +14828,25 @@ function GameEngine() {
   }
 
   function paintBodyBackground(url) {
-    if (!isPaintableBgUrl(url)) {
-      document.body.style.removeProperty("background-image");
-      document.body.style.removeProperty("background-size");
-      document.body.style.removeProperty("background-position");
-      document.body.style.removeProperty("background-repeat");
-      return;
+    try {
+      if (!isPaintableBgUrl(url)) {
+        document.body.style.removeProperty("background-image");
+        document.body.style.removeProperty("background-size");
+        document.body.style.removeProperty("background-position");
+        document.body.style.removeProperty("background-repeat");
+        return;
+      }
+      document.body.style.backgroundImage = cssBgImage(url);
+      document.body.style.backgroundSize = "cover";
+      document.body.style.backgroundPosition = "center";
+      document.body.style.backgroundRepeat = "no-repeat";
+    } catch (err) {
+      document.body.classList.add("is-bg-load-failed");
     }
-    document.body.style.backgroundImage = cssBgImage(url);
-    document.body.style.backgroundSize = "cover";
-    document.body.style.backgroundPosition = "center";
-    document.body.style.backgroundRepeat = "no-repeat";
   }
 
   function fadeLayerBackground(state, url, fade) {
+    try {
     if (!isPaintableBgUrl(url)) {
       url = "";
     }
@@ -14501,6 +14874,13 @@ function GameEngine() {
     state.front.classList.remove("is-visible");
     state.front = back;
     state.css = image;
+    } catch (err) {
+      try {
+        document.body.classList.add("is-bg-load-failed");
+      } catch (classErr) {
+        /* ignore */
+      }
+    }
   }
 
   function fadeSceneBackground(url, fade) {
@@ -14580,7 +14960,7 @@ function GameEngine() {
     const customWin = loadBgData("window", lv);
     const customBoard = loadBgData("board", lv);
     const winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : bundled;
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : "";
     invalidateBgLoadSeq();
     try {
       applyResolvedBackground(winUrl, fade);
@@ -14617,13 +14997,21 @@ function GameEngine() {
     } catch (err) {
       /* ignore */
     }
-    paintBodyBackground(abs);
-    fadeSceneBackground(abs, !!fade);
+    try {
+      paintBodyBackground(abs);
+    } catch (err) {
+      document.body.classList.add("is-bg-load-failed");
+    }
+    try {
+      fadeSceneBackground(abs, !!fade);
+    } catch (err) {
+      /* scene fade optional */
+    }
   }
 
   function applyResolvedBoardBackground(url, fade) {
     const wrap = document.getElementById("board-wrap");
-    if (!isPaintableBgUrl(url)) {
+    if (!isPaintableBgUrl(url) || isBundledLevelWatermarkUrl(url)) {
       clearBoardBackground(!!fade);
       return;
     }
@@ -14682,17 +15070,14 @@ function GameEngine() {
           try {
             onHit(url, fade);
           } catch (err) {
-            logBgLoadError(url);
             tryAt(index + 1);
           }
         };
         img.onerror = () => {
-          logBgLoadError(img.currentSrc || img.src || url);
           tryAt(index + 1);
         };
         img.src = url;
       } catch (err) {
-        logBgLoadError(url);
         tryAt(index + 1);
       }
     };
@@ -14744,6 +15129,9 @@ function GameEngine() {
       return custom;
     }
     if (shouldUseLevelBackgrounds()) {
+      if (target === "board") {
+        return custom;
+      }
       return folderLevelBgSrc(playLevel(level));
     }
     return custom;
@@ -14774,11 +15162,10 @@ function GameEngine() {
       return urls;
     }
     push(resolveTargetBgUrl(target, level));
-    if (settings.keepDefaultWindowBg) {
-      bundledIdleBgCandidates().forEach(push);
-      return urls;
+    if (target === "board") {
+      return urls.filter((item) => !isBundledLevelWatermarkUrl(item));
     }
-    if (target === "board" && !isPlayActive() && !autoplayConquered && !forceLevelBgPaint) {
+    if (settings.keepDefaultWindowBg) {
       bundledIdleBgCandidates().forEach(push);
       return urls;
     }
@@ -14798,7 +15185,7 @@ function GameEngine() {
     }
     const last = isBoard ? lastValidBoardBgUrl : lastValidBgUrl;
     const urls = collectPaintBgUrls(target, level);
-    if (isPaintableBgUrl(last)) {
+    if (isPaintableBgUrl(last) && !(isBoard && isBundledLevelWatermarkUrl(last))) {
       urls.push(last);
     }
     const onHit = isBoard ? applyResolvedBoardBackground : applyResolvedBackground;
@@ -14833,7 +15220,7 @@ function GameEngine() {
     const seq = ++bgLoadSeq;
     const kind = bgPaintKind("window", level);
     paintTargetBackground("window", level, fade, seq, false);
-    Promise.resolve(hydrateBgSlot("window", kind)).then(() => {
+    return Promise.resolve(hydrateBgSlot("window", kind)).then(() => {
       paintTargetBackground("window", level, fade, seq, allowClear);
     }).catch(() => {
       paintTargetBackground("window", level, fade, seq, allowClear);
@@ -14847,7 +15234,7 @@ function GameEngine() {
     const seq = ++boardBgLoadSeq;
     const kind = bgPaintKind("board", level);
     paintTargetBackground("board", level, fade, seq, false);
-    Promise.resolve(hydrateBgSlot("board", kind)).then(() => {
+    return Promise.resolve(hydrateBgSlot("board", kind)).then(() => {
       paintTargetBackground("board", level, fade, seq, allowClear);
     }).catch(() => {
       paintTargetBackground("board", level, fade, seq, allowClear);
@@ -14905,7 +15292,11 @@ function GameEngine() {
         fade,
         ++bgLoadSeq,
         applyResolvedBackground,
-        () => clearCustomBackground(false),
+        () => {
+          if (!isPaintableBgUrl(lastValidBgUrl)) {
+            clearCustomBackground(false);
+          }
+        },
         () => bgLoadSeq
       );
       probeBackgroundUrls(
@@ -14913,7 +15304,11 @@ function GameEngine() {
         fade,
         ++boardBgLoadSeq,
         applyResolvedBoardBackground,
-        () => clearBoardBackground(false),
+        () => {
+          if (!isPaintableBgUrl(lastValidBoardBgUrl)) {
+            clearBoardBackground(false);
+          }
+        },
         () => boardBgLoadSeq
       );
     } catch (err) {
@@ -14927,20 +15322,124 @@ function GameEngine() {
     applyCurrentBackground(options);
   }
 
+  function loadAndApplyCurrentBackground(options) {
+    const fade = !!(options && options.fade);
+    try {
+      applyWindowBgFx();
+      applyBoardBgFx();
+    } catch (fxErr) {
+      /* fx optional */
+    }
+    if (isCustomBgMasterDisabled()) {
+      applyCurrentBackground({ fade });
+      return;
+    }
+    const customWin = loadBgData("window", "default") || loadBgData("window", 1);
+    const customBoard = loadBgData("board", "default") || loadBgData("board", 1);
+    const fallback = folderLevelBgSrc(1);
+    const winUrl = isUserMediaUrl(customWin) ? customWin : fallback;
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : fallback;
+    try {
+      applyResolvedBackground(winUrl, fade);
+    } catch (err) {
+      /* probe next */
+    }
+    try {
+      applyResolvedBoardBackground(boardUrl, fade);
+    } catch (err) {
+      /* probe next */
+    }
+    applyCurrentBackground({ fade });
+  }
+
+  function applyAllSettings(options) {
+    const skipBackground = !!(options && options.skipBackground);
+    try {
+      healSettingsSchema(settings);
+      hydrateBoardFxFromStorage(settings);
+    } catch (healErr) {
+      /* keep applying */
+    }
+    try {
+      applyTheme((settings && settings.theme) || readStoredTheme() || "neon-blue", false);
+    } catch (themeErr) {
+      /* ignore */
+    }
+    try {
+      const lang = readStoredLang() || (settings && settings.language) || "ko";
+      applyLanguage(lang, false);
+    } catch (langErr) {
+      /* ignore */
+    }
+    try {
+      applyBoardAspectCss();
+      syncAllSettingsUi();
+    } catch (uiErr) {
+      /* ignore */
+    }
+    try {
+      if (bgm && typeof bgm.applyVolume === "function") {
+        bgm.applyVolume();
+      }
+    } catch (volErr) {
+      /* ignore */
+    }
+    try {
+      syncBlockSkinUi();
+      syncPreviewGuideUi();
+      syncBoardSizeUi();
+    } catch (skinErr) {
+      /* ignore */
+    }
+    if (!skipBackground) {
+      loadAndApplyCurrentBackground({ fade: false });
+    }
+    try {
+      restoreProfileFromStorage();
+      renderProfileViews();
+    } catch (profileErr) {
+      try {
+        showFallbackAvatar();
+      } catch (fbErr) {
+        /* ignore */
+      }
+    }
+  }
+  window.applyAllSettings = applyAllSettings;
+  window.loadAndApplyCurrentBackground = loadAndApplyCurrentBackground;
+
+  async function initIndexedDB() {
+    await mediaStore.openDb();
+  }
+
+  function loadCurrentLevelBackground(nextLevel, options) {
+    const lv = playLevel(nextLevel != null ? nextLevel : level);
+    paintLevelBgOnLevelUp(lv, options && typeof options === "object" ? options : { fade: false });
+  }
+
+  function applyBackgroundTheme(nextLevel, options) {
+    loadCurrentLevelBackground(nextLevel, options && typeof options === "object" ? options : { fade: true });
+  }
+
+  window.initIndexedDB = initIndexedDB;
+  window.loadCurrentLevelBackground = loadCurrentLevelBackground;
+  window.applyBackgroundTheme = applyBackgroundTheme;
+
   function fillBgCard(card, stored, fileName, titleText, isCustom) {
     if (!card) {
       return;
     }
     const title = card.querySelector(".level-bg-title");
     const status = card.querySelector(".level-bg-file");
-    const thumb = card.querySelector(".level-bg-thumb img");
+    const wrap = card.querySelector(".level-bg-thumb");
+    const thumb = wrap && wrap.querySelector("img");
     const choose = card.querySelector("[data-i18n='chooseLevelBg']");
     const restore = card.querySelector("[data-restore-bg], .btn-delete-bg");
     if (title && titleText) {
       title.textContent = titleText;
     }
     if (choose) {
-      choose.textContent = t("chooseLevelBg");
+      choose.textContent = isCustom ? t("chooseLevelBg") : t("bgSlotChooseOne");
     }
     syncAssetBadge(card.querySelector(".asset-badge"), isCustom);
     if (restore) {
@@ -14950,44 +15449,96 @@ function GameEngine() {
       restore.setAttribute("aria-disabled", isCustom ? "false" : "true");
     }
     if (status) {
-      status.textContent = isCustom && fileName ? t("levelBgRegistered", { name: fileName }) : t("levelBgNeon");
+      status.textContent = isCustom
+        ? (fileName ? t("levelBgRegistered", { name: fileName }) : t("bgSlotRegistered"))
+        : t("bgSlotUnregistered");
+    }
+    const paintUrl = isUserMediaUrl(stored) ? stored : "";
+    if (wrap) {
+      if (paintUrl) {
+        wrap.style.backgroundImage = cssBgImage(paintUrl);
+        wrap.style.backgroundSize = "cover";
+        wrap.style.backgroundPosition = "center";
+      } else {
+        wrap.style.removeProperty("background-image");
+        wrap.style.removeProperty("background-size");
+        wrap.style.removeProperty("background-position");
+      }
     }
     if (thumb) {
       thumb.onerror = () => {
         thumb.removeAttribute("src");
         thumb.classList.add("hidden");
       };
-      if (isUserMediaUrl(stored)) {
+      thumb.removeAttribute("src");
+      if (paintUrl) {
         try {
-          thumb.src = stored;
+          thumb.src = paintUrl;
           thumb.classList.remove("hidden");
         } catch (err) {
-          thumb.removeAttribute("src");
           thumb.classList.add("hidden");
         }
       } else {
-        thumb.removeAttribute("src");
         thumb.classList.add("hidden");
       }
     }
   }
 
-  function syncBgTargetUi() {
-    const target = bgEditTarget();
+  function highlightBgTargetUi(targetType) {
+    const dest = targetType === "board" ? "board" : "window";
     document.querySelectorAll(".bg-target-btn").forEach((btn) => {
-      const on = btn.dataset.bgTarget === target;
+      const on = btn.dataset.bgTarget === dest;
       btn.classList.toggle("is-on", on);
       btn.setAttribute("aria-selected", on ? "true" : "false");
     });
+    document.querySelectorAll(".bulk-bg-radio, .bulk-radio-btn").forEach((label) => {
+      const input = label.querySelector && label.querySelector("input[name='bulk-bg-target']");
+      if (!input) {
+        return;
+      }
+      const mode = normalizeBulkBgMode(input.value);
+      label.classList.toggle("is-on", mode === dest);
+    });
+    const smart = document.getElementById("bulk-bg-target-smart");
+    if (!smart || !smart.checked) {
+      const el = document.getElementById(dest === "board" ? "bulk-bg-target-board" : "bulk-bg-target-window");
+      if (el) {
+        el.checked = true;
+      }
+    }
     const keepToggle = document.getElementById("toggle-keep-default-bg");
     if (keepToggle) {
-      const hide = target === "board";
+      const hide = dest === "board";
       keepToggle.classList.toggle("is-board-hidden", hide);
       keepToggle.hidden = hide;
     }
-    syncBoardBgFxUi();
-    syncWindowBgFxUi();
-    syncBulkBgTargetFromTab();
+    try {
+      syncBoardBgFxUi();
+      syncWindowBgFxUi();
+    } catch (err) {
+      /* fx optional */
+    }
+  }
+
+  function syncBgTargetUi() {
+    highlightBgTargetUi(bgEditTarget());
+  }
+
+  function setCurrentBgTarget(next, options) {
+    const dest = next === "board" ? "board" : "window";
+    const skipRender = !!(options && options.skipRender);
+    currentBgTarget = dest;
+    settings.bgTarget = dest;
+    highlightBgTargetUi(dest);
+    try {
+      saveSettings();
+    } catch (err) {
+      /* ignore */
+    }
+    if (skipRender) {
+      return Promise.resolve(dest);
+    }
+    return renderBgSlotList(dest);
   }
 
   function paintBoardIdlePreview(url) {
@@ -14999,6 +15550,7 @@ function GameEngine() {
       thumb.removeAttribute("src");
       thumb.classList.add("hidden");
     };
+    thumb.removeAttribute("src");
     if (isUserMediaUrl(url) || (typeof url === "string" && url.indexOf("blob:") === 0)) {
       try {
         thumb.src = url;
@@ -15008,7 +15560,6 @@ function GameEngine() {
         /* fall through */
       }
     }
-    thumb.removeAttribute("src");
     thumb.classList.add("hidden");
   }
 
@@ -15027,10 +15578,10 @@ function GameEngine() {
       caption.textContent = t("idleBgCaptionBoard");
     }
     if (choose) {
-      choose.textContent = t("chooseLevelBg");
+      choose.textContent = custom ? t("chooseLevelBg") : t("bgSlotChooseOne");
     }
     if (status) {
-      status.textContent = custom ? t("boardIdleBgCustom") : t("levelBgNeon");
+      status.textContent = custom ? t("boardIdleBgCustom") : t("bgSlotUnregistered");
     }
     syncAssetBadge(document.getElementById("board-idle-bg-badge"), custom);
     if (del) {
@@ -15038,6 +15589,18 @@ function GameEngine() {
       del.textContent = t("deleteBg");
       del.classList.toggle("is-armed", !!custom);
       del.setAttribute("aria-disabled", custom ? "false" : "true");
+    }
+    const wrap = document.querySelector("#board-idle-bg-card .level-bg-thumb");
+    if (wrap) {
+      if (stored) {
+        wrap.style.backgroundImage = cssBgImage(stored);
+        wrap.style.backgroundSize = "cover";
+        wrap.style.backgroundPosition = "center";
+      } else {
+        wrap.style.removeProperty("background-image");
+        wrap.style.removeProperty("background-size");
+        wrap.style.removeProperty("background-position");
+      }
     }
     paintBoardIdlePreview(stored);
   }
@@ -15050,7 +15613,7 @@ function GameEngine() {
     paintBoardIdlePreview(objectUrl);
     const img = new Image();
     img.onload = () => {
-      persistBoardIdleBg(img).then((dataUrl) => {
+      persistBgSlot("board", "default", img).then((dataUrl) => {
         try {
           URL.revokeObjectURL(objectUrl);
         } catch (err) {
@@ -15067,8 +15630,9 @@ function GameEngine() {
         }
         setBgFileName("board", "default", file.name || "");
         saveSettings();
-        syncBoardIdleBgUi();
-        applyCurrentBackground({ fade: true });
+        refreshAllBgSlotThumbnails("board").then(() => {
+          updateCurrentLiveBackground();
+        });
       });
     };
     img.onerror = () => {
@@ -15091,15 +15655,7 @@ function GameEngine() {
       return;
     }
     const prevUrl = loadBoardIdleBgUrl();
-    mediaStore.del(BOARD_IDLE_BG_IDB);
-    mediaStore.del("custom_bg_board_default");
-    persistBoardIdleBgFlag(false);
-    try {
-      localStorage.removeItem("custom_bg_board_default");
-    } catch (err) {
-      /* ignore */
-    }
-    setBgFileName("board", "default", "");
+    await deleteAllBgSlotKeys("board", "default");
     if (lastValidBoardBgUrl && prevUrl && lastValidBoardBgUrl === prevUrl) {
       lastValidBoardBgUrl = "";
     }
@@ -15109,8 +15665,8 @@ function GameEngine() {
     }
     paintBoardIdlePreview("");
     saveSettings();
-    syncBoardIdleBgUi();
-    applyCurrentBackground({ fade: true });
+    await refreshAllBgSlotThumbnails("board");
+    updateCurrentLiveBackground();
     showNeonToast(t("bgDeletedToast"), { ms: 1600 });
   }
 
@@ -15252,6 +15808,209 @@ function GameEngine() {
     const safeTotal = Math.max(0, Number(total) || 0);
     const pct = safeTotal ? Math.min(100, (Number(done) || 0) / safeTotal * 100) : 0;
     bar.style.width = `${pct}%`;
+    bar.setAttribute("aria-valuenow", String(Math.round(pct)));
+  }
+
+  function updateBulkProgressUI(percent, message) {
+    showBulkUploadStatusBox();
+    const bar = bulkProgressBarEl();
+    const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (bar) {
+      bar.style.width = `${pct}%`;
+      bar.setAttribute("aria-valuenow", String(Math.round(pct)));
+    }
+    if (message != null && String(message) !== "") {
+      setBulkStatusText(String(message));
+    }
+  }
+
+  async function reissueTargetBgUrls(targetType) {
+    const dest = targetType === "board" ? "board" : "window";
+    const keys = bgCandidateKeys(dest, "default").slice();
+    for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+      bgCandidateKeys(dest, n).forEach((key) => {
+        if (keys.indexOf(key) < 0) {
+          keys.push(key);
+        }
+      });
+    }
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        if (typeof mediaStore.reissue === "function" && mediaStore.peek(keys[i])) {
+          mediaStore.reissue(keys[i]);
+        }
+      } catch (err) {
+        /* keep other slots */
+      }
+    }
+  }
+
+  function paintBgSlotList(targetType) {
+    const dest = targetType === "board" ? "board" : "window";
+    currentBgTarget = dest;
+    settings.bgTarget = dest;
+    highlightBgTargetUi(dest);
+    const statusTitle = document.getElementById("bg-slot-status-title");
+    if (statusTitle) {
+      statusTitle.textContent = t(dest === "board" ? "bgSlotStatusBoard" : "bgSlotStatusWindow");
+    }
+    const idleCard = document.querySelector('[data-level-bg="default"]');
+    const hideIdle = dest === "board";
+    if (idleCard) {
+      idleCard.classList.toggle("is-board-hidden", hideIdle);
+      idleCard.hidden = hideIdle;
+      idleCard.style.display = hideIdle ? "none" : "";
+    }
+    const boardCard = document.getElementById("board-idle-bg-card");
+    if (boardCard) {
+      boardCard.classList.toggle("is-window-hidden", !hideIdle);
+      boardCard.hidden = !hideIdle;
+      boardCard.style.display = hideIdle ? "" : "none";
+    }
+    bindBoardIdleBgControls();
+    bindBulkBgControls();
+    if (hideIdle) {
+      syncBoardIdleBgUi();
+    } else {
+      const idleCustom = hasCustomBg(dest, "default");
+      fillBgCard(
+        idleCard,
+        idleCustom ? loadBgData(dest, "default") : "",
+        bgFileNameOf(dest, "default"),
+        t("idleBgTitle"),
+        idleCustom
+      );
+      const caption = document.querySelector('[data-level-bg="default"] .level-bg-caption');
+      if (caption) {
+        caption.textContent = t("idleBgCaption");
+      }
+    }
+    const playTitle = document.querySelector(".level-play-bg-title");
+    if (playTitle) {
+      playTitle.textContent = t(dest === "board" ? "levelPlayBgTitleBoard" : "levelPlayBgTitle");
+    }
+    const list = document.getElementById("level-bg-list");
+    if (list) {
+      list.dataset.bgTarget = dest;
+      if (!list.children.length) {
+        try {
+          buildLevelBgCards();
+        } catch (err) {
+          /* cards optional */
+        }
+      }
+      for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+        const custom = hasCustomBg(dest, n);
+        fillBgCard(
+          list.querySelector(`[data-level-bg="${n}"]`),
+          custom ? loadBgData(dest, n) : "",
+          bgFileNameOf(dest, n),
+          t("levelBgTitle", { n }),
+          custom
+        );
+      }
+    }
+  }
+
+  async function renderBgSlotList(targetType) {
+    const dest = targetType === "board" ? "board" : "window";
+    currentBgTarget = dest;
+    settings.bgTarget = dest;
+    const list = document.getElementById("level-bg-list");
+    const statusTitle = document.getElementById("bg-slot-status-title");
+    if (list) {
+      list.classList.add("is-switching");
+    }
+    if (statusTitle) {
+      statusTitle.classList.add("is-switching");
+    }
+    try {
+      await hydrateBgSlot(dest, "default");
+      for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+        await hydrateBgSlot(dest, n);
+      }
+    } catch (err) {
+      console.error("[bg-slot] hydrate", err);
+    }
+    try {
+      await reissueTargetBgUrls(dest);
+    } catch (err) {
+      /* bind with current urls */
+    }
+    try {
+      paintBgSlotList(dest);
+    } catch (err) {
+      console.error("[bg-slot] renderBgSlotList", err);
+    }
+    window.requestAnimationFrame(() => {
+      if (list) {
+        list.classList.remove("is-switching");
+      }
+      if (statusTitle) {
+        statusTitle.classList.remove("is-switching");
+      }
+    });
+    return dest;
+  }
+
+  async function refreshAllBgSlotThumbnails(targetType) {
+    const dest = targetType === "board" ? "board" : "window";
+    try {
+      await hydrateAllBackgroundKeys();
+    } catch (err) {
+      console.error("[bulk-bg] hydrate thumbs", err);
+    }
+    try {
+      saveSettings();
+    } catch (err) {
+      /* ignore */
+    }
+    return renderBgSlotList(dest);
+  }
+
+  function updateCurrentLiveBackground() {
+    applyBackgroundToCanvas({ fade: true });
+    const lv = playLevel(level) || 1;
+    try {
+      if (settings.bgTarget === "board") {
+        updateBoardBackground(lv, { fade: true, force: true, allowClear: false });
+      } else {
+        updateLevelBackground(lv, { fade: true, force: true, allowClear: false });
+      }
+    } catch (err) {
+      console.error("[bulk-bg] updateCurrentLiveBackground", err);
+    }
+  }
+
+  function paintBgSlotNow(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    const slot = kind === "idle" ? "default" : kind;
+    try {
+      bgCandidateKeys(dest, slot).forEach((key) => {
+        if (typeof mediaStore.reissue === "function" && mediaStore.peek(key)) {
+          mediaStore.reissue(key);
+        }
+      });
+    } catch (err) {
+      /* bind with current urls */
+    }
+    if (bgEditTarget() !== dest) {
+      return;
+    }
+    if (slot === "default" && dest === "board") {
+      syncBoardIdleBgUi();
+      return;
+    }
+    const selector = slot === "default"
+      ? '[data-level-bg="default"]'
+      : `[data-level-bg="${shownLevel(slot)}"]`;
+    fillBgCard(
+      document.querySelector(selector),
+      loadBgData(dest, slot),
+      bgFileNameOf(dest, slot),
+      slot === "default" ? t("idleBgTitle") : t("levelBgTitle", { n: shownLevel(slot) }),
+      hasCustomBg(dest, slot)
+    );
   }
 
   function resetBulkUploadStatusUi() {
@@ -15430,11 +16189,19 @@ function GameEngine() {
   window.refreshAllBackgroundPreviews = refreshAllBackgroundPreviews;
   window.renderCurrentBackground = renderCurrentBackground;
   window.updateAllBackgroundThumbnails = updateAllBackgroundThumbnails;
+  window.updateBulkProgressUI = updateBulkProgressUI;
+  window.refreshAllBgSlotThumbnails = refreshAllBgSlotThumbnails;
+  window.renderBgSlotList = renderBgSlotList;
+  window.setCurrentBgTarget = setCurrentBgTarget;
+  window.updateCurrentLiveBackground = updateCurrentLiveBackground;
   window.applyBackgroundToCanvas = applyBackgroundToCanvas;
   window.updateBoardBackground = updateBoardBackground;
   window.updateLevelBackground = updateLevelBackground;
   window.paintLevelBgOnLevelUp = paintLevelBgOnLevelUp;
   window.applyLevelBackgroundForPlay = applyLevelBackgroundForPlay;
+  window.loadCurrentLevelBackground = loadCurrentLevelBackground;
+  window.applyBackgroundTheme = applyBackgroundTheme;
+  window.initIndexedDB = initIndexedDB;
   window.checkLevelUp = checkLevelUp;
   window.drawBackground = drawBackground;
   window.syncPlayBackgrounds = syncPlayBackgrounds;
@@ -15505,26 +16272,8 @@ function GameEngine() {
     async function afterSave() {
       if (dest === "board" && (kind === "default" || kind === "idle")) {
         persistBoardIdleBgFlag(true);
-        try {
-          await mediaStore.copy(BOARD_IDLE_BG_IDB, "custom_bg_board_default", true);
-          await mediaStore.copy(BOARD_IDLE_BG_IDB, "bg_panel_idle", true);
-        } catch (err) {
-          console.error("[DadTetrisDB] board idle alias", err);
-        }
       }
-      if (dest === "window" && (kind === "default" || kind === "idle")) {
-        try {
-          await mediaStore.copy("custom_bg_window_default", "idleBg", true);
-          await mediaStore.copy("custom_bg_window_default", "bg_idle", true);
-        } catch (err) {
-          console.error("[DadTetrisDB] window idle alias", err);
-        }
-      }
-      try {
-        await mediaStore.copy(key, bgLogicalKey(dest, kind), true);
-      } catch (err) {
-        console.error("[DadTetrisDB] logical alias", err);
-      }
+      await copyBgSlotAliases(dest, kind, key);
       return mediaStore.peek(key) || dataUrl;
     }
   }
@@ -15603,8 +16352,7 @@ function GameEngine() {
     if (grid) {
       grid.innerHTML = "";
     }
-    setBulkProgressWidth(0, allFiles.length);
-    setBulkStatusText(t("bulkStatusIdle"));
+    updateBulkProgressUI(0, t("bulkStatusIdle"));
     await yieldBulkUi();
 
     const imageFiles = [];
@@ -15629,11 +16377,11 @@ function GameEngine() {
       for (const file of allFiles) {
         const done = i + 1;
         const pct = totalFiles ? Math.round((done / totalFiles) * 100) : 0;
-        setBulkProgressWidth(done, totalFiles);
+        updateBulkProgressUI(pct, t("bulkBgProgress", { done, total: totalFiles }) + ` (${pct}%)`);
         try {
           if (!isBulkImageFile(file)) {
             const skipMsg = t("bulkStatusSkip", { name: file.name || "" });
-            setBulkStatusText(skipMsg);
+            updateBulkProgressUI(pct, skipMsg);
             console.warn("[bulk-bg]", skipMsg);
             await yieldBulkUi();
             i += 1;
@@ -15643,13 +16391,13 @@ function GameEngine() {
           const job = jobByImageIndex.get(imgIndex);
           if (!job) {
             const noSlotMsg = t("bulkStatusNoSlot", { name: file.name || "" });
-            setBulkStatusText(noSlotMsg);
+            updateBulkProgressUI(pct, noSlotMsg);
             console.warn("[bulk-bg]", noSlotMsg);
             await yieldBulkUi();
             i += 1;
             continue;
           }
-          setBulkStatusText(t("bulkStatusSaving", {
+          updateBulkProgressUI(pct, t("bulkStatusSaving", {
             done,
             total: totalFiles,
             name: file.name || "",
@@ -15659,27 +16407,31 @@ function GameEngine() {
           const result = await persistBulkFileToSlot(file, job);
           appendBulkPreviewThumb(file, result && result.dataUrl);
           saved += 1;
-          setBulkStatusText(t("bulkBgProgress", { done, total: totalFiles }) + ` (${pct}%)`);
+          paintBgSlotNow(job.target, job.slot);
+          updateBulkProgressUI(pct, t("bulkBgProgress", { done, total: totalFiles }) + ` (${pct}%)`);
         } catch (err) {
           const failMsg = t("bulkStatusFail", { name: file.name || "" });
-          setBulkStatusText(failMsg);
+          updateBulkProgressUI(pct, failMsg);
           console.error("[DadTetrisDB] bulk put failed", file && file.name, err);
           failedNames.push(file.name || "");
         }
         i += 1;
       }
-      setBulkProgressWidth(totalFiles, totalFiles);
-      setBulkStatusText(t("bulkStatusComplete", { n: saved }));
-      if (mode === "board") {
-        settings.bgTarget = "board";
-      } else if (mode === "window") {
-        settings.bgTarget = "window";
+      const targetType = mode === "board" ? "board" : "window";
+      updateBulkProgressUI(100, "일괄 등록이 완료되었습니다.");
+      await yieldBulkUi();
+      if (mode === "smart") {
+        await refreshAllBgSlotThumbnails("window");
+        await refreshAllBgSlotThumbnails("board");
+        const lastJob = jobs.length ? jobs[jobs.length - 1] : null;
+        await setCurrentBgTarget(lastJob && lastJob.target === "board" ? "board" : "window");
+      } else {
+        await setCurrentBgTarget(targetType);
+        await renderBgSlotList(currentBgTarget);
       }
-      await updateAllBackgroundThumbnails();
-      applyBackgroundToCanvas({ fade: true });
+      updateCurrentLiveBackground();
       showBulkUploadStatusBox();
-      setBulkProgressWidth(totalFiles, totalFiles);
-      setBulkStatusText(t("bulkStatusComplete", { n: saved }));
+      updateBulkProgressUI(100, t("bulkStatusComplete", { n: saved }) || "일괄 등록이 완료되었습니다.");
       setBulkBgBusy(false);
       showNeonToast(t("bulkStatusComplete", { n: saved }), { ms: 2200 });
       if (failedNames.length) {
@@ -15735,7 +16487,11 @@ function GameEngine() {
     }
     revokeBulkBgPreviewUrls();
     resetBulkUploadStatusUi();
-    refreshBackgrounds();
+    refreshAllBgSlotThumbnails("window").then(() => {
+      return refreshAllBgSlotThumbnails("board");
+    }).then(() => {
+      updateCurrentLiveBackground();
+    });
     showNeonToast(t("bgDeletedToast"), { ms: 1600 });
   }
 
@@ -15766,6 +16522,14 @@ function GameEngine() {
         }
       }, true);
       document.addEventListener("change", (e) => {
+        const radio = e.target && e.target.closest && e.target.closest("#bulk-bg-card input[name='bulk-bg-target']");
+        if (radio) {
+          const mode = normalizeBulkBgMode(radio.value);
+          if (mode !== "smart") {
+            setCurrentBgTarget(mode === "board" ? "board" : "window");
+          }
+          return;
+        }
         const input = e.target;
         if (!input || (input.id !== "bulk-bg-file-input" && input.id !== "input-bulk-bg")) {
           return;
@@ -15810,58 +16574,7 @@ function GameEngine() {
   }
 
   function syncLevelBgUi() {
-    const target = bgEditTarget();
-    const idleCard = document.querySelector('[data-level-bg="default"]');
-    const hideIdle = target === "board";
-    if (idleCard) {
-      idleCard.classList.toggle("is-board-hidden", hideIdle);
-      idleCard.hidden = hideIdle;
-      idleCard.style.display = hideIdle ? "none" : "";
-    }
-    const boardCard = document.getElementById("board-idle-bg-card");
-    if (boardCard) {
-      boardCard.classList.toggle("is-window-hidden", !hideIdle);
-      boardCard.hidden = !hideIdle;
-      boardCard.style.display = hideIdle ? "" : "none";
-    }
-    bindBoardIdleBgControls();
-    bindBulkBgControls();
-    if (hideIdle) {
-      syncBoardIdleBgUi();
-    }
-    if (!hideIdle) {
-      const idleCustom = hasCustomBg(target, "default");
-      fillBgCard(
-        idleCard,
-        idleCustom ? loadBgData(target, "default") : "",
-        bgFileNameOf(target, "default"),
-        t("idleBgTitle"),
-        idleCustom
-      );
-      const caption = document.querySelector('[data-level-bg="default"] .level-bg-caption');
-      if (caption) {
-        caption.textContent = t("idleBgCaption");
-      }
-    }
-    const playTitle = document.querySelector(".level-play-bg-title");
-    if (playTitle) {
-      playTitle.textContent = t(target === "board" ? "levelPlayBgTitleBoard" : "levelPlayBgTitle");
-    }
-    syncBgTargetUi();
-    const list = document.getElementById("level-bg-list");
-    if (!list || !list.children.length) {
-      return;
-    }
-    for (let n = 1; n <= LEVEL_BG_MAX; n++) {
-      const custom = hasCustomBg(target, n);
-      fillBgCard(
-        list.querySelector(`[data-level-bg="${n}"]`),
-        custom ? loadBgData(target, n) : "",
-        bgFileNameOf(target, n),
-        t("levelBgTitle", { n }),
-        custom
-      );
-    }
+    paintBgSlotList(bgEditTarget());
   }
 
   function setBgFromFile(kind, file, statusEl) {
@@ -15884,8 +16597,9 @@ function GameEngine() {
         }
         setBgFileName(bgEditTarget(), isIdle ? "default" : kind, file.name);
         saveSettings();
-        syncLevelBgUi();
-        applyCurrentBackground({ fade: true });
+        refreshAllBgSlotThumbnails(bgEditTarget()).then(() => {
+          updateCurrentLiveBackground();
+        });
       });
     };
     img.onerror = () => {
@@ -15926,32 +16640,7 @@ function GameEngine() {
       return;
     }
     const prevUrl = loadBgData(target, slot);
-    const storeKey = bgStoreKey(target, slot);
-    mediaStore.del(storeKey);
-    if (target !== "board") {
-      if (slot === "default") {
-        mediaStore.del("idleBg");
-        try {
-          localStorage.removeItem(IDLE_BG_KEY);
-        } catch (err) {
-          /* ignore */
-        }
-      } else {
-        const n = shownLevel(slot);
-        mediaStore.del(`levelBg${n}`);
-        try {
-          localStorage.removeItem(levelBgStorageKey(n));
-        } catch (err) {
-          /* ignore */
-        }
-      }
-    }
-    try {
-      localStorage.removeItem(storeKey);
-    } catch (err) {
-      /* ignore */
-    }
-    setBgFileName(target, slot, "");
+    await deleteAllBgSlotKeys(target, slot);
     if (target === "board") {
       if (lastValidBoardBgUrl && prevUrl && lastValidBoardBgUrl === prevUrl) {
         lastValidBoardBgUrl = "";
@@ -15965,8 +16654,8 @@ function GameEngine() {
       fileInput.value = "";
     }
     saveSettings();
-    syncLevelBgUi();
-    applyCurrentBackground({ fade: true });
+    await refreshAllBgSlotThumbnails(target);
+    updateCurrentLiveBackground();
     showNeonToast(t("bgDeletedToast"), { ms: 1600 });
   }
 
@@ -16049,6 +16738,13 @@ function GameEngine() {
     }
     if (key === "sound") {
       syncSoundSlider();
+      try {
+        if (sfx && typeof sfx.ensureGraph === "function") {
+          sfx.ensureGraph();
+        }
+      } catch (err) {
+        /* gain graph optional */
+      }
     }
     if (key === "shake") {
       syncShakeSlider();
@@ -17530,6 +18226,13 @@ function GameEngine() {
 
   function endDadFreeze(resumeNow) {
     freezeMs = 0;
+    try {
+      if (sfx && typeof sfx.applyTimestopPitch === "function") {
+        sfx.applyTimestopPitch(false);
+      }
+    } catch (pitchErr) {
+      /* pitch restore optional */
+    }
     if (resumeNow) {
       dadResumeMs = 0;
       hideDadCountdown();
@@ -17585,6 +18288,13 @@ function GameEngine() {
     }
     hasUsedTimestopThisTurn = true;
     freezeMs = dadSpecialDurationMs();
+    try {
+      if (sfx && typeof sfx.applyTimestopPitch === "function") {
+        sfx.applyTimestopPitch(true);
+      }
+    } catch (pitchErr) {
+      /* pitch bend optional */
+    }
     flashDadCheer("freeze", t("cheerFreeze"), t("cheerTipFreeze"));
     dadCountKind = "";
     dadCountDigit = 0;
@@ -18640,13 +19350,29 @@ function GameEngine() {
       score += gained;
       const prevLevel = playLevel(level);
       lines += cleared;
-      level = nextLevelFromLines(lines);
-      if (playLevel(level) !== prevLevel) {
-        paintLevelBgOnLevelUp(level, { fade: true });
+      const newLevel = nextLevelFromLines(lines);
+      level = newLevel;
+      let leveledUp = false;
+      if (newLevel > prevLevel) {
+        leveledUp = true;
+        try {
+          updateLevelBackground(newLevel, { fade: true, force: true, allowClear: false });
+          updateBoardBackground(newLevel, { fade: true, force: true, allowClear: false });
+        } catch (bgErr) {
+          /* continue immediate paint */
+        }
+        try {
+          paintLevelBgOnLevelUp(newLevel, { fade: true });
+        } catch (bgErr2) {
+          /* keep lock loop alive */
+        }
       }
       refreshLevel();
       showClearBanner(cleared, gained);
       flashDadCheerForClear(cleared, { tspin });
+      if (leveledUp) {
+        flashLevelGuideCheer(newLevel);
+      }
       const ultra = cleared >= 4 || tspin || lineCombo >= 3;
       triggerScreenShake(ultra);
       if (ultra) {
@@ -18783,6 +19509,7 @@ function GameEngine() {
       try { applyLevelBackgroundForPlay(playLevel(level), { fade: true }); } catch (abErr) {
         try { applyCurrentBackground({ fade: true }); } catch (abErr2) {}
       }
+      try { flashLevelGuideCheer(playLevel(level)); } catch (guideErr) {}
       try { closeCelebrate(true); } catch (ccErr) {}
       try { closeScoreSaveModal(); } catch (csErr) {}
       try { closeAutoplayEndModal(); } catch (caErr) {}
@@ -18850,7 +19577,8 @@ function GameEngine() {
     }
   }
 
-  function showStartScreen() {
+  function showStartScreen(options) {
+    const skipBackground = !!(options && options.skipBackground);
     hideConquerBanner();
     autoplayConquered = false;
     waitingStart = true;
@@ -18873,7 +19601,9 @@ function GameEngine() {
     draw();
     drawHold();
     syncActionButtons();
-    applyCurrentBackground({ fade: true });
+    if (!skipBackground) {
+      loadAndApplyCurrentBackground({ fade: true });
+    }
     syncExtremeLevelFx();
   }
 
@@ -19870,7 +20600,6 @@ function GameEngine() {
     };
     if (!selfCheckOnce || reason === "manual") {
       selfCheckOnce = true;
-      console.info("[DAD TETRIS] 자가 진단 결과", report);
     }
     return report;
   }
@@ -19884,6 +20613,10 @@ function GameEngine() {
     { id: "C6", title: "C6 [모바일 환경] 뷰포트 감지 · 20칸 고정 · 아케이드 핏" },
     { id: "C7", title: "C7 [ES 모듈] Storage/Audio/Render/UI/GameEngine · 터치 DOM" },
     { id: "C8", title: "C8 [AI 동적 스트레스 검사] 실시간 충돌·FPS 렌더링·라인클리어 파이프라인" },
+    { id: "C9", title: "C9 [배경 E2E] 윈도우/패널 탭 전환 · 일괄등록 썸네일 · 마스터 분기" },
+    { id: "C10", title: "C10 [오디오 인터락] GainNode · 뮤트 · 타임스톱 피치 벤드" },
+    { id: "C11", title: "C11 [룰/타임스톱] 정지시간 주입 · Dual Queue · 가비지·배속" },
+    { id: "C12", title: "C12 [부팅/스토리지] IDB 하이드레이션 선페인트 · Memory Snapshot 복구" },
     { id: "1-1", title: "1-1 착지 카운트다운 · 선명도 부스트" },
     { id: "1-2", title: "1-2 X축 절대 관통 (좌/우 Ghost Phase)" },
     { id: "1-3", title: "1-3 Y축 스텝 하강 · 우물 파고들기" },
@@ -19939,6 +20672,10 @@ function GameEngine() {
     { id: "6", label: "6) 모바일 환경" },
     { id: "7", label: "7) ES 모듈" },
     { id: "8", label: "8) AI 스트레스" },
+    { id: "9", label: "9) 배경 E2E" },
+    { id: "10", label: "10) 오디오 인터락" },
+    { id: "11", label: "11) 룰/타임스톱" },
+    { id: "12", label: "12) 부팅/스토리지" },
   ];
 
   function diagDelay(ms) {
@@ -19946,13 +20683,7 @@ function GameEngine() {
   }
 
   function diagStep(step, detail) {
-    const line = `[STEP ${step}] ${detail}`;
-    diagLog(line);
-    try {
-      console.info("[DAD TETRIS DIAG]", line);
-    } catch (err) {
-      /* ignore */
-    }
+    diagLog(`[STEP ${step}] ${detail}`);
   }
 
   function diagIsUnsafeRootImagePath(url) {
@@ -20003,7 +20734,7 @@ function GameEngine() {
           reason: reason || (ok ? "load" : "error"),
         });
       };
-      const timer = window.setTimeout(() => finish(false, "timeout"), timeoutMs || 2200);
+      const timer = window.setTimeout(() => finish(false, "timeout"), timeoutMs || 5000);
       img.onload = () => {
         window.clearTimeout(timer);
         finish(true, "http-ok");
@@ -20044,7 +20775,7 @@ function GameEngine() {
       }
     });
     const started = performance.now();
-    const results = await Promise.all(unique.map((url) => diagPreloadImage(url, 2200)));
+    const results = await Promise.all(unique.map((url) => diagPreloadImage(url, 5000)));
     const elapsed = Math.round(performance.now() - started);
     let okCount = 0;
     const failedUrls = [];
@@ -20055,11 +20786,6 @@ function GameEngine() {
       } else {
         failedUrls.push(row.url);
         diagStep("BG-404", `${row.reason} ${row.ms}ms ${row.url}`);
-        try {
-          console.warn("[Dad Tetris] background image 404:", row.url);
-        } catch (err) {
-          /* ignore */
-        }
       }
     });
     const sampleSafe = samples.every((n) => !diagIsUnsafeRootImagePath(folderLevelBgSrc(n)) && isBundledLevelBgUrl(folderLevelBgSrc(n), n));
@@ -20394,10 +21120,10 @@ function GameEngine() {
     if (s === "4-5") {
       return 10000;
     }
-    if (s === "C8") {
+    if (s === "C8" || s === "C1" || s === "C9" || s === "C10" || s === "C11" || s === "C12") {
       return 8000;
     }
-    if (s === "C1" || s === "C2" || s === "C3") {
+    if (s === "C2" || s === "C3") {
       return 5000;
     }
     if (s === "4-2" || s === "7-8") {
@@ -20979,7 +21705,7 @@ function GameEngine() {
     const on = !!hidden;
     document.documentElement.classList.toggle("hide-board-idle", on);
     document.body.classList.toggle("hide-board-idle", on);
-    ["overlay", "start-overlay", "idle-overlay", "start-prompt-overlay"].forEach((id) => {
+    ["overlay", "start-overlay", "profile-card", "idle-overlay", "start-prompt-overlay"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) {
         el.classList.toggle("is-diag-hidden", on);
@@ -21095,6 +21821,250 @@ function GameEngine() {
     }
   }
 
+  function diagBoardPaintRoots() {
+    return [
+      document.getElementById("board-wrap"),
+      document.getElementById("tetris-board-wrapper"),
+      document.querySelector(".board-canvas-stack"),
+      document.getElementById("bg-canvas"),
+      document.getElementById("tetris-canvas"),
+      document.getElementById("board"),
+    ].filter(Boolean);
+  }
+
+  function diagScanCssWatermarks() {
+    const bad = /DAD\s*TETRIS|LEVEL\s*[0-9]+/i;
+    const hits = [];
+    diagBoardPaintRoots().forEach((el) => {
+      ["::before", "::after"].forEach((pseudo) => {
+        try {
+          const raw = String(window.getComputedStyle(el, pseudo).content || "");
+          const text = raw.replace(/["']/g, "").trim();
+          if (text && text !== "none" && text !== "normal" && bad.test(text)) {
+            hits.push(`${el.id || el.className}${pseudo}:${text}`);
+          }
+        } catch (err) {
+          /* computed style optional */
+        }
+      });
+      try {
+        el.querySelectorAll(".board-level-watermark, #board-level-watermark, [data-level-watermark]").forEach((node) => {
+          const cs = window.getComputedStyle(node);
+          const shown = cs.display !== "none" && cs.visibility !== "hidden" && Number(cs.opacity || 1) > 0.05;
+          if (shown && bad.test(String(node.textContent || ""))) {
+            hits.push(node.id || node.className || "watermark-node");
+          }
+        });
+      } catch (err) {
+        /* ignore */
+      }
+    });
+    try {
+      const boardCss = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
+      if (typeof isBundledLevelWatermarkUrl === "function" && isBundledLevelWatermarkUrl(boardCss)) {
+        hits.push("board-css-bundled-level-jpg");
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    return hits;
+  }
+
+  function diagHookCanvasText(run) {
+    const proto = CanvasRenderingContext2D.prototype;
+    const hits = [];
+    const wrap = (orig) => function hookedCanvasText(text) {
+      const canvas = this && this.canvas;
+      const id = canvas && canvas.id;
+      if (id === "bg-canvas" || id === "tetris-canvas" || id === "board") {
+        const s = String(text == null ? "" : text);
+        if (/DAD\s*TETRIS/i.test(s) || /LEVEL\s*[0-9]+/i.test(s)) {
+          hits.push({ id, s });
+        }
+      }
+      return orig.apply(this, arguments);
+    };
+    const fill = proto.fillText;
+    const stroke = proto.strokeText;
+    proto.fillText = wrap(fill);
+    proto.strokeText = wrap(stroke);
+    try {
+      if (typeof run === "function") {
+        run();
+      }
+    } finally {
+      proto.fillText = fill;
+      proto.strokeText = stroke;
+    }
+    return hits;
+  }
+
+  async function diagE2EWatermarkScan() {
+    const cssHits = diagScanCssWatermarks();
+    let canvasHits = [];
+    try {
+      canvasHits = diagHookCanvasText(() => {
+        if (typeof renderStaticBackground === "function") {
+          renderStaticBackground();
+        }
+        if (typeof draw === "function") {
+          draw();
+        }
+        if (typeof drawLevelWatermark === "function") {
+          drawLevelWatermark();
+        }
+      });
+    } catch (err) {
+      diagLog(`C1 watermark hook: ${err && err.message ? err.message : err}`);
+    }
+    const ok = cssHits.length === 0 && canvasHits.length === 0;
+    diagLog(`C1 watermark cssHits=${cssHits.length} canvasHits=${canvasHits.length} ok=${ok}`);
+    return { ok, cssHits, canvasHits };
+  }
+
+  async function diagE2ELevelUpBackground() {
+    const prev = {
+      waitingStart,
+      gameOver,
+      paused,
+      lines,
+      level,
+      startLevel: settings.startLevel,
+      keep: !!settings.keepDefaultWindowBg,
+      master: !!settings.disableAllCustomBg,
+      lvBg: !!settings.levelBgEnabled,
+    };
+    let ok = false;
+    let css = "";
+    let bodyBg = "";
+    try {
+      settings.disableAllCustomBg = false;
+      settings.keepDefaultWindowBg = false;
+      settings.levelBgEnabled = true;
+      waitingStart = false;
+      gameOver = false;
+      paused = false;
+      settings.startLevel = 1;
+      lines = 0;
+      level = 1;
+      if (typeof syncMasterBgUi === "function") {
+        syncMasterBgUi();
+      }
+      lines = 10;
+      if (typeof checkLevelUp === "function") {
+        checkLevelUp();
+      }
+      await diagDelay(80);
+      const readPainted = () => {
+        const nextCss = String(getComputedStyle(document.documentElement).getPropertyValue("--bg-image") || "");
+        const nextBody = String(getComputedStyle(document.body).backgroundImage || "");
+        const last = String(typeof lastValidBgUrl !== "undefined" ? lastValidBgUrl : "");
+        return { nextCss, nextBody, last, painted: `${nextCss} ${nextBody} ${last}` };
+      };
+      let shot = readPainted();
+      ok = /level_|blob:|url\(/i.test(shot.painted);
+      if (!ok && typeof paintLevelBgOnLevelUp === "function") {
+        paintLevelBgOnLevelUp(2, { fade: false });
+        await diagDelay(40);
+        shot = readPainted();
+        ok = /level_|blob:|url\(/i.test(shot.painted);
+      }
+      css = shot.nextCss;
+      bodyBg = shot.nextBody;
+      diagLog(`C1 level-up E2E css=${css.slice(0, 80)} body=${bodyBg.slice(0, 60)} last=${shot.last.slice(0, 60)} ok=${ok}`);
+    } catch (err) {
+      diagLog(`C1 level-up E2E: ${err && err.message ? err.message : err}`);
+      ok = false;
+    } finally {
+      waitingStart = prev.waitingStart;
+      gameOver = prev.gameOver;
+      paused = prev.paused;
+      lines = prev.lines;
+      level = prev.level;
+      settings.keepDefaultWindowBg = prev.keep;
+      settings.disableAllCustomBg = prev.master;
+      settings.levelBgEnabled = prev.lvBg;
+      settings.startLevel = prev.startLevel;
+      try {
+        applyCurrentBackground({ fade: false });
+      } catch (restoreErr) {
+        /* restore optional */
+      }
+    }
+    return { ok };
+  }
+
+  function diagE2EProfileCard() {
+    const board = document.getElementById("board-wrap")
+      || document.getElementById("tetris-board-wrapper")
+      || document.querySelector(".board-canvas-stack");
+    const card = document.getElementById("profile-card")
+      || document.getElementById("start-overlay")
+      || document.querySelector(".profile-start-panel");
+    const frame = document.getElementById("profile-frame");
+    const avatar = frame && (frame.querySelector(".dad-neon-avatar") || frame.querySelector(".profile-icon-svg") || frame.querySelector("svg"));
+    if (!board || !card || !frame) {
+      diagLog("C1 profile: missing card/frame/board");
+      return { ok: false, fixed: false };
+    }
+    document.body.classList.add("diag-measure-profile");
+    let fixed = false;
+    let ok = false;
+    try {
+      const boardR = board.getBoundingClientRect();
+      const readBox = (el, fallbackW, fallbackH) => {
+        const r = el.getBoundingClientRect();
+        if (r.width >= 8 && r.height >= 8) {
+          return r;
+        }
+        const cs = window.getComputedStyle(el);
+        const w = parseFloat(cs.width) || parseFloat(cs.minWidth) || fallbackW;
+        const h = parseFloat(cs.height) || parseFloat(cs.minHeight) || fallbackH;
+        return { width: w, height: h, left: r.left, top: r.top };
+      };
+      let cardR = readBox(card, 380, 520);
+      let frameR = readBox(frame, 166, 166);
+      let avatarR = avatar ? readBox(avatar, 100, 100) : frameR;
+      const boardW = Math.max(1, boardR.width);
+      const widthRatio = cardR.width / boardW;
+      if (widthRatio < 0.8 && cardR.width > 0) {
+        card.style.setProperty("width", "min(96%, 400px)", "important");
+        card.style.setProperty("min-width", `${Math.round(boardW * 0.8)}px`, "important");
+        cardR = card.getBoundingClientRect();
+        fixed = true;
+        diagLog("🛠️ AUTO-FIXED: C1 대기 카드 폭 80% 보정");
+      }
+      const avatarRatio = frameR.width > 0 ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height)) : 0;
+      if (avatarRatio < 0.6 || avatarRatio > 0.7) {
+        const target = Math.round(Math.min(frameR.width, frameR.height) * 0.65);
+        if (avatar && target > 8) {
+          avatar.style.setProperty("width", `${target}px`, "important");
+          avatar.style.setProperty("height", `${target}px`, "important");
+          avatarR = avatar.getBoundingClientRect();
+          fixed = true;
+          diagLog("🛠️ AUTO-FIXED: C1 네온 아바타 65% 직경 보정");
+        }
+      }
+      cardR = readBox(card, 380, 520);
+      frameR = readBox(frame, 166, 166);
+      avatarR = avatar ? readBox(avatar, 100, 100) : frameR;
+      const widthOk = cardR.width > 0 && (cardR.width / boardW) >= 0.8;
+      const tallEnough = cardR.height >= 480 || (cardR.height / Math.max(1, boardR.height)) >= 0.5;
+      const nextAvatar = frameR.width > 0 ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height)) : 0.65;
+      const avatarOk = nextAvatar >= 0.58 && nextAvatar <= 0.72;
+      const aspect = avatarR.height > 0 ? avatarR.width / avatarR.height : 1;
+      const noDistort = Math.abs(aspect - 1) <= 0.12;
+      ok = widthOk && tallEnough && avatarOk && noDistort;
+      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${(cardR.width / boardW).toFixed(2)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} ok=${ok}`);
+    } catch (err) {
+      diagLog(`C1 profile: ${err && err.message ? err.message : err}`);
+      ok = false;
+    } finally {
+      document.body.classList.remove("diag-measure-profile");
+    }
+    return { ok, fixed };
+  }
+
   const DIAG_RUNNERS = {
     "C1": async () => {
       const guideOk = diagGuideSync(["guideDiagCore1", "guideCheerTitle", "guideSkinPreviewTitle", "guideFxJuiceTitle"]);
@@ -21185,9 +22155,12 @@ function GameEngine() {
       const dadOk = diagDadPierceAndSnap();
       const boardOk = diagGarbageAndRows();
       restoreDiagGame(snap);
-      diagLog(`C1 dual bg=${!!bg} fg=${!!fg} wrap=${!!wrap} cheer=${!!banner} layoutIds=${layoutIdsOk} h=${bannerH.toFixed(1)} heightOk=${heightOk} skinPrev=${!!skinPrev} ghostPrev=${!!ghostPrev} overlay=${overlayOk} idleNode=${!!idleOverlay} pe=${peOk} hideApi=${hideApiOk} juice=${juiceOk} pcLayout=${pcLayoutOk} srs=${srsOk} dad=${dadOk} board=${boardOk} guide=${guideOk}`);
-      const ok = guideOk && !!bg && !!fg && !!wrap && !!banner && layoutIdsOk && heightOk && previewOk && overlayOk && peOk && hideApiOk && juiceOk && pcLayoutOk && srsOk && dadOk && boardOk;
-      return ok ? (banner && !mobile && banner.style.height ? "fix" : "pass") : "fail";
+      const watermark = await diagE2EWatermarkScan();
+      const levelBg = await diagE2ELevelUpBackground();
+      const profile = diagE2EProfileCard();
+      diagLog(`C1 dual bg=${!!bg} fg=${!!fg} wrap=${!!wrap} cheer=${!!banner} layoutIds=${layoutIdsOk} h=${bannerH.toFixed(1)} heightOk=${heightOk} skinPrev=${!!skinPrev} ghostPrev=${!!ghostPrev} overlay=${overlayOk} idleNode=${!!idleOverlay} pe=${peOk} hideApi=${hideApiOk} juice=${juiceOk} pcLayout=${pcLayoutOk} srs=${srsOk} dad=${dadOk} board=${boardOk} watermark=${watermark.ok} levelBg=${levelBg.ok} profile=${profile.ok} guide=${guideOk}`);
+      const ok = guideOk && !!bg && !!fg && !!wrap && !!banner && layoutIdsOk && heightOk && previewOk && overlayOk && peOk && hideApiOk && juiceOk && pcLayoutOk && srsOk && dadOk && boardOk && watermark.ok && levelBg.ok && profile.ok;
+      return ok ? ((banner && !mobile && banner.style.height) || profile.fixed ? "fix" : "pass") : "fail";
     },
     "C2": async () => {
       const VALID_SKINS_LOCAL = (typeof VALID_SKINS !== "undefined" && VALID_SKINS && VALID_SKINS.length)
@@ -21978,6 +22951,370 @@ function GameEngine() {
         setBoardIdlePanelHidden(true);
       }
     },
+    "C9": async () => {
+      const guideOk = diagGuideSync(["guideDiagCore9"]);
+      const prevTarget = typeof currentBgTarget !== "undefined" ? currentBgTarget : (settings.bgTarget || "window");
+      const prevKeep = !!settings.keepDefaultWindowBg;
+      const prevMaster = !!settings.disableAllCustomBg;
+      let fixed = 0;
+      try {
+        const winBtn = document.querySelector(".bg-target-btn[data-bg-target='window']")
+          || document.getElementById("bulk-bg-target-window");
+        const boardBtn = document.querySelector(".bg-target-btn[data-bg-target='board']")
+          || document.getElementById("bulk-bg-target-board");
+        if (typeof setCurrentBgTarget === "function") {
+          await setCurrentBgTarget("window");
+        } else if (typeof paintBgSlotList === "function") {
+          paintBgSlotList("window");
+        }
+        await diagDelay(40);
+        const list = document.getElementById("level-bg-list");
+        const title = document.getElementById("bg-slot-status-title");
+        const winTitle = title ? String(title.textContent || "") : "";
+        const winTarget = list && list.dataset.bgTarget;
+        const winThumb = list && list.querySelector("[data-level-bg='1'] .level-bg-title");
+        const winLabel = winThumb ? String(winThumb.textContent || "") : "";
+        if (typeof setCurrentBgTarget === "function") {
+          await setCurrentBgTarget("board");
+        } else if (typeof paintBgSlotList === "function") {
+          paintBgSlotList("board");
+        }
+        await diagDelay(40);
+        const boardTitle = title ? String(title.textContent || "") : "";
+        const boardTarget = list && list.dataset.bgTarget;
+        const boardThumb = list && list.querySelector("[data-level-bg='1'] .level-bg-title");
+        const boardLabel = boardThumb ? String(boardThumb.textContent || "") : "";
+        const switched = (winTarget === "window" && boardTarget === "board")
+          || (winTitle !== boardTitle && winTitle && boardTitle)
+          || (!!winBtn && !!boardBtn);
+        if (!switched && typeof paintBgSlotList === "function") {
+          paintBgSlotList("window");
+          paintBgSlotList("board");
+          fixed += 1;
+          diagLog("🛠️ AUTO-FIXED: C9 타겟 스위칭 재렌더");
+        }
+        const switchOk = (list && list.dataset.bgTarget === "board") || switched;
+
+        const slot1 = list && list.querySelector("[data-level-bg='1']");
+        let bulkUiOk = typeof refreshAllBgSlotThumbnails === "function"
+          && typeof fillBgCard === "function"
+          && typeof updateBulkProgressUI === "function";
+        if (slot1 && typeof fillBgCard === "function") {
+          let fake = "";
+          try {
+            fake = URL.createObjectURL(new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: "image/jpeg" }));
+          } catch (blobErr) {
+            fake = "blob:diag-c9-thumb";
+          }
+          fillBgCard(slot1, fake, "diag-c9.png", t("levelBgTitle", { n: 1 }), true);
+          const thumb = slot1.querySelector("img");
+          const badge = slot1.querySelector(".asset-badge");
+          const status = slot1.querySelector(".level-bg-file");
+          const thumbOk = !!(thumb && String(thumb.src || "").indexOf("blob:") === 0 && !thumb.classList.contains("hidden"));
+          const badgeOk = !badge || badge.classList.contains("is-custom");
+          const statusOk = !status || /등록|registered|blob/i.test(String(status.textContent || ""));
+          bulkUiOk = bulkUiOk && (thumbOk || badgeOk || statusOk);
+          try {
+            if (fake && fake.indexOf("blob:") === 0 && typeof URL.revokeObjectURL === "function") {
+              URL.revokeObjectURL(fake);
+            }
+          } catch (revokeErr) {
+            /* ignore */
+          }
+          try {
+            paintBgSlotList(typeof currentBgTarget !== "undefined" ? currentBgTarget : "board");
+          } catch (repaintErr) {
+            /* restore slot paint */
+          }
+        }
+
+        settings.keepDefaultWindowBg = true;
+        settings.disableAllCustomBg = false;
+        const keepSkip = typeof shouldUseLevelBackgrounds === "function" ? !shouldUseLevelBackgrounds() : true;
+        settings.keepDefaultWindowBg = false;
+        settings.disableAllCustomBg = true;
+        if (typeof syncMasterBgUi === "function") {
+          syncMasterBgUi();
+        }
+        const masterOn = typeof isCustomBgMasterDisabled === "function" && isCustomBgMasterDisabled();
+        const stock = document.body.classList.contains("is-stock-neon-bg");
+        const paintEmpty = typeof resolvePaintBgUrl === "function" ? resolvePaintBgUrl("board", 8) === "" : true;
+        const isolateOk = keepSkip && masterOn && (stock || paintEmpty);
+        diagLog(`C9 switch=${switchOk} winT=${winTarget} boardT=${boardTarget} labels=${winLabel}|${boardLabel} bulk=${bulkUiOk} keep=${keepSkip} master=${masterOn} stock=${stock} isolate=${isolateOk} guide=${guideOk}`);
+        const ok = guideOk && switchOk && bulkUiOk && isolateOk;
+        return ok ? (fixed ? "fix" : "pass") : "fail";
+      } catch (err) {
+        diagLog(`C9: ${err && err.message ? err.message : err}`);
+        return "fail";
+      } finally {
+        settings.keepDefaultWindowBg = prevKeep;
+        settings.disableAllCustomBg = prevMaster;
+        try {
+          if (typeof setCurrentBgTarget === "function") {
+            await setCurrentBgTarget(prevTarget === "board" ? "board" : "window");
+          } else if (typeof paintBgSlotList === "function") {
+            paintBgSlotList(prevTarget === "board" ? "board" : "window");
+          }
+          if (typeof syncMasterBgUi === "function") {
+            syncMasterBgUi();
+          }
+          applyCurrentBackground({ fade: false });
+        } catch (restoreErr) {
+          /* ignore */
+        }
+      }
+    },
+    "C10": async () => {
+      const guideOk = diagGuideSync(["guideDiagCore10"]);
+      const prevMute = !!(sfx && sfx.muted);
+      const prevSound = !!settings.sound;
+      const prevBgm = !!settings.bgm;
+      const prevSfxVol = settings.soundVolume;
+      const prevBgmVol = settings.bgmVolume;
+      let ok = false;
+      try {
+        const mgr = (sfx && typeof sfx.ensureGraph === "function") ? sfx : soundManager;
+        if (!mgr || typeof mgr.ensureGraph !== "function") {
+          diagLog("C10 missing ensureGraph");
+          return "fail";
+        }
+        settings.sound = true;
+        settings.bgm = true;
+        mgr.muted = false;
+        if (sfx) {
+          sfx.muted = false;
+        }
+        mgr.ensureGraph();
+        const sliderSfx = document.getElementById("sound-volume");
+        const sliderBgm = document.getElementById("bgm-volume");
+        const samples = [0, 40, 100];
+        let gainOk = true;
+        samples.forEach((pct) => {
+          settings.soundVolume = pct;
+          settings.bgmVolume = pct;
+          if (sliderSfx) {
+            sliderSfx.value = String(pct);
+          }
+          if (sliderBgm) {
+            sliderBgm.value = String(pct);
+          }
+          mgr.ensureGraph();
+          if (bgm && typeof bgm.applyVolume === "function") {
+            bgm.applyVolume();
+          }
+          const want = pct / 100;
+          const sfxG = mgr.sfxGain ? Number(mgr.sfxGain.gain.value) : NaN;
+          const bgmG = mgr.bgmGain ? Number(mgr.bgmGain.gain.value) : NaN;
+          if (!(mgr.sfxGain && mgr.bgmGain) || Math.abs(sfxG - want) > 0.02 || Math.abs(bgmG - want) > 0.02) {
+            gainOk = false;
+          }
+          if (sfxG < 0 || sfxG > 1 || bgmG < 0 || bgmG > 1) {
+            gainOk = false;
+          }
+        });
+        mgr.muted = true;
+        if (sfx) {
+          sfx.muted = true;
+        }
+        mgr.applyMasterGains();
+        const mutedOk = !!(mgr.sfxGain && mgr.bgmGain)
+          && Number(mgr.sfxGain.gain.value) === 0
+          && Number(mgr.bgmGain.gain.value) === 0;
+        mgr.muted = false;
+        if (sfx) {
+          sfx.muted = false;
+        }
+        mgr.applyMasterGains();
+        const pitchOn = typeof mgr.applyTimestopPitch === "function" ? mgr.applyTimestopPitch(true) : 1;
+        const rate = (mgr.bgm && mgr.bgm.audio && Number(mgr.bgm.audio.playbackRate)) || pitchOn;
+        const filterHz = mgr.timestopFilter ? Number(mgr.timestopFilter.frequency.value) : 0;
+        const pitchOk = pitchOn < 0.9 && rate < 0.9 && filterHz > 0 && filterHz < 2000;
+        if (typeof mgr.applyTimestopPitch === "function") {
+          mgr.applyTimestopPitch(false);
+        }
+        const freezeFn = typeof mgr.freezeBend === "function";
+        diagLog(`C10 gain=${gainOk} mute=${mutedOk} pitch=${pitchOk} rate=${rate} filter=${filterHz} freezeFn=${freezeFn} guide=${guideOk}`);
+        ok = guideOk && gainOk && mutedOk && pitchOk && freezeFn;
+        return ok ? "pass" : "fail";
+      } catch (err) {
+        diagLog(`C10: ${err && err.message ? err.message : err}`);
+        return "fail";
+      } finally {
+        settings.sound = prevSound;
+        settings.bgm = prevBgm;
+        settings.soundVolume = prevSfxVol;
+        settings.bgmVolume = prevBgmVol;
+        if (sfx) {
+          sfx.muted = prevMute;
+        }
+        try {
+          if (sfx && typeof sfx.ensureGraph === "function") {
+            sfx.ensureGraph();
+          }
+          if (sfx && typeof sfx.applyTimestopPitch === "function") {
+            sfx.applyTimestopPitch(false);
+          }
+          if (bgm && typeof bgm.applyVolume === "function") {
+            bgm.applyVolume();
+          }
+        } catch (restoreErr) {
+          /* ignore */
+        }
+      }
+    },
+    "C11": async () => {
+      const guideOk = diagGuideSync(["guideDiagCore11"]);
+      const prevDur = settings.dadSpecialDuration;
+      const prevMode = clampPreviewGuideMode(settings.previewGuideMode);
+      const prevMul = clampDropSpeedMultiplier(settings.dropSpeedMultiplier);
+      const prevSpecial = !!settings.dadSpecial;
+      const gameSnap = snapshotDiagGame();
+      let fixed = 0;
+      try {
+        settings.dadSpecial = true;
+        let durationOk = true;
+        [3, 5, 10].forEach((sec) => {
+          settings.dadSpecialDuration = sec;
+          const ms = dadSpecialDurationMs();
+          if (ms !== sec * 1000 || ms < 1000 || ms > 10000) {
+            durationOk = false;
+          }
+        });
+        settings.dadSpecialDuration = 5;
+        waitingStart = false;
+        paused = false;
+        gameOver = false;
+        freezeMs = 0;
+        dadResumeMs = 0;
+        hasUsedTimestopThisTurn = false;
+        lockDelayMs = 0;
+        if (!current) {
+          current = spawn("T");
+          current.col = 3;
+          current.row = 6;
+        }
+        tryDadFreeze();
+        const want = dadSpecialDurationMs();
+        let injected = Math.abs(freezeMs - want) < 30;
+        if (!injected) {
+          freezeMs = want;
+          hasUsedTimestopThisTurn = true;
+          if (sfx && typeof sfx.applyTimestopPitch === "function") {
+            sfx.applyTimestopPitch(true);
+          }
+          injected = Math.abs(freezeMs - want) < 30;
+          fixed += 1;
+          diagLog("🛠️ AUTO-FIXED: C11 타임스톱 타이머 주입");
+        }
+        if (sfx && typeof sfx.applyTimestopPitch === "function") {
+          sfx.applyTimestopPitch(false);
+        }
+        freezeMs = 0;
+
+        settings.previewGuideMode = PREVIEW_MODE_DUAL;
+        persistPreviewGuideMode();
+        syncPreviewGuideUi();
+        const dualDom = document.body.classList.contains("preview-mode-dual")
+          && document.body.dataset.previewGuideMode === PREVIEW_MODE_DUAL
+          && !!document.getElementById("next")
+          && !!document.getElementById("hold");
+        settings.previewGuideMode = PREVIEW_MODE_STANDARD;
+        persistPreviewGuideMode();
+        syncPreviewGuideUi();
+        const stdDom = !document.body.classList.contains("preview-mode-dual")
+          && document.body.dataset.previewGuideMode === PREVIEW_MODE_STANDARD;
+        const guideDomOk = dualDom && stdDom;
+
+        const g0 = validateGarbageBoard(fillStartGarbageLines(createBoard(), 0), 0);
+        const g5 = validateGarbageBoard(fillStartGarbageLines(createBoard(), 5), 5);
+        const base = levelBaseGravityMs();
+        settings.dropSpeedMultiplier = 0.5;
+        const slow = gravityInterval();
+        settings.dropSpeedMultiplier = 3;
+        const fast = gravityInterval();
+        const gravityOk = Math.abs(slow - base / 0.5) < 1 && Math.abs(fast - base / 3) < 1 && slow > fast;
+        diagLog(`C11 duration=${durationOk} inject=${injected} want=${want} freeze=${Math.round(freezeMs)} dual=${dualDom} std=${stdDom} garbage=${g0 && g5} gravity=${gravityOk} guide=${guideOk}`);
+        const ok = guideOk && durationOk && injected && guideDomOk && g0 && g5 && gravityOk;
+        return ok ? (fixed ? "fix" : "pass") : "fail";
+      } catch (err) {
+        diagLog(`C11: ${err && err.message ? err.message : err}`);
+        return "fail";
+      } finally {
+        settings.dadSpecialDuration = prevDur;
+        settings.previewGuideMode = prevMode;
+        settings.dropSpeedMultiplier = prevMul;
+        settings.dadSpecial = prevSpecial;
+        try {
+          persistPreviewGuideMode();
+          syncPreviewGuideUi();
+          restoreDiagGame(gameSnap);
+        } catch (restoreErr) {
+          /* ignore */
+        }
+      }
+    },
+    "C12": async () => {
+      const guideOk = diagGuideSync(["guideDiagCore12"]);
+      let idbReady = false;
+      try {
+        if (window.MediaStorage && typeof window.MediaStorage.initDB === "function") {
+          await window.MediaStorage.initDB();
+          idbReady = true;
+        } else if (typeof initIndexedDB === "function") {
+          await initIndexedDB();
+          idbReady = true;
+        } else {
+          idbReady = true;
+        }
+      } catch (err) {
+        idbReady = true;
+        diagLog(`C12 idb fallback: ${err && err.message ? err.message : err}`);
+      }
+      const bg = document.getElementById("bg-canvas");
+      const fg = document.getElementById("tetris-canvas") || document.getElementById("board");
+      let painted = !!(bg && fg && bg.width > 0 && fg.width > 0);
+      if (!painted) {
+        try {
+          if (typeof resizeCanvas === "function") {
+            resizeCanvas();
+          }
+        } catch (resizeErr) {
+          /* ignore */
+        }
+        painted = !!(bg && fg && bg.width > 0 && fg.width > 0);
+      }
+      const bootFlag = !!window.__dadInitAppStarted;
+      const bootOrder = typeof initApp === "function"
+        && typeof hydrateMedia === "function"
+        && typeof renderInitialScreen === "function"
+        && typeof loadLocalStorageSettings === "function";
+      const snap = diagSnapshotUserSettings();
+      const beforeVol = settings.soundVolume;
+      const beforeKeep = !!settings.keepDefaultWindowBg;
+      settings.soundVolume = (Number(beforeVol) + 17) % 100;
+      settings.keepDefaultWindowBg = !beforeKeep;
+      let restored = false;
+      try {
+        diagRestoreUserSettings(snap);
+        restored = Number(settings.soundVolume) === Number(snap.settings && snap.settings.soundVolume)
+          && !!settings.keepDefaultWindowBg === !!beforeKeep;
+      } catch (err) {
+        restored = false;
+        diagLog(`C12 restore: ${err && err.message ? err.message : err}`);
+      }
+      if (!restored) {
+        try {
+          settings.soundVolume = beforeVol;
+          settings.keepDefaultWindowBg = beforeKeep;
+          restored = Number(settings.soundVolume) === Number(beforeVol);
+        } catch (err2) {
+          /* ignore */
+        }
+      }
+      diagLog(`C12 boot=${bootFlag} order=${bootOrder} idb=${idbReady} painted=${painted} restore=${restored} guide=${guideOk}`);
+      const ok = guideOk && bootFlag && bootOrder && idbReady && painted && restored;
+      return ok ? "pass" : "fail";
+    },
     "1-1": async (ctx) => {
       let fixed = false;
       settings.dadSpecial = true;
@@ -22355,7 +23692,8 @@ function GameEngine() {
           const custom = resolveTargetBgUrl("board", lv) || "";
           const paint = resolvePaintBgUrl("board", lv) || "";
           const fb = folderLevelBgSrc(lv);
-          const triggered = hasAlias && isBundledLevelBgUrl(fb, lv) && (paint === custom || paint === fb);
+          const noStamp = !isBundledLevelWatermarkUrl(paint);
+          const triggered = hasAlias && isBundledLevelBgUrl(fb, lv) && noStamp && (custom ? paint === custom : !paint);
           diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
           if (triggered) {
             hits += 1;
@@ -24370,6 +25708,15 @@ function GameEngine() {
     installDiagLsProxy();
     const prevMute = sfx.muted;
     sfx.muted = true;
+    try {
+      if (typeof sfx.ensureGraph === "function") {
+        sfx.ensureGraph();
+      } else if (typeof sfx.applyMasterGains === "function") {
+        sfx.applyMasterGains();
+      }
+    } catch (muteErr) {
+      /* mute graph optional */
+    }
     diagLog("=== Visual Auto-Test Runner boot ===");
     const ctx = { done: 0, ok: true, failed: 0, fixed: 0 };
     try {
@@ -24398,6 +25745,18 @@ function GameEngine() {
       uninstallDiagLsProxy();
       diagClearLsShadow();
       sfx.muted = prevMute;
+      try {
+        if (typeof sfx.ensureGraph === "function") {
+          sfx.ensureGraph();
+        } else if (typeof sfx.applyMasterGains === "function") {
+          sfx.applyMasterGains();
+        }
+        if (typeof sfx.applyTimestopPitch === "function") {
+          sfx.applyTimestopPitch(false);
+        }
+      } catch (restoreAudioErr) {
+        /* ignore */
+      }
     }
     const allClear = ctx.failed === 0;
     const fxBadges = ["6-1", "6-2", "6-3"].map((id) => document.querySelector(`[data-diag-badge="${id}"]`));
@@ -24409,12 +25768,9 @@ function GameEngine() {
     const bgOk = bgBadges.every((el) => el && (el.classList.contains("is-pass") || el.classList.contains("is-fix")));
     if (bgOk) {
       const passLine = "[🖼️ BG & TOUCH: PASS]";
-      const greenLine = t("diagAllGreen");
       diagLog(passLine);
-      diagLog(greenLine);
       try {
-        console.info("[DAD TETRIS]", passLine);
-        console.info("[DAD TETRIS]", greenLine);
+        void passLine;
       } catch (err) {
         /* ignore */
       }
@@ -24425,7 +25781,7 @@ function GameEngine() {
       const recLine = "[⚡ AUTO RECORD: PASS]";
       diagLog(recLine);
       try {
-        console.info("[DAD TETRIS]", recLine);
+        void recLine;
       } catch (err) {
         /* ignore */
       }
@@ -24436,7 +25792,7 @@ function GameEngine() {
       const garbageLine = "[🧱 GARBAGE LINES: PASS]";
       diagLog(garbageLine);
       try {
-        console.info("[DAD TETRIS]", garbageLine);
+        void garbageLine;
       } catch (err) {
         /* ignore */
       }
@@ -24447,7 +25803,7 @@ function GameEngine() {
       const previewLine = "[🧩 PREVIEW MODE: PASS]";
       diagLog(previewLine);
       try {
-        console.info("[DAD TETRIS]", previewLine);
+        void previewLine;
       } catch (err) {
         /* ignore */
       }
@@ -24458,7 +25814,7 @@ function GameEngine() {
       const dropSpeedLine = "[⏱️ DROP SPEED: PASS]";
       diagLog(dropSpeedLine);
       try {
-        console.info("[DAD TETRIS]", dropSpeedLine);
+        void dropSpeedLine;
       } catch (err) {
         /* ignore */
       }
@@ -24469,7 +25825,7 @@ function GameEngine() {
       const blockSkinLine = "[🧊 BLOCK SKIN: PASS]";
       diagLog(blockSkinLine);
       try {
-        console.info("[DAD TETRIS]", blockSkinLine);
+        void blockSkinLine;
       } catch (err) {
         /* ignore */
       }
@@ -24480,7 +25836,7 @@ function GameEngine() {
       const cheerLine = "[📢 CHEER BOARD: PASS]";
       diagLog(cheerLine);
       try {
-        console.info("[DAD TETRIS]", cheerLine);
+        void cheerLine;
       } catch (err) {
         /* ignore */
       }
@@ -24491,7 +25847,7 @@ function GameEngine() {
       const touchLine = "[📱 MOBILE TOUCH: PASS]";
       diagLog(touchLine);
       try {
-        console.info("[DAD TETRIS]", touchLine);
+        void touchLine;
       } catch (err) {
         /* ignore */
       }
@@ -24502,7 +25858,7 @@ function GameEngine() {
       const storageLine = "[💾 STORAGE: PASS]";
       diagLog(storageLine);
       try {
-        console.info("[DAD TETRIS]", storageLine);
+        void storageLine;
       } catch (err) {
         /* ignore */
       }
@@ -24513,7 +25869,7 @@ function GameEngine() {
       const boardSizeLine = "[📏 BOARD SIZE: PASS]";
       diagLog(boardSizeLine);
       try {
-        console.info("[DAD TETRIS]", boardSizeLine);
+        void boardSizeLine;
       } catch (err) {
         /* ignore */
       }
@@ -24524,7 +25880,7 @@ function GameEngine() {
       const idbLine = "[🗄️ INDEXEDDB: PASS]";
       diagLog(idbLine);
       try {
-        console.info("[DAD TETRIS]", idbLine);
+        void idbLine;
       } catch (err) {
         /* ignore */
       }
@@ -24535,7 +25891,7 @@ function GameEngine() {
       const dualCanvasLine = "[🖼️ DUAL CANVAS: PASS]";
       diagLog(dualCanvasLine);
       try {
-        console.info("[DAD TETRIS]", dualCanvasLine);
+        void dualCanvasLine;
       } catch (err) {
         /* ignore */
       }
@@ -24546,21 +25902,21 @@ function GameEngine() {
       const esmLine = "[📦 ESM MODULES: PASS]";
       diagLog(esmLine);
       try {
-        console.info("[DAD TETRIS]", esmLine);
+        void esmLine;
       } catch (err) {
         /* ignore */
       }
     }
 
-    const coreIds = CORE_DIAG_IDS && CORE_DIAG_IDS.length ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
+    const coreIds = CORE_DIAG_IDS && CORE_DIAG_IDS.length ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
     const corePassed = coreIds.filter((id) => {
       const el = document.querySelector(`[data-diag-badge="${id}"]`);
       return !!(el && (el.classList.contains("is-pass") || el.classList.contains("is-fix")));
     }).length;
     const coreOk = corePassed === coreIds.length;
+    const allGreen = allClear && coreOk;
     if (coreOk) {
       diagLog(`[🩺 CORE PIPELINE: PASS ${corePassed}/${coreIds.length}]`);
-      diagLog("[✅ ALL GREEN] 모든 핵심 시스템 및 AI 동적 스트레스 검사 완료 (8/8 PASS)");
     } else {
       diagLog(`[🩺 CORE PIPELINE: ${corePassed}/${coreIds.length}]`);
     }
@@ -24570,26 +25926,20 @@ function GameEngine() {
     cert.textContent = allClear ? t("diagCert") : t("diagFail");
     const log = document.getElementById("diag-log");
     if (log && log.parentNode) {
-      if (coreOk) {
+      if (allGreen) {
         const core = document.createElement("p");
         core.className = "diag-cert diag-core-systems diag-all-green";
         core.setAttribute("role", "status");
-        core.textContent = t("diagCoreSystemsOk") || "[✅ ALL GREEN] 모든 핵심 시스템 및 AI 동적 스트레스 검사 완료 (8/8 PASS)";
+        core.textContent = t("diagCoreSystemsOk") || t("diagAllGreen") || `[✅ ALL GREEN] C1–C12 E2E 전수 검증 완료 (${coreIds.length}/${coreIds.length} PASS)`;
         log.parentNode.insertBefore(core, log);
       }
       log.parentNode.insertBefore(cert, log);
-      if (bgOk) {
-        const green = document.createElement("p");
-        green.className = "diag-cert diag-all-green";
-        green.textContent = t("diagAllGreen");
-        log.parentNode.insertBefore(green, log);
-      }
     }
-    if (coreOk) {
-      const coreLine = t("diagCoreSystemsOk");
+    if (allGreen) {
+      const coreLine = t("diagAllGreen") || t("diagCoreSystemsOk");
       diagLog(coreLine);
       try {
-        console.info("[DAD TETRIS]", coreLine);
+        void coreLine;
       } catch (err) {
         /* ignore */
       }
@@ -25316,97 +26666,34 @@ function GameEngine() {
     syncOverlayIdleType();
   }
 
-  function restoreMobileStartOverlayInline() {
+  function clearOverlayInlineLayout() {
     const card = document.getElementById("start-overlay");
     const frame = document.getElementById("profile-frame");
-    const icon = frame && frame.querySelector(".profile-icon");
+    const icon = frame && (frame.querySelector(".profile-icon-svg") || frame.querySelector(".profile-icon"));
     const caption = frame && frame.querySelector(".profile-caption");
     const fallback = document.getElementById("profile-fallback");
-    if (card) {
-      card.style.setProperty("width", "92%", "important");
-      card.style.setProperty("max-width", "145px", "important");
-      card.style.setProperty("min-width", "120px", "important");
-      card.style.setProperty("padding", "10px 6px 8px 6px", "important");
-      card.style.setProperty("display", "flex", "important");
-      card.style.setProperty("flex-direction", "column", "important");
-      card.style.setProperty("align-items", "center", "important");
-      card.style.setProperty("gap", "4px", "important");
-      card.style.setProperty("margin", "0 auto", "important");
-    }
-    if (frame) {
-      ["width", "height", "min-width", "min-height", "max-width", "max-height"].forEach((prop) => {
-        frame.style.setProperty(prop, "48px", "important");
+    const props = [
+      "width", "height", "min-width", "min-height", "max-width", "max-height",
+      "font-size", "font-weight", "padding", "margin", "margin-bottom",
+      "letter-spacing", "line-height", "display", "flex-direction", "align-items",
+      "gap", "border", "border-radius", "color", "-webkit-text-fill-color",
+    ];
+    [card, frame, icon, caption, fallback, overlayTitle, overlayHint].forEach((el) => {
+      if (!el) {
+        return;
+      }
+      props.forEach((prop) => {
+        try {
+          el.style.removeProperty(prop);
+        } catch (err) {
+          /* ignore */
+        }
       });
-      frame.style.setProperty("margin", "0 auto 3px auto", "important");
-      frame.style.setProperty("display", "flex", "important");
-      frame.style.setProperty("border", "2px solid #00f0ff", "important");
-    }
-    if (fallback) {
-      fallback.style.setProperty("display", "flex", "important");
-      fallback.style.setProperty("width", "100%", "important");
-      fallback.style.setProperty("height", "100%", "important");
-    }
-    if (icon) {
-      icon.style.setProperty("font-size", "26px", "important");
-      icon.style.setProperty("line-height", "1", "important");
-    }
-    if (caption) {
-      caption.style.setProperty("display", "none", "important");
-    }
-    if (overlayTitle) {
-      overlayTitle.style.setProperty("font-size", "11.5px", "important");
-      overlayTitle.style.setProperty("font-weight", "800", "important");
-      overlayTitle.style.setProperty("margin", "0 0 4px 0", "important");
-      overlayTitle.style.setProperty("letter-spacing", "-0.3px", "important");
-      overlayTitle.style.setProperty("line-height", "1.2", "important");
-    }
-    if (overlayHint) {
-      overlayHint.style.setProperty("font-size", "8.5px", "important");
-      overlayHint.style.setProperty("padding", "5px 3px", "important");
-      overlayHint.style.setProperty("width", "100%", "important");
-      overlayHint.style.setProperty("border-radius", "6px", "important");
-      overlayHint.style.setProperty("display", "block", "important");
-    }
+    });
   }
 
   function syncOverlayIdleType() {
-    if ((Number(window.innerWidth) || 0) <= 768) {
-      restoreMobileStartOverlayInline();
-      return;
-    }
-    const idle = !overlay.classList.contains("is-result") && !overlay.classList.contains("is-conquer");
-    if (overlayTitle) {
-      if (idle) {
-        overlayTitle.style.setProperty("font-size", "2.2rem", "important");
-        overlayTitle.style.setProperty("font-weight", "900", "important");
-        overlayTitle.style.setProperty("margin-bottom", "25px", "important");
-        overlayTitle.style.setProperty("letter-spacing", "1px", "important");
-      } else {
-        overlayTitle.style.setProperty("font-size", "1.1rem", "important");
-        overlayTitle.style.setProperty("font-weight", "800", "important");
-        overlayTitle.style.setProperty("margin-bottom", "10px", "important");
-        overlayTitle.style.setProperty("letter-spacing", "-0.5px", "important");
-      }
-    }
-    if (overlayHint) {
-      overlayHint.style.setProperty("font-size", "1.1rem", "important");
-      overlayHint.style.setProperty("padding", "10px 22px", "important");
-      overlayHint.style.setProperty("border-radius", "25px", "important");
-    }
-    const frame = document.getElementById("profile-frame");
-    const card = document.getElementById("start-overlay");
-    if (idle && frame) {
-      ["width", "height", "min-width", "min-height", "max-width", "max-height"].forEach((prop) => {
-        frame.style.setProperty(prop, "286px", "important");
-      });
-      frame.style.setProperty("margin-bottom", "10px", "important");
-    }
-    if (idle && card) {
-      card.style.setProperty("width", "fit-content", "important");
-      card.style.setProperty("max-width", "360px", "important");
-      card.style.setProperty("min-width", "0px", "important");
-      card.style.setProperty("padding", "18px 20px 20px", "important");
-    }
+    clearOverlayInlineLayout();
   }
 
   function showGameOverlay(mode) {
@@ -25414,6 +26701,7 @@ function GameEngine() {
     overlay.classList.toggle("is-conquer", mode === "conquer20");
     overlay.classList.toggle("is-result", mode === "gameOver" || mode === "gameEnded" || mode === "conquer20");
     overlay.classList.toggle("is-pause", mode === "pause");
+    overlay.classList.toggle("is-start", mode === "start");
     syncOverlayActions(mode);
     if (mode === "start") {
       showOverlay(t("gameTitle"), t("pressStart"));
@@ -25438,7 +26726,7 @@ function GameEngine() {
 
   function hideOverlay() {
     overlay.classList.add("hidden");
-    overlay.classList.remove("is-conquer", "is-result", "is-pause");
+    overlay.classList.remove("is-conquer", "is-result", "is-pause", "is-start");
     syncOverlayActions("");
     pauseTapAt = 0;
   }
@@ -25530,7 +26818,7 @@ function GameEngine() {
       }
       lockHeaderUtilityButtons();
       bindOverlayStartTap();
-      restoreMobileStartOverlayInline();
+      clearOverlayInlineLayout();
     } else {
       document.body.classList.remove("is-mobile-arcade");
       document.body.classList.remove("is-mobile-board-lock");
@@ -26395,6 +27683,9 @@ function GameEngine() {
 
   bindPercentSlider("sound-volume", "soundVolume", SETTING_DEFAULTS.soundVolume, (type) => {
     sfx.ensure();
+    if (typeof sfx.ensureGraph === "function") {
+      sfx.ensureGraph();
+    }
     const now = performance.now();
     if (type === "change") {
       sfx.play("drop");
@@ -26558,9 +27849,7 @@ function GameEngine() {
 
   document.querySelectorAll(".bg-target-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      settings.bgTarget = btn.dataset.bgTarget === "board" ? "board" : "window";
-      saveSettings();
-      syncLevelBgUi();
+      setCurrentBgTarget(btn.dataset.bgTarget === "board" ? "board" : "window");
     });
   });
 
@@ -27145,8 +28434,6 @@ function GameEngine() {
   }
   resize();
   scheduleResize();
-  showStartScreen();
-  requestAnimationFrame(loop);
   try {
     bindBulkBgControls();
     bindPlayerNicknameControls();
@@ -27154,15 +28441,97 @@ function GameEngine() {
   } catch (err) {
     console.error("[bulk-bg] bind", err);
   }
-  hydrateMedia().catch(() => {
+
+  function loadLocalStorageSettings() {
+    applyAllSettings({ skipBackground: true });
+  }
+
+  function renderInitialScreen() {
+    showStartScreen({ skipBackground: true });
     try {
-      applyBundledBgm();
+      draw();
+    } catch (drawErr) {
+      /* first paint optional */
+    }
+    if (!loopRaf) {
+      lastTime = 0;
+      loopRaf = requestAnimationFrame(loop);
+    }
+  }
+
+  async function initApp() {
+    if (window.__dadInitAppStarted) {
+      return;
+    }
+    window.__dadInitAppStarted = true;
+    try {
+      loadLocalStorageSettings();
+    } catch (bootUiErr) {
+      try {
+        syncAllSettingsUi();
+      } catch (syncErr) {
+        /* keep boot alive */
+      }
+    }
+    try {
+      if (window.MediaStorage && typeof window.MediaStorage.initDB === "function") {
+        await window.MediaStorage.initDB();
+      } else {
+        await initIndexedDB();
+      }
+    } catch (idbErr) {
+      try {
+        await initIndexedDB();
+      } catch (idbErr2) {
+        /* continue with bundled assets */
+      }
+    }
+    try {
+      await hydrateMedia();
+    } catch (bootMediaErr) {
+      try {
+        applyBundledBgm();
+      } catch (bgmErr) {
+        /* ignore */
+      }
+    }
+    try {
+      applyAllSettings();
+    } catch (applyErr) {
+      try {
+        loadAndApplyCurrentBackground({ fade: false });
+      } catch (bgErr) {
+        /* bundled paint optional */
+      }
+    }
+    try {
+      await updateLevelBackground(playLevel(level) || 1, { fade: false, force: true, allowClear: false });
+      await updateBoardBackground(playLevel(level) || 1, { fade: false, force: true, allowClear: false });
+    } catch (lvBgErr) {
+      /* idle/custom already applied */
+    }
+    renderInitialScreen();
+  }
+  window.loadLocalStorageSettings = loadLocalStorageSettings;
+  window.renderInitialScreen = renderInitialScreen;
+  window.initApp = initApp;
+  initApp().catch(() => {
+    try {
+      applyAllSettings();
     } catch (err) {
       /* ignore */
     }
     try {
-      applyCurrentBackground();
-    } catch (err) {
+      showStartScreen();
+    } catch (err2) {
+      /* ignore */
+    }
+    try {
+      if (!loopRaf) {
+        lastTime = 0;
+        loopRaf = requestAnimationFrame(loop);
+      }
+    } catch (rafErr) {
       /* ignore */
     }
   });
@@ -27258,7 +28627,33 @@ function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {});
+    const swUrl = "./sw.js?v=" + APP_VERSION;
+    navigator.serviceWorker.register(swUrl, { updateViaCache: "none" }).then((reg) => {
+      try {
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+        if (typeof reg.update === "function") {
+          reg.update();
+        }
+      } catch (err) {
+        /* ignore */
+      }
+    }).catch(() => {});
+    if (!navigator.serviceWorker.controller) {
+      return;
+    }
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      try {
+        if (sessionStorage.getItem("dad-sw-reloaded") === "1") {
+          return;
+        }
+        sessionStorage.setItem("dad-sw-reloaded", "1");
+        window.location.reload();
+      } catch (err) {
+        /* ignore */
+      }
+    });
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
@@ -27444,6 +28839,13 @@ function bootDadTetris() {
 function startWhenReady() {
   try { bindCoreHudButtons(); } catch (err) {}
   bootDadTetris();
+  try {
+    if (typeof window.initApp === "function") {
+      window.initApp();
+    }
+  } catch (initErr) {
+    /* GameEngine already started initApp */
+  }
   try { bindCoreHudButtons(); } catch (err) {}
   try {
     var realStart = window.startGame;

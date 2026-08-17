@@ -1,9 +1,26 @@
-const CACHE_NAME = "dad-tetris-v51";
+const APP_VERSION = "1.0.9-stable";
+const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./style.css",
-  "./script.js",
+  "./404.html",
+  "./style.css?v=" + APP_VERSION,
+  "./script.js?v=" + APP_VERSION,
+  "./manifest.json",
+  "./assets/images/default_bg.jpg",
+  "./assets/bg-default.png",
+  "./assets/images/level_1.jpg",
+  "./assets/images/level_2.jpg",
+  "./assets/images/level_3.jpg",
+  "./assets/images/level_4.jpg",
+  "./assets/images/level_5.jpg",
+  "./assets/images/level_6.jpg",
+  "./assets/images/level_7.jpg",
+  "./assets/images/level_8.jpg",
+  "./assets/images/level_9.jpg",
+  "./assets/images/level_10.jpg",
+  "./assets/audio/bgm_default.mp3",
+  "./icons/icon.svg",
 ];
 
 function isAppShell(url) {
@@ -41,6 +58,13 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+self.addEventListener("message", (event) => {
+  const data = event && event.data;
+  if (data && (data.type === "SKIP_WAITING" || data === "SKIP_WAITING")) {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") {
@@ -54,10 +78,23 @@ self.addEventListener("fetch", (event) => {
     if (isMedia(req, url)) {
       try {
         const fresh = await fetch(req);
-        return fresh;
+        if (fresh && fresh.ok) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(req, fresh.clone());
+          } catch (cacheErr) {
+            /* cache optional */
+          }
+          return fresh;
+        }
       } catch (err) {
-        return new Response("", { status: 404, statusText: "Not Found" });
+        /* fall through to cache */
       }
+      const cachedMedia = await caches.match(req);
+      if (cachedMedia) {
+        return cachedMedia;
+      }
+      return new Response("", { status: 404, statusText: "Not Found" });
     }
     const cache = await caches.open(CACHE_NAME);
     if (isAppShell(url)) {
@@ -68,7 +105,10 @@ self.addEventListener("fetch", (event) => {
         }
         return fresh;
       } catch (err) {
-        return (await cache.match(req)) || (await cache.match("./index.html")) || Response.error();
+        return (await cache.match(req))
+          || (await cache.match("./index.html"))
+          || (await cache.match("./"))
+          || Response.error();
       }
     }
     const cached = await cache.match(req);
