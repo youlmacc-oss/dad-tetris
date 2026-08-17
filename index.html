@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-title" content="DadTetris">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070c'/%3E%3Crect x='24' y='8' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='8' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='24' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='40' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3C/svg%3E" type="image/svg+xml">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="style.css?v=20260817_002" type="text/css">
-  <meta name="dad-ui" content="mobile-overlay-20260817_002">
+  <link rel="stylesheet" href="style.css?v=20260818_001" type="text/css">
+  <meta name="dad-ui" content="mobile-overlay-20260818_001">
   <meta name="description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
   <meta property="og:description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
 </head>
@@ -215,48 +215,102 @@
         <button type="button" id="guide-x" class="modal-x" aria-label="닫기" data-i18n-aria="closeAria">✕</button>
       </header>
 
-      <div class="guide-tabs" role="tablist">
+      <div class="guide-tabs guide-tabs-viz" role="tablist">
         <button type="button" class="guide-tab is-on" data-guide-tab="controls" role="tab" aria-selected="true">
-          <span data-i18n="guideTabControlsMain">챕터 1: 🎮 조작</span>
-          <span class="guide-tab-sub" data-i18n="guideTabControlsSub">&amp; 모바일 패드</span>
+          <span class="guide-tab-ico" aria-hidden="true">🎮</span>
+          <span data-i18n="guideVizTabControls">아케이드 코어</span>
+          <span class="guide-tab-sub" data-i18n="guideTabControlsSub">룰 · 조작</span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabControlsMain"></span>
           <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabControls"></span>
         </button>
-        <button type="button" class="guide-tab" data-guide-tab="skins" role="tab" aria-selected="false" data-i18n="guideTabSkins">챕터 2: 🧊 5종 스킨</button>
-        <button type="button" class="guide-tab" data-guide-tab="board" role="tab" aria-selected="false" data-i18n="guideTabBoard">챕터 3: 📏 보드·속도</button>
-        <button type="button" class="guide-tab" data-guide-tab="dad" role="tab" aria-selected="false" data-i18n="guideTabDadChapter">챕터 4: 📢 전광판</button>
-        <button type="button" class="guide-tab" data-guide-tab="media" role="tab" aria-selected="false" data-i18n="guideTabMedia">챕터 5: 🖼️ 미디어</button>
-        <button type="button" class="guide-tab" data-guide-tab="bulk" role="tab" aria-selected="false" data-i18n="guideTabBulk">챕터 6: 📦 일괄 등록</button>
-        <button type="button" class="guide-tab" data-guide-tab="lang" role="tab" aria-selected="false" data-i18n="guideTabLang">챕터 7: 🌐 언어·진단</button>
+        <button type="button" class="guide-tab" data-guide-tab="dad" role="tab" aria-selected="false">
+          <span class="guide-tab-ico" aria-hidden="true">👑</span>
+          <span data-i18n="guideVizTabDad">DAD 시그니처</span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabDadChapter"></span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabDad"></span>
+        </button>
+        <button type="button" class="guide-tab" data-guide-tab="media" role="tab" aria-selected="false">
+          <span class="guide-tab-ico" aria-hidden="true">🖼️</span>
+          <span data-i18n="guideVizTabBg">미디어·배경</span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabMedia"></span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabBulk"></span>
+        </button>
+        <button type="button" class="guide-tab" data-guide-tab="skins" role="tab" aria-selected="false">
+          <span class="guide-tab-ico" aria-hidden="true">🎨</span>
+          <span data-i18n="guideVizTabTheme">비주얼·오디오</span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabSkins"></span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabCustom"></span>
+        </button>
+        <button type="button" class="guide-tab" data-guide-tab="lang" role="tab" aria-selected="false">
+          <span class="guide-tab-ico" aria-hidden="true">🧪</span>
+          <span data-i18n="guideVizTabDiag">자가진단</span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabLang"></span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabSystem"></span>
+        </button>
         <span class="guide-i18n-anchor hidden" hidden data-guide-tab="ai" data-i18n="guideTabAi"></span>
-        <span class="guide-i18n-anchor hidden" hidden data-guide-tab="custom" data-i18n="guideTabCustom"></span>
-        <span class="guide-i18n-anchor hidden" hidden data-guide-tab="system" data-i18n="guideTabSystem"></span>
+        <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabSettings"></span>
+        <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabScore"></span>
+        <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabBoard"></span>
       </div>
 
       <div class="modal-body guide-body" tabindex="0">
         <section class="guide-panel-page" data-guide-panel="controls" role="tabpanel">
+          <article class="guide-card guide-viz-hero">
+            <span class="guide-badge" data-i18n="guideVizTabControls">아케이드 코어</span>
+            <h3 data-i18n="guideCh1RulesTitle">테트로미노 7종 · 라인 클리어 · 점수/레벨</h3>
+            <p class="guide-copy" data-i18n="guideCh1RulesBody">I·O·T·S·Z·J·L 일곱 가지 블록을 쌓아 가로 한 줄을 가득 채우면 그 줄이 지워집니다. 1줄 100×Lv, 2줄 300×Lv, 3줄 500×Lv, 4줄 테트리스 800×Lv. 지운 줄이 쌓이면 레벨이 오르고 낙하가 빨라집니다.</p>
+            <div class="guide-piece-row" aria-hidden="true">
+              <span class="guide-piece" data-piece="I">I</span>
+              <span class="guide-piece" data-piece="O">O</span>
+              <span class="guide-piece" data-piece="T">T</span>
+              <span class="guide-piece" data-piece="S">S</span>
+              <span class="guide-piece" data-piece="Z">Z</span>
+              <span class="guide-piece" data-piece="J">J</span>
+              <span class="guide-piece" data-piece="L">L</span>
+            </div>
+            <div class="guide-score-grid">
+              <div class="guide-score-chip"><span data-i18n="clear1">1줄</span><strong>100 × Lv</strong></div>
+              <div class="guide-score-chip"><span data-i18n="clear2">2줄</span><strong>300 × Lv</strong></div>
+              <div class="guide-score-chip"><span data-i18n="clear3">3줄</span><strong>500 × Lv</strong></div>
+              <div class="guide-score-chip is-tetris"><span data-i18n="tetris">테트리스</span><strong>800 × Lv</strong></div>
+            </div>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</p>
+          </article>
           <article class="guide-card">
             <h3 data-i18n="guidePcTitle">💻 PC 키보드</h3>
-            <ul class="guide-key-list">
-              <li><kbd>←</kbd> <kbd>→</kbd> <span class="guide-sep">:</span> <span data-i18n="guideMoveLR">좌우 이동</span></li>
-              <li><kbd>↑</kbd> / <kbd>Z</kbd> <span class="guide-sep">:</span> <span data-i18n="guideRotateDetail">블록 회전</span></li>
-              <li><kbd>↓</kbd> <span class="guide-sep">:</span> <span data-i18n="guideSoftDropDetail">소프트 드롭 (DAD 스페셜 타임스톱 중에는 ‘1칸씩 수동 낙하’)</span></li>
-              <li><kbd>Space</kbd> <span class="guide-sep">:</span> <span data-i18n="guideHardDropDetail">즉시 하드 드롭 (카운트다운 없이 즉시 쿵! 착지 고정)</span></li>
-              <li><kbd>Shift</kbd> / <kbd>H</kbd> <span class="guide-sep">:</span> <span data-i18n="holdKey">홀드(HOLD)</span></li>
-              <li><kbd>P</kbd> <span class="guide-sep">:</span> <span data-i18n="pause">일시정지</span> <span class="guide-sep">/</span> <kbd>Enter</kbd> <span class="guide-sep">:</span> <span data-i18n="restart">다시 시작</span></li>
-              <li class="is-gold"><kbd>K</kbd> <span class="guide-sep">:</span> <span data-i18n="guideKDetail">DAD 긴급 타임스톱 (공중 시간 정지)</span></li>
-            </ul>
-            <p class="guide-copy guide-dad-tip" data-i18n="guidePauseHint">💡 모바일은 보드 중앙 안내문을 터치해 시작하고, PC는 상단 [ ▶ 게임 시작 ]이 게임 중 [ ⏸ 일시정지 ] / [ ▶ 계속하기 ]로 바뀝니다.</p>
-          </article>
-          <article class="guide-card">
+            <div class="guide-keycap-board">
+              <div class="guide-keycap-item"><kbd>←</kbd><kbd>→</kbd><span data-i18n="guideMoveLR">좌우 이동</span></div>
+              <div class="guide-keycap-item"><kbd>↑</kbd><kbd>Z</kbd><span data-i18n="guideRotateDetail">블록 회전</span></div>
+              <div class="guide-keycap-item"><kbd>↓</kbd><span data-i18n="guideCh1SoftDrop">소프트 드롭</span></div>
+              <div class="guide-keycap-item"><kbd>Space</kbd><span data-i18n="guideHardDropNow">즉시 하드 드롭</span></div>
+              <div class="guide-keycap-item"><kbd>Shift</kbd><kbd>H</kbd><span data-i18n="holdKey">홀드(HOLD)</span></div>
+              <div class="guide-keycap-item is-diag"><kbd>F9</kbd><span data-i18n="guideVizKeyF9">자가진단 콘솔 실행</span></div>
+            </div>
             <h3 data-i18n="guideDasTitle">🎯 DAS / ARR 정밀 조작 튜닝</h3>
-            <p class="guide-copy" data-i18n="guideDasBody">환경설정 [조작 &amp; 감도]에서 DAS(첫 이동 딜레이 100~300ms, 기본 150ms), ARR(연속 이동 15~80ms, 기본 33ms), 소프트드롭 배율(1x~20x, 기본 10x)을 조절합니다. PC 방향키와 모바일 7버튼 터치패드에 바로 적용됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideDasHint">💡 값이 작을수록 더 빠른 대시입니다. 설정은 localStorage에 영구 저장됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDasBody">환경설정 [조작 &amp; 감도]에서 DAS(첫 이동 딜레이 100~300ms, 기본 150ms), ARR(연속 이동 15~80ms, 기본 33ms), 소프트드롭 배율(1x~20x, 기본 10x)을 조절합니다. PC 방향키와 모바일 7버튼 터치패드에 바로 적용됩니다.</p>
+            <p class="guide-copy" data-i18n="guidePauseHint">💡 모바일은 보드 중앙 안내문을 터치해 시작하고, PC는 상단 [ ▶ 게임 시작 ]이 게임 중 [ ⏸ 일시정지 ] / [ ▶ 계속하기 ]로 바뀝니다.</p>
           </article>
-          <article class="guide-card">
+          <article class="guide-card guide-viz-fold">
             <h3 data-i18n="guideMobileTitle">📱 모바일 터치패드</h3>
             <p class="guide-copy" data-i18n="guideMobileArcadeBody">세로 화면은 한 장(100dvh, 스크롤 없음)에 맞춥니다. 상단은 타이틀과 ⚙️설정·📖가이드·✏️진단 미니메뉴, 중앙은 좌측 10×20 게임 보드와 우측 기능타워(시작/종료, NEXT·HOLD, 2x2 점수판, AUTO, DAD 스페셜), 그 아래 가로 와이드 DAD 전광판, 최하단은 7버튼 터치패드입니다. 보드 중앙의 ‘게임 시작을 눌러 주세요’를 터치하면 바로 시작합니다.</p>
-            <p class="guide-copy" data-i18n="guideMobileBoth">양손으로 잡으세요. 왼쪽은 이동·소프트 드롭, 오른쪽은 회전·하드 드롭·홀드·타임스톱입니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideFoldableBody">폴더블폰을 펼치면 왼손 이동키(◀▼▶)와 오른손 액션키(🔄⚡📦⏳) 사이가 자연스럽게 분리되어 양손 엄지로 편안하게 플레이할 수 있습니다.</p>
+            <div class="guide-fold-diagram" aria-hidden="true">
+              <div class="guide-fold-phone">
+                <div class="guide-fold-wing">
+                  <span class="guide-fold-pad">◀</span>
+                  <span class="guide-fold-pad">▼</span>
+                  <span class="guide-fold-pad">▶</span>
+                </div>
+                <div class="guide-fold-hinge"></div>
+                <div class="guide-fold-wing is-action">
+                  <span class="guide-fold-pad">🔄</span>
+                  <span class="guide-fold-pad">⚡</span>
+                  <span class="guide-fold-pad">📦</span>
+                  <span class="guide-fold-pad is-gold">⏳</span>
+                </div>
+              </div>
+            </div>
+            <p class="guide-copy" data-i18n="guideFoldableBody">폴더블폰을 펼치면 왼손 이동키(◀▼▶)와 오른손 액션키(🔄⚡📦⏳) 사이가 자연스럽게 분리되어 양손 엄지로 편안하게 플레이할 수 있습니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideVizFoldHint">펼치면 이동키와 액션키가 양쪽으로 갈라져 엄지 조작이 편해집니다.</p>
             <div class="guide-hands">
               <div class="guide-hand">
                 <p class="guide-hand-label" data-i18n="guideLeftHand">왼손 · 좌측 컨트롤러</p>
@@ -273,124 +327,47 @@
                 <p class="guide-hand-desc" data-i18n="guidePadRightBody">[🔄] 회전 · [⚡] 즉시 하드 드롭 · [📦] 홀드 · [⏳] DAD 타임스톱</p>
               </div>
             </div>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideDadMobileHint">💡 스마트폰에서도 [⏳ 타임스톱]을 터치해 시간을 멈추고, [▼]로 1칸씩 안전하게 내릴 수 있습니다.</p>
+            <p class="guide-copy" data-i18n="guideMobileBoth">양손으로 잡으세요. 왼쪽은 이동·소프트 드롭, 오른쪽은 회전·하드 드롭·홀드·타임스톱입니다.</p>
             <p class="guide-copy guide-dad-tip" data-i18n="guideMobileDblTapBody">일시정지 중 화면 아무 곳이나 두 번 연속 터치하면 즉시 게임이 재개됩니다.</p>
-            <p class="guide-copy" data-i18n="guideSettingsMobileBody">환경설정에서 효과음/BGM을 따로 조절하고, 고스트 블록 On/Off와 모바일 가상 패드·햅틱 진동을 켤 수 있습니다. 하단 터치 버튼은 오작동 없이 바로 반응합니다.</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideAiSpeedTitle">🤖 AI 자동 플레이 &amp; 0.5x ~ 20x 관전</h3>
-            <p class="guide-copy" data-i18n="guideAiSpeedBody">자동 플레이를 켜면 AI가 대신 두고, 사이드바 또는 환경설정에서 0.5x부터 20x까지 배속을 조절하며 관전할 수 있습니다.</p>
-            <div class="guide-ai-row" aria-hidden="true">
-              <span>0.5x</span>
-              <span class="guide-ai-bar"></span>
-              <span>20x</span>
-            </div>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideAiBuildTitle">탑 쌓기(빌드업) + 테트리스 폭파</h3>
-            <p class="guide-copy" data-i18n="guideAiBuildBody">AI는 탑을 높이 쌓아 4줄 테트리스를 노리다가, 위기가 오면 초정밀 생존 모드로 자동 전환합니다.</p>
-            <div class="guide-score-grid">
-              <div class="guide-score-chip"><span data-i18n="clear1">1줄</span><strong>100 × Lv</strong></div>
-              <div class="guide-score-chip"><span data-i18n="clear2">2줄</span><strong>300 × Lv</strong></div>
-              <div class="guide-score-chip"><span data-i18n="clear3">3줄</span><strong>500 × Lv</strong></div>
-              <div class="guide-score-chip is-tetris"><span data-i18n="tetris">테트리스</span><strong>800 × Lv</strong></div>
-            </div>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideAiConquerTitle">20레벨 정복 &amp; 챔피언 축하</h3>
-            <p class="guide-copy" data-i18n="guideAiConquerBody">최고 난이도인 20레벨을 완주하면 AI가 자동 정지하고, 화려한 챔피언 축하 연출이 이어집니다.</p>
-            <div class="guide-level-track" aria-hidden="true">
-              <span>1</span>
-              <span>5</span>
-              <span>10</span>
-              <span class="is-hot">20</span>
-            </div>
-            <p class="guide-copy" data-i18n="guideAiHint">AI 점수는 명예의 전당에 저장되지 않습니다. 직접 플레이해야 기록이 남습니다.</p>
-          </article>
-        </section>
-
-        <section class="guide-panel-page hidden" data-guide-panel="skins" role="tabpanel">
-          <article class="guide-card guide-card-block-skin">
-            <span class="guide-badge" data-i18n="guideCh2Badge">챕터 2 · 5종 블록 스킨</span>
-            <h3 data-i18n="guideBlockSkinTitle">🧊 블록 외형 스타일 5종</h3>
-            <p class="guide-copy" data-i18n="guideCh2Lead">환경설정에서 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려집니다. 모달을 닫지 않아도 스킨/그림자 실시간 프리뷰 캔버스 2종으로 질감을 확인할 수 있습니다.</p>
-            <p class="guide-copy" data-i18n="guideBlockSkinBody">환경설정에서 3D 베벨 큐브(기본), 크리스탈 글래스, 3D 홀로그램 글래스(완전 투명 입체 프레임), 사이버 메카닉, 소프트 캔디 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려지고, 실시간 미리보기로 바로 확인할 수 있습니다.</p>
-            <ul class="guide-custom-list">
-              <li data-i18n="blockSkinGemstone">🎲 3D 베벨 큐브 (3D Gemstone)</li>
-              <li data-i18n="blockSkinGlass">💎 크리스탈 글래스 (Crystal Glass)</li>
-              <li data-i18n="blockSkinWireGlass">🧊 3D 홀로그램 글래스 (Hollow Glass - 완전 투명 입체 프레임)</li>
-              <li data-i18n="blockSkinMecha">⚙️ 사이버 메카닉 (Cyber Mecha)</li>
-              <li data-i18n="blockSkinCandy">🍬 소프트 캔디 (Soft Round)</li>
-            </ul>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideBlockSkinHow">💡 환경설정 모달의 실시간 미리보기 캔버스로 고르기 전에 질감을 확인하고, 값은 localStorage(block_skin_style)에 저장됩니다. 모달을 닫지 않아도 보드가 바로 바뀝니다.</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideSkinPreviewTitle">👁️ 실시간 프리뷰 캔버스 2종</h3>
-            <p class="guide-copy" data-i18n="guideSkinPreviewBody">스킨 미리보기(#skin-preview-canvas)는 선택한 5종 질감을 즉시 보여 주고, 그림자 미리보기(#ghost-preview-canvas)는 고스트 투명도를 옆에서 확인할 수 있습니다. 듀얼 레이어 보드(#bg-canvas + #tetris-canvas)는 배경을 한 번만 그리고 블록은 60fps로 따로 그립니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideGhostPreviewBody">환경설정의 그림자 슬라이더 옆 미니 캔버스로 투명도를 실시간 확인할 수 있습니다.</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideFxTitle">💥 줄 삭제 타격감 &amp; 네온 파티클</h3>
-            <p class="guide-copy" data-i18n="guideFxBody">1~3줄을 지우면 기본 네온 파티클과 미세 진동이 납니다. 4줄 테트리스·T-스핀·3연속 콤보는 0.15초 네온 플래시 셰이크+줌이 터지고, 전광판에 🔥 ULTRA COMBO! / ⚡ TETRIS CRUSH! 엠블럼이 뜹니다. 하드드롭 착지 때는 하단 충격파 파티클이 분사됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideFxHint">💡 환경설정의 [화면 진동]으로 세기를 조절할 수 있습니다. 끄면 흔들림이 멈춥니다.</p>
-          </article>
-        </section>
-
-        <section class="guide-panel-page hidden" data-guide-panel="board" role="tabpanel">
-          <article class="guide-card">
-            <span class="guide-badge" data-i18n="guideCh3Badge">챕터 3 · 보드 크기 (낙하 거리)</span>
-            <h3 data-i18n="guideBoardSizeTitle">📏 게임 보드 세로 높이 (20 / 24 / 28칸)</h3>
-            <p class="guide-copy" data-i18n="guideCh3Lead">PC에서는 표준 20칸, 롱 드롭 타워 24칸, 울트라 타워 28칸으로 낙하 여유를 확보할 수 있습니다. 화면 너비 768px 이하 모바일은 터치 조작을 위해 표준 20칸으로 자동 고정되고, 보드 높이 선택 UI는 숨겨집니다.</p>
-            <p class="guide-copy" data-i18n="guideBoardSizeBody">보드 크기(낙하 거리 확장) 기능은 대화면 PC 전용 기능이며, 모바일에서는 최적의 터치 조작성을 위해 표준 규격(10×20칸)으로 자동 고정됩니다. PC에서는 표준 20칸, 롱 드롭 24칸, 울트라 타워 28칸을 고를 수 있습니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="boardSizeMobileOnly">📱 모바일 기본 20라인 전용</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideDropSpeedTitle">블록 낙하 속도 조절</h3>
-            <p class="guide-copy" data-i18n="guideDropSpeedBody">환경설정의 '블록 낙하 속도 조절(0.5x~3.0x)'을 통해 손에 맞는 최적의 속도로 여유롭게 또는 다이내믹하게 즐길 수 있습니다.</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideFxJuiceTitle">💥 콤보 플래시 &amp; 하드드롭 충격파</h3>
-            <p class="guide-copy" data-i18n="guideFxJuiceBody">테트리스·T-스핀·3연속 콤보 시 게임 캔버스가 0.15초 네온 줌 플래시로 흔들립니다. 하드드롭으로 바닥에 꽂으면 하단에서 충격파 파티클 라인이 즉시 분사됩니다.</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideGarbageTitle">시작 장애물 라인</h3>
-            <p class="guide-copy" data-i18n="guideGarbageBody">환경설정의 '시작 장애물 라인(0~10층)'을 설정하면 게임 시작 시 바닥에 구멍 뚫린 블록들이 미리 쌓인 상태로 시작하여 짜릿한 역전 클리어 챌린지를 즐길 수 있습니다.</p>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guidePreviewModeTitle">블록 가이드 모드</h3>
-            <p class="guide-copy" data-i18n="guidePreviewModeBody">블록 가이드 모드를 통해 [NEXT + HOLD] 조합 또는 [NEXT 1 + NEXT 2] 2단계 예고 모드를 선택하여 플레이 스타일에 맞게 즐길 수 있습니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideGhostPreviewBody">환경설정의 그림자 슬라이더 옆 미니 캔버스로 투명도를 실시간 확인할 수 있습니다.</p>
           </article>
         </section>
 
         <section class="guide-panel-page hidden" data-guide-panel="dad" role="tabpanel">
-          <article class="guide-card guide-card-dad guide-dad-hero">
-            <span class="guide-badge" data-i18n="guideDadPerfectTitle">👑 DAD 스페셜 완벽 가이드</span>
-            <h3 data-i18n="guideDadWhatTitle">👑 DAD 스페셜 모드란?</h3>
-            <p class="guide-copy guide-hero-tag" data-i18n="guideDadHeroTag">아버지를 위해 특별히 설계된 슈퍼 파워 지원 모드!</p>
-            <p class="guide-copy" data-i18n="guideDadWhatBody">순발력 걱정 NO! 바닥에 닿아도 여유 시간이 생기고, 턱을 넘고 구멍을 찾아 들어가며, 시간이 끝나도 명당자리에 자동으로 맞춰 드립니다.</p>
-          </article>
-          <article class="guide-card guide-card-dad guide-dad-step">
-            <h3 data-i18n="guideDadLockTitle">⏳ 1. 바닥 착지 골든타임 &amp; 선명도 부스트</h3>
+          <article class="guide-card guide-viz-hero guide-card-dad">
+            <span class="guide-badge" data-i18n="guideVizTabDad">DAD 시그니처</span>
+            <h3 data-i18n="guideDadSlideTitle">🚀 지형 관통</h3>
+            <p class="guide-copy" data-i18n="guideCh2PierceBody">DAD 고스트 관통 모드에서는 블록이 다른 블록과 겹쳐도 반투명 펄스로 통과합니다. 착지 후 카운트다운 게이지(5초 여유 / 설정 3·5·10초)가 흐르고, 0초에 게임이 최적 위치(Best Fit)로 스냅합니다.</p>
+            <ol class="guide-flow">
+              <li class="guide-flow-step">
+                <span class="guide-flow-num">1</span>
+                <div class="guide-ghost-demo" aria-hidden="true"><span class="guide-ghost-block"></span></div>
+                <p data-i18n="guideVizPierceLead">겹친 블록은 반투명 펄스로 통과하고, 카운트 0초에 최적 자리로 스냅됩니다.</p>
+              </li>
+              <li class="guide-flow-step">
+                <span class="guide-flow-num">2</span>
+                <div class="guide-count-gauge" aria-hidden="true"><span>5</span><span>3</span><span>0</span></div>
+                <p data-i18n="guideVizCountLead">착지 후 3→2→1 동안 자리를 고칠 수 있습니다.</p>
+              </li>
+              <li class="guide-flow-step">
+                <span class="guide-flow-num">3</span>
+                <div class="guide-snap-badge" aria-hidden="true">BEST FIT</div>
+                <p data-i18n="guideVizSnapLead">0초에 Best Fit이 명당으로 맞춰 줍니다.</p>
+              </li>
+            </ol>
             <p class="guide-copy" data-i18n="guideDadLockBody1">자연 낙하나 소프트 드롭으로 바닥/블록 위에 안착하면 화면에 [3-2-1 카운트다운]이 시작됩니다.</p>
-            <p class="guide-copy" data-i18n="guideDadLockBody2">카운트다운 동안 게임 보드가 더욱 선명하게 밝아져 빈자리를 한눈에 볼 수 있습니다.</p>
-          </article>
-          <article class="guide-card guide-card-dad guide-dad-step">
-            <h3 data-i18n="guideDadSlideTitle">🚀 2. 지형 관통 이동 &amp; 깊은 홈 침투 (Super Slide &amp; Auto-Sink)</h3>
             <p class="guide-copy" data-i18n="guideDadSlideBody">카운트다운 중에는 블록 턱에 걸리지 않고 다른 블록을 자유롭게 넘나들며, 깊은 구멍(홈)이 있는 곳으로 이동하면 아래 바닥까지 쏙 내려앉아 완벽하게 배치할 수 있습니다.</p>
-          </article>
-          <article class="guide-card guide-card-dad guide-dad-step">
-            <h3 data-i18n="guideDadSmartTitle">🧠 3. 카운트 종료 시 ‘최적 명당자리’ 스마트 자동 배치</h3>
-            <p class="guide-copy" data-i18n="guideDadSmartBody">카운트다운 시간이 끝날 때까지 자리를 확정하지 못했더라도 걱정 마세요! 인공지능이 주변에서 줄을 지울 수 있거나 빈틈이 생기지 않는 가장 완벽한 자리를 찾아 자동으로 쏙 끼워 맞춰줍니다.</p>
             <p class="guide-copy guide-dad-tip" data-i18n="guideDadAutoSnap">💡 카운트다운 시간이 끝나더라도 걱정 마세요! 미처 자리를 정하지 못했을 경우 게임이 알아서 가장 최적의 명당자리에 블록을 자동으로 맞춰 드립니다.</p>
           </article>
-          <article class="guide-card guide-card-dad guide-dad-step">
-            <h3 data-i18n="guideDadKTitle">❄️ 4. [K] 키 · 모바일 [⏳] 긴급 타임스톱</h3>
-            <p class="guide-copy" data-i18n="guideDadKBody">공중에서 떨어지는 도중 언제든 누르면 시간이 멈춥니다. [↓] 또는 모바일 [▼]를 누를 때마다 1칸씩 차분하게 수동으로 내릴 수 있습니다.</p>
+          <article class="guide-card guide-card-dad">
+            <h3 data-i18n="guideDadKTitle">❄️ 공중 타임스톱</h3>
+            <div class="guide-ts-cards">
+              <article class="guide-ts-card">
+                <kbd>K</kbd>
+                <p data-i18n="guideCh2TimeStopBody">공중에서 [K] 또는 모바일 [⏳]를 누르면 중력 낙하가 0ms로 멈춥니다. 제자리 회전·좌우 이동은 정지를 풀지 않습니다. 착지한 뒤 다음 블록에서 1턴에 1회만 다시 쓸 수 있습니다.</p>
+              </article>
+            </div>
+            <p class="guide-copy" data-i18n="guideVizTimeStopLead">K / ⏳로 중력을 멈추고 제자리 회전. 착지 후 1턴에 1회만 다시 쓸 수 있습니다.</p>
             <p class="guide-copy guide-dad-tip" data-i18n="guideDadKHint">💡 타임스톱 중에는 [←/→] 이동, [↑] 회전도 정지를 풀지 않습니다. [Space] / [⚡]로만 즉시 착지합니다.</p>
-          </article>
-          <article class="guide-card guide-card-dad guide-dad-step">
-            <h3 data-i18n="guideDadDurationHead">⚙️ 5. 지속 시간 맞춤 설정</h3>
             <p class="guide-copy" data-i18n="guideDadDurationBody">[환경설정]에서 3초(기본), 5초(여유), 10초(슈퍼 이지) 중 원하는 시간을 자유롭게 선택할 수 있습니다. 골든타임과 타임스톱에 함께 적용됩니다.</p>
             <div class="guide-duration-pills" aria-hidden="true">
               <span class="guide-pill" data-i18n="dadDuration3">3초 (기본)</span>
@@ -398,118 +375,82 @@
               <span class="guide-pill is-hot" data-i18n="dadDuration10">10초 (슈퍼 이지)</span>
             </div>
           </article>
-          <article class="guide-card guide-card-cheer">
-            <h3 data-i18n="guideCheerTitle">📢 DAD 실시간 응원 전광판</h3>
-            <p class="guide-copy" data-i18n="guideCh4Lead">PC에서는 사이드바 160px 전광판(#dad-cheer-banner)이, 모바일 세로에서는 보드와 터치패드 사이의 가로 와이드 슬림 바가 콤보·테트리스·위기 탈출을 실시간으로 응원합니다. [K] 키와 모바일 [⏳] 타임스톱으로 공중 시간을 멈출 수 있습니다.</p>
-            <p class="guide-copy" data-i18n="guideCheerBody">연속 콤보, 4줄 테트리스, 위기 탈출 때 DAD 전광판이 실시간 격려 메시지와 골드 펄스 효과로 응원합니다. 3연속 이상은 🔥 ULTRA COMBO!, 테트리스는 ⚡ TETRIS CRUSH! 엠블럼이 팝업됩니다.</p>
-            <p class="guide-copy" data-i18n="guideAudioJuiceBody">하드드롭은 저음 타격+리버브, 연속 배치/콤보는 음계가 1음씩 올라가는 팡파르, [K] 타임스톱은 공간이 늘어지는 피치 벤드 다운으로 재생됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideCheerHow">💡 모바일 세로에서는 전광판이 보드 아래 가로 와이드 슬림 바로 붙고, PC에서는 사이드바 160px 높이를 유지합니다. 응원 문구는 화면 폭에 맞춰 한 줄로 표시됩니다.</p>
+          <article class="guide-card">
+            <h3 data-i18n="guideCh2SpecialSettings">가비지 라인 · 동적 보드 크기</h3>
+            <p class="guide-copy" data-i18n="guideGarbageBody">환경설정의 '시작 장애물 라인(0~10층)'을 설정하면 게임 시작 시 바닥에 구멍 뚫린 블록들이 미리 쌓인 상태로 시작하여 짜릿한 역전 클리어 챌린지를 즐길 수 있습니다.</p>
+            <p class="guide-copy" data-i18n="guideBoardSizeBody">보드 크기(낙하 거리 확장) 기능은 대화면 PC 전용 기능이며, 모바일에서는 최적의 터치 조작성을 위해 표준 규격(10×20칸)으로 자동 고정됩니다. PC에서는 표준 20칸, 롱 드롭 24칸, 울트라 타워 28칸을 고를 수 있습니다.</p>
+            <div class="guide-duo-grid">
+              <div class="guide-duo-card">
+                <strong data-i18n="guideGarbageTitle">시작 장애물 라인</strong>
+                <span>0 — 10</span>
+              </div>
+              <div class="guide-duo-card">
+                <strong data-i18n="guideBoardSizeTitle">📏 게임 보드 세로 높이 (20 / 24 / 28칸)</strong>
+                <span data-i18n="boardSizeMobileOnly">📱 모바일 기본 20라인 전용</span>
+              </div>
+            </div>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideCh3Lead">PC에서는 표준 20칸, 롱 드롭 타워 24칸, 울트라 타워 28칸으로 낙하 여유를 확보할 수 있습니다. 화면 너비 768px 이하 모바일은 터치 조작을 위해 표준 20칸으로 자동 고정되고, 보드 높이 선택 UI는 숨겨집니다.</p>
           </article>
         </section>
 
         <section class="guide-panel-page hidden" data-guide-panel="media" role="tabpanel">
-          <article class="guide-card">
-            <span class="guide-badge" data-i18n="guideCh5Badge">챕터 5 · IndexedDB 커스텀 미디어</span>
-            <h3 data-i18n="guideIndexedDbTitle">💾 IndexedDB 기반 고화질 커스텀 미디어</h3>
-            <p class="guide-copy" data-i18n="guideCh5Lead">대용량 배경 사진·BGM·종료 영상은 IndexedDB(DadTetrisDB / media_files)에 Blob으로 비동기 저장되고, 스킨·보드 높이·볼륨·최고기록은 localStorage에 따로 보존됩니다.</p>
-            <p class="guide-copy" data-i18n="guideIndexedDbBody">환경설정에서 가족 사진, 레벨별 배경, 좋아하는 mp3, 게임 종료 영상을 등록하면 브라우저 용량 한도 안에서 고화질 원본을 유지합니다. 설정값(5종 스킨, ROWS, 볼륨)은 localStorage에 남아 IndexedDB와 분리됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideIndexedDbHow">💡 파일은 DadTetrisDB의 media_files 스토어에 저장됩니다. 자가진단이 연결·쓰기/읽기/삭제를 검증합니다.</p>
-          </article>
-          <article class="guide-card">
+          <article class="guide-card guide-viz-hero">
+            <span class="guide-badge" data-i18n="guideVizTabBg">미디어·배경</span>
             <h3 data-i18n="guideIdleSplitTitle">🖼️ 윈도우 / 게임 패널 대기 배경 분리</h3>
-            <p class="guide-copy" data-i18n="guideIdleSplitBody">전체 윈도우와 왼쪽 게임 패널은 대기 이미지를 따로 등록합니다. 각 탭에서 블러·투명도를 조절하고, [기본 배경 계속 유지]를 켜면 플레이 중에도 대기 배경이 유지됩니다.</p>
+            <p class="guide-copy" data-i18n="guideVizSlotMap">대기(Idle)와 Level 1~20은 서로 다른 IndexedDB 슬롯입니다.</p>
+            <div class="guide-slot-map" aria-hidden="true">
+              <span class="guide-slot is-idle">Idle</span>
+              <span class="guide-slot">1</span><span class="guide-slot">5</span><span class="guide-slot">10</span><span class="guide-slot is-hot">20</span>
+            </div>
             <ul class="guide-custom-list">
               <li data-i18n="guideIdleSplitWindow">🖥️ 전체 윈도우: 기본 대기 이미지 + 레벨 1~20, 윈도우 전용 블러/투명도</li>
               <li data-i18n="guideIdleSplitBoard">🎮 게임 패널: 패널 대기 이미지 + 레벨 1~20, 패널 전용 블러/투명도</li>
               <li data-i18n="guideLevelBgLiveBody">레벨이 오르면 IndexedDB 슬롯(bg_level_X) 또는 기본 폴백 이미지가 보드/패널 배경에 즉시 연동됩니다. [기본 배경 고정]이 켜져 있으면 대기 배경을 유지합니다.</li>
             </ul>
           </article>
-          <article class="guide-card guide-card-memory">
-            <h3 data-i18n="guideMemoryTitle">🖼️ 나만의 추억 헌정! 가족사진 &amp; 테마 커스텀 가이드</h3>
-            <ol class="guide-memory-list">
-              <li data-i18n="guideMemoryProfile">① 프로필 사진: [환경설정]에서 본인 또는 가족사진을 불러와 마우스 드래그와 확대/축소(50%~300%), 위치 조절로 멋진 프로필 아이콘을 만들 수 있습니다.</li>
-              <li data-i18n="guideMemoryBg">② 레벨별 추억 배경: 환경설정에서 사진을 등록하면 레벨이 오를 때마다 배경이 바뀝니다. 파일이 없어도 네온 그리드로 바로 플레이됩니다.</li>
-            </ol>
+          <article class="guide-card">
+            <h3 data-i18n="guideBulkTitle">📦 배경 일괄 등록 &amp; 스마트 전체 자동 분배</h3>
+            <div class="guide-drop-visual">
+              <p data-i18n="guideVizBulkDrop">여러 장을 한 번에 고르면 스마트 엔진이 파일명으로 슬롯을 나눕니다.</p>
+            </div>
+            <p class="guide-copy" data-i18n="guideBulkBody">환경설정 배경 탭의 [📦 배경 일괄 등록]에서 [📁 여러 파일 선택]으로 여러 장을 고릅니다. 대상은 [전체 윈도우 배경 세트], [게임 패널 배경 세트], [스마트 전체 자동 분배]입니다. 로컬과 HTTPS/GitHub Pages 모두 브라우저 IndexedDB(DadTetrisDB / media_files)에 파일 단위 트랜잭션으로 저장됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideVizFileMap">예: idle.jpg → 대기, bg5.jpg / level5.png → 레벨 5</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideBulkKwIdle">파일명 대기 / idle / wait → bg_idle (전체 윈도우 대기 배경)</li>
+              <li data-i18n="guideBulkKwLevel">[전체 윈도우 배경 세트] 1번째 → bg_idle, 2~16번째 → bg_lvl_1 … bg_lvl_15. 스마트 모드에서 lv숫자/레벨숫자면 해당 레벨</li>
+              <li data-i18n="guideBulkKwPanel">[게임 패널 배경 세트] 1번째 파일 → bg_panel_idle, 2~16번째 → bg_panel_lvl_1 … bg_panel_lvl_15. 스마트 모드에서 파일명 패널/panel/보드면 패널 슬롯</li>
+              <li data-i18n="guideBulkSeq">윈도우/패널 세트는 파일 순서대로 대기→Lv.1~15(이후 파일은 Lv.16~20)에 넣습니다. 스마트 모드에서 이름 규칙이 없으면 앞 21장은 윈도우, 다음 21장은 패널입니다.</li>
+            </ul>
+            <p class="guide-copy" data-i18n="guideBulkProgress">각 파일은 FileReader로 DataURL을 끝까지 읽은 뒤, IndexedDB readwrite 트랜잭션을 한 장씩 열어 put 완료를 기다립니다. 진행 바(#bulk-progress-bar)와 상태 문구가 실시간으로 갱신됩니다.</p>
+            <p class="guide-copy" data-i18n="guideBulkThumbs">저장이 성공할 때마다 40×40 썸네일이 #bulk-preview-grid에 바로 추가됩니다. 끝나면 설정 슬롯(윈도우/패널)과 캔버스 배경이 즉시 갱신되고, 완료 메시지와 썸네일 리스트는 닫히지 않고 유지됩니다.</p>
           </article>
-          <article class="guide-card guide-card-master-bg">
+          <article class="guide-card">
             <h3 data-i18n="guideBgCustomTitle">🖼️ 배경 커스텀 마스터 가이드</h3>
-            <ul class="guide-custom-list guide-master-list">
+            <p class="guide-copy" data-i18n="guideVizFxPreview">keepDefault는 레벨업 고정, masterDisable는 네온만, Blur/Opacity는 블록 가독성용입니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideKeepDefaultBg">기본 배경 고정(keepDefault): 레벨이 올라도 대기(Idle) 배경을 유지합니다.</li>
+              <li data-i18n="guideDisableAllCustomBg">배경 마스터 끄기(masterDisable): 등록 파일을 지우지 않고 기본 네온만 보여 줍니다.</li>
+              <li data-i18n="guideWindowFxBody">윈도우 블러/투명도 슬라이더로 전체 화면 배경의 흐림과 농도를 조절합니다.</li>
+              <li data-i18n="guidePanelFxBody">패널 블러/투명도 슬라이더로 게임 보드 뒤 배경만 따로 조절해 블록 가독성을 지킵니다.</li>
               <li data-i18n="guideBgMasterToggle">마스터 토글: 등록된 이미지를 삭제하지 않고 스위치 하나로 기본 네온 테마로 즉시 전환할 수 있습니다.</li>
               <li data-i18n="guideBgMasterWindow">윈도우 배경: 기본/레벨별 배경 등록, 기본 배경 고정 유지, 그리고 윈도우 전용 블러(흐림) 및 투명도 조절 기능을 지원합니다.</li>
               <li data-i18n="guideBgMasterBoard">게임 패널 배경: 패널 전용 레벨별 배경 등록과 패널 블러/투명도 듀얼 조절로 블록 시인성을 극대화할 수 있습니다.</li>
-              <li data-i18n="guideBgMasterDelete">개별 삭제(🗑️): 각 슬롯마다 등록된 이미지를 개별적으로 삭제/초기화할 수 있습니다.</li>
-            </ul>
-            <p class="guide-i18n-anchor hidden" hidden>
-              <span data-i18n="guideBgCustomBody"></span>
-              <span data-i18n="guideKeepDefaultBg"></span>
-              <span data-i18n="guideWindowFxBody"></span>
-              <span data-i18n="guideDisableAllCustomBg"></span>
-              <span data-i18n="guidePanelFxTitle"></span>
-              <span data-i18n="guidePanelFxBody"></span>
-              <span data-i18n="guideLevelBgLiveBody"></span>
-              <span data-i18n="guideDiagLevelBgSim"></span>
-              <span data-i18n="guideDiagLevelBgSlots"></span>
-              <span data-i18n="guideDiagLevelBgInterlock"></span>
-            </p>
-          </article>
-          <article class="guide-card guide-card-convenience">
-            <h3 data-i18n="guideConvenienceTitle">🕹️ 조작 및 편의 기능</h3>
-            <ul class="guide-custom-list">
-              <li><strong data-i18n="guideMobileDblTapTitle">모바일 더블탭</strong> — <span data-i18n="guideMobileDblTapBody">일시정지 중 화면 아무 곳이나 두 번 연속 터치하면 즉시 게임이 재개됩니다.</span></li>
-              <li><strong data-i18n="guideGhostPreviewTitle">고스트 프리뷰</strong> — <span data-i18n="guideGhostPreviewBody">환경설정의 그림자 슬라이더 옆 미니 캔버스로 투명도를 실시간 확인할 수 있습니다.</span></li>
-              <li><strong data-i18n="guidePwaConvenienceTitle">PWA 앱 설치</strong> — <span data-i18n="guidePwaConvenienceBody">환경설정의 '홈 화면에 앱 설치' 버튼으로 앱처럼 즐길 수 있습니다.</span></li>
-              <li><strong data-i18n="guideAutoRecordTitle">자동 게임기록 모드</strong> — <span data-i18n="guideAutoRecordBody">환경설정의 '자동 게임기록 모드'를 켜면 게임 종료 팝업 없이 '시스템' 이름으로 점수와 일시가 자동 저장되어 흐름 끊김 없이 바로 다음 게임을 즐길 수 있습니다.</span></li>
-              <li><strong data-i18n="guideGarbageTitle">시작 장애물 라인</strong> — <span data-i18n="guideGarbageBody">환경설정의 '시작 장애물 라인(0~10층)'을 설정하면 게임 시작 시 바닥에 구멍 뚫린 블록들이 미리 쌓인 상태로 시작하여 짜릿한 역전 클리어 챌린지를 즐길 수 있습니다.</span></li>
-              <li><strong data-i18n="guidePreviewModeTitle">블록 가이드 모드</strong> — <span data-i18n="guidePreviewModeBody">블록 가이드 모드를 통해 [NEXT + HOLD] 조합 또는 [NEXT 1 + NEXT 2] 2단계 예고 모드를 선택하여 플레이 스타일에 맞게 즐길 수 있습니다.</span></li>
-              <li><strong data-i18n="guideDropSpeedTitle">블록 낙하 속도 조절</strong> — <span data-i18n="guideDropSpeedBody">환경설정의 '블록 낙하 속도 조절(0.5x~3.0x)'을 통해 손에 맞는 최적의 속도로 여유롭게 또는 다이내믹하게 즐길 수 있습니다.</span></li>
-              <li><strong data-i18n="guideBoardSizeTitle">📏 게임 보드 세로 높이 (20 / 24 / 28칸)</strong> — <span data-i18n="guideBoardSizeBody">보드 크기(낙하 거리 확장) 기능은 대화면 PC 전용 기능이며, 모바일에서는 최적의 터치 조작성을 위해 표준 규격(10×20칸)으로 자동 고정됩니다. PC에서는 표준 20칸, 롱 드롭 24칸, 울트라 타워 28칸을 고를 수 있습니다.</span></li>
-              <li><strong data-i18n="guideBlockSkinTitle">🧊 블록 외형 스타일 5종</strong> — <span data-i18n="guideBlockSkinBody">환경설정에서 3D 베벨 큐브(기본), 크리스탈 글래스, 3D 홀로그램 글래스(완전 투명 입체 프레임), 사이버 메카닉, 소프트 캔디 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려지고, 실시간 미리보기로 바로 확인할 수 있습니다.</span></li>
-              <li><strong data-i18n="guideCheerTitle">📢 DAD 실시간 응원 전광판</strong> — <span data-i18n="guideCheerBody">연속 콤보, 4줄 테트리스, 위기 탈출 때 DAD 전광판이 실시간 격려 메시지와 골드 펄스 효과로 응원합니다.</span></li>
-              <li><strong data-i18n="guideScoreboardTitle">📊 2x2 디지털 전광판 &amp; 스코어</strong> — <span data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</span></li>
-              <li><strong data-i18n="guideSettingsMobileTitle">⚙️ 모던 환경설정 &amp; 모바일 조작</strong> — <span data-i18n="guideSettingsMobileBody">환경설정에서 효과음/BGM을 따로 조절하고, 고스트 블록 On/Off와 모바일 가상 패드·햅틱 진동을 켤 수 있습니다. 하단 터치 버튼은 오작동 없이 바로 반응합니다.</span></li>
             </ul>
           </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideCustomTitle">우리 가족만의 테트리스</h3>
-            <p class="guide-copy" data-i18n="guideCustomBody">환경설정에서 프로필 사진, 윈도우/패널 배경(레벨 1~20), 좋아하는 BGM(mp3)을 등록할 수 있습니다.</p>
-          </article>
-          <article class="guide-card guide-card-dad">
-            <h3 data-i18n="guideCustomDuration">👑 DAD 스페셜 시간(3초/5초/10초)</h3>
-            <p class="guide-copy" data-i18n="guideDadDurationBody">[환경설정]에서 3초(기본), 5초(여유), 10초(슈퍼 이지) 중 원하는 시간을 자유롭게 선택할 수 있습니다. 골든타임과 타임스톱에 함께 적용됩니다.</p>
-            <div class="guide-duration-pills" aria-hidden="true">
-              <span class="guide-pill" data-i18n="dadDuration3">3초 (기본)</span>
-              <span class="guide-pill" data-i18n="dadDuration5">5초 (여유)</span>
-              <span class="guide-pill is-hot" data-i18n="dadDuration10">10초 (슈퍼 이지)</span>
-            </div>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideCustomAudio">🔊 소리 · 모바일 햅틱</h3>
-            <ul class="guide-custom-list">
-              <li data-i18n="guideCustomAudioItem">🎵 BGM과 효과음 볼륨을 따로 조절할 수 있습니다.</li>
-              <li data-i18n="guideCustomHaptic">📳 모바일 터치 햅틱 진동을 켜거나 끌 수 있습니다. (화면 진동 설정)</li>
-            </ul>
-          </article>
-          <article class="guide-card">
-            <h3 data-i18n="guideCustomMedia">🖼️ 사진 · 배경 · 음악 등록</h3>
-            <p class="guide-copy" data-i18n="guideCustomMediaHow">⚙️ 환경설정에서 파일을 고르면 바로 적용됩니다. 가족·여행 사진으로 우리 집만의 테트리스를 만들어 보세요.</p>
-            <p class="guide-copy" data-i18n="guideCustomFolderBg">💡 외부 이미지 파일이 없어도 네온 그리드로 플레이됩니다. 윈도우는 기본+레벨 1~20, 게임 패널은 레벨 1~20 사진을 각각 등록할 수 있습니다.</p>
-            <ul class="guide-custom-list">
-              <li data-i18n="guideCustomPhoto">👤 가족 사진 → 프로필</li>
-              <li data-i18n="guideCustomBg">🖼️ 1~20단계 배경 사진 → 윈도우/패널 레벨별 배경</li>
-              <li data-i18n="guideCustomBgm">🎵 좋아하는 음악(mp3) → BGM</li>
-            </ul>
-            <p class="guide-copy" data-i18n="guideCustomHint">사이드바의 ⚙️ 환경설정을 눌러 보세요.</p>
-          </article>
-          <article class="guide-card guide-card-theme">
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="skins" role="tabpanel">
+          <article class="guide-card guide-viz-hero guide-card-theme">
+            <span class="guide-badge" data-i18n="guideVizTabTheme">비주얼·오디오</span>
             <h3 data-i18n="guideThemeTitle">🎨 5대 맞춤 네온 컬러 테마</h3>
             <p class="guide-copy" data-i18n="guideThemeBody">환경설정 [게임] 탭의 둥근 컬러 팔레트를 누르면 화면 전체 테두리, 버튼, 네온 글로우, 포인트 색이 즉시 바뀝니다. 선택한 테마는 다음에 켜도 그대로 유지됩니다.</p>
-            <ul class="guide-custom-list">
-              <li data-i18n="themeNeonBlue">🔷 네온 블루</li>
-              <li data-i18n="themeCyberPink">🌸 사이버 핑크</li>
-              <li data-i18n="themeEmeraldGreen">🌿 에메랄드 그린</li>
-              <li data-i18n="themeSunsetOrange">🌅 차분한 주황</li>
-              <li data-i18n="themeFutureCyber">🔮 미래 사이버펑크</li>
-            </ul>
+            <div class="guide-theme-row">
+              <span class="guide-theme-chip" data-theme="neon-blue" data-i18n="themeNeonBlue">🔷 네온 블루</span>
+              <span class="guide-theme-chip" data-theme="cyber-pink" data-i18n="themeCyberPink">🌸 사이버 핑크</span>
+              <span class="guide-theme-chip" data-theme="emerald-green" data-i18n="themeEmeraldGreen">🌿 에메랄드 그린</span>
+              <span class="guide-theme-chip" data-theme="sunset-orange" data-i18n="themeSunsetOrange">🌅 차분한 주황</span>
+              <span class="guide-theme-chip" data-theme="future-cyber" data-i18n="themeFutureCyber">🔮 미래 사이버펑크</span>
+            </div>
             <div class="guide-theme-dots" aria-hidden="true">
               <span class="theme-swatch" data-theme="neon-blue"></span>
               <span class="theme-swatch" data-theme="cyber-pink"></span>
@@ -522,38 +463,46 @@
           <article class="guide-card guide-card-block-skin">
             <h3 data-i18n="guideBlockSkinTitle">🧊 블록 외형 스타일 5종</h3>
             <p class="guide-copy" data-i18n="guideBlockSkinBody">환경설정에서 3D 베벨 큐브(기본), 크리스탈 글래스, 3D 홀로그램 글래스(완전 투명 입체 프레임), 사이버 메카닉, 소프트 캔디 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려지고, 실시간 미리보기로 바로 확인할 수 있습니다.</p>
-            <ul class="guide-custom-list">
-              <li data-i18n="blockSkinGemstone">🎲 3D 베벨 큐브 (3D Gemstone)</li>
-              <li data-i18n="blockSkinGlass">💎 크리스탈 글래스 (Crystal Glass)</li>
-              <li data-i18n="blockSkinWireGlass">🧊 3D 홀로그램 글래스 (Hollow Glass - 완전 투명 입체 프레임)</li>
-              <li data-i18n="blockSkinMecha">⚙️ 사이버 메카닉 (Cyber Mecha)</li>
-              <li data-i18n="blockSkinCandy">🍬 소프트 캔디 (Soft Round)</li>
-            </ul>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideBlockSkinHow">💡 환경설정 모달의 실시간 미리보기 캔버스로 고르기 전에 질감을 확인하고, 값은 localStorage(block_skin_style)에 저장됩니다. 모달을 닫지 않아도 보드가 바로 바뀝니다.</p>
-          </article>
-          <article class="guide-card guide-card-cheer">
-            <h3 data-i18n="guideCheerTitle">📢 DAD 실시간 응원 전광판</h3>
-            <p class="guide-copy" data-i18n="guideCheerBody">연속 콤보, 4줄 테트리스, 위기 탈출 때 DAD 전광판이 실시간 격려 메시지와 골드 펄스 효과로 응원합니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideCheerHow">💡 모바일 세로에서는 전광판이 보드 아래 가로 와이드 슬림 바로 붙고, PC에서는 사이드바 160px 높이를 유지합니다. 응원 문구는 화면 폭에 맞춰 한 줄로 표시됩니다.</p>
-          </article>
-          <article class="guide-card guide-card-scoreboard">
-            <h3 data-i18n="guideScoreboardTitle">📊 2x2 디지털 전광판 &amp; 스코어</h3>
-            <p class="guide-copy" data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideScoreboardHow">💡 BEST 칸을 누르면 명예의 전당이 열립니다. 모바일 세로는 보드 오른쪽 기능타워에 2x2 점수판이 붙고, 그 아래 가로 와이드 DAD 전광판이 이어집니다.</p>
-          </article>
-          <article class="guide-card guide-card-settings-mobile">
-            <h3 data-i18n="guideSettingsMobileTitle">⚙️ 모던 환경설정 &amp; 모바일 조작</h3>
-            <p class="guide-copy" data-i18n="guideSettingsMobileBody">환경설정에서 효과음/BGM을 따로 조절하고, 고스트 블록 On/Off와 모바일 가상 패드·햅틱 진동을 켤 수 있습니다. 하단 터치 버튼은 오작동 없이 바로 반응합니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideSettingsMobileHow">💡 [📱 모바일 패드]로 가상 터치패드를 켜고, 버튼을 누르면 navigator.vibrate 햅틱이 짧게 울립니다.</p>
+            <div class="guide-skin-grid">
+              <div class="guide-skin-card" data-skin="gemstone"><i></i><span data-i18n="blockSkinGemstone">🎲 3D 베벨 큐브</span></div>
+              <div class="guide-skin-card" data-skin="glass"><i></i><span data-i18n="blockSkinGlass">💎 크리스탈 글래스</span></div>
+              <div class="guide-skin-card" data-skin="wire"><i></i><span data-i18n="blockSkinWireGlass">🧊 홀로그램 글래스</span></div>
+              <div class="guide-skin-card" data-skin="mecha"><i></i><span data-i18n="blockSkinMecha">⚙️ 사이버 메카닉</span></div>
+              <div class="guide-skin-card" data-skin="candy"><i></i><span data-i18n="blockSkinCandy">🍬 소프트 캔디</span></div>
+            </div>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideVizSkinTip">스킨을 고르면 보드·NEXT·HOLD가 즉시 다시 그려집니다.</p>
+            <p class="guide-copy" data-i18n="guideSkinPreviewBody">스킨 미리보기(#skin-preview-canvas)는 선택한 5종 질감을 즉시 보여 주고, 그림자 미리보기(#ghost-preview-canvas)는 고스트 투명도를 옆에서 확인할 수 있습니다. 듀얼 레이어 보드(#bg-canvas + #tetris-canvas)는 배경을 한 번만 그리고 블록은 60fps로 따로 그립니다.</p>
           </article>
           <article class="guide-card">
-            <h3 data-i18n="guideFxTitle">💥 줄 삭제 타격감 &amp; 네온 파티클</h3>
+            <h3 data-i18n="guideCh4AudioTitle">🔊 Web Audio 엔진</h3>
+            <p class="guide-copy" data-i18n="guideCh4AudioBody">환경설정에서 BGM/SFX 볼륨을 따로 조절하고, 콤보에 따라 피치가 올라가며, 음소거 토글로 즉시 끌 수 있습니다. [K] 타임스톱은 피치 벤드 다운으로 공간이 늘어집니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideCustomAudioItem">🎵 BGM과 효과음 볼륨을 따로 조절할 수 있습니다.</li>
+              <li data-i18n="guideAudioJuiceBody">하드드롭은 저음 타격+리버브, 연속 배치/콤보는 음계가 1음씩 올라가는 팡파르, [K] 타임스톱은 공간이 늘어지는 피치 벤드 다운으로 재생됩니다.</li>
+              <li data-i18n="guideCustomHaptic">📳 모바일 터치 햅틱 진동을 켜거나 끌 수 있습니다. (화면 진동 설정)</li>
+            </ul>
             <p class="guide-copy" data-i18n="guideFxBody">1~3줄을 지우면 기본 네온 파티클과 미세 진동이 납니다. 4줄 테트리스·T-스핀·3연속 콤보는 0.15초 네온 플래시 셰이크+줌이 터지고, 전광판에 🔥 ULTRA COMBO! / ⚡ TETRIS CRUSH! 엠블럼이 뜹니다. 하드드롭 착지 때는 하단 충격파 파티클이 분사됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideFxHint">💡 환경설정의 [화면 진동]으로 세기를 조절할 수 있습니다. 끄면 흔들림이 멈춥니다.</p>
           </article>
-          <article class="guide-card guide-card-system">
+          <article class="guide-card">
+            <h3 data-i18n="guideCh4StorageTitle">💾 프로필 · 로컬 저장소</h3>
+            <p class="guide-copy" data-i18n="guideCh4StorageBody">닉네임은 localStorage(dad_tetris_player_name)에 저장되고 빈칸이면 ‘시스템’으로 등록됩니다. 테마·스킨·볼륨·보드 높이는 localStorage, 대용량 사진·영상·BGM은 IndexedDB(DadTetrisDB / media_files) Blob에 분리 저장됩니다.</p>
+            <p class="guide-copy" data-i18n="guideHallNickname">환경설정 [👤 플레이어 프로필 / 랭킹 설정]에서 게이머 닉네임을 지정합니다. 저장 키는 dad_tetris_player_name이며, 값이 없거나 빈칸으로 제출하면 무조건 ‘시스템’으로 등록됩니다. 자동 기록 모드도 이 닉네임을 사용합니다.</p>
+            <p class="guide-copy" data-i18n="guideIndexedDbBody">환경설정에서 가족 사진, 레벨별 배경, 좋아하는 mp3, 게임 종료 영상을 등록하면 브라우저 용량 한도 안에서 고화질 원본을 유지합니다. 설정값(5종 스킨, ROWS, 볼륨)은 localStorage에 남아 IndexedDB와 분리됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideLangBody">환경설정에서 언어를 바꾸면 UI가 즉시 바뀝니다. 기본은 한국어이며 영어, 힌디어, 중국어 간체, 스페인어, 일본어, 프랑스어, 독일어, 포르투갈어, 러시아어, 베트남어, 인도네시아어를 지원합니다. 선택은 localStorage(tetris_lang)에 저장됩니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="lang" role="tabpanel">
+          <article class="guide-card guide-viz-hero guide-card-system">
+            <span class="guide-badge" data-i18n="guideVizTabDiag">자가진단</span>
+            <div class="guide-f9-hero">
+              <kbd>F9</kbd>
+              <p class="guide-copy" data-i18n="guideVizF9How">F9 또는 상단 ✏️ 버튼으로 C1~C8 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.</p>
+            </div>
+            <div class="guide-core-chips" aria-hidden="true">
+              <span>C1</span><span>C2</span><span>C3</span><span>C4</span><span>C5</span><span>C6</span><span>C7</span><span>C8</span>
+            </div>
             <h3 data-i18n="guideDiagTitle">🧪 0.1초 실시간 무결점 자가진단 (Test Runner)</h3>
-            <p class="guide-copy" data-i18n="guideDiagBody">상단의 [🧪 자가진단] 버튼(또는 단축키 [F9])을 누르면 컴퓨터가 스스로 X/Y 전방향 관통, K키 정지/회전, 스마트 자동 착지, 모바일 터치패드, 프로필 조정/저장, 5대 컬러 테마, 화면 흔들림/네온 파티클, PWA 앱 설치 등 모든 기능의 무결성을 실시간으로 시뮬레이션 검증하고 오류를 자가 수정(Self-Healing)합니다.</p>
             <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 8대 핵심 항목을 순차 비동기 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 핵심 8종이 통과하면 모던 팝업에 [PASS 8/8]이 출력됩니다.</p>
             <ol class="guide-custom-list guide-diag-core-list">
               <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
@@ -568,74 +517,70 @@
             <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. 핵심 8종이 모두 통과하면 “🎉 모든 핵심 시스템(듀얼 캔버스, 5종 스킨, IndexedDB, DAD 전광판, AI 스트레스)이 100% 완벽하게 가동 중입니다! [PASS 8/8]”가 결과창에 출력됩니다.</p>
           </article>
           <article class="guide-card">
-            <h3 data-i18n="guidePwaTitle">📱 스마트폰 PWA 원클릭 앱 설치</h3>
-            <p class="guide-copy" data-i18n="guidePwaBody">환경설정의 '홈 화면에 앱 설치' 버튼으로 앱처럼 즐길 수 있습니다. 서비스 워커가 핵심 파일을 캐시해 오프라인에서도 플레이됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guidePwaHint">💡 설치 버튼은 브라우저가 앱 설치를 지원할 때(주로 HTTPS 또는 localhost) 나타납니다. 아이폰은 공유 → 홈 화면에 추가를 사용하세요.</p>
-          </article>
-        </section>
-
-        <section class="guide-panel-page hidden" data-guide-panel="bulk" role="tabpanel">
-          <article class="guide-card">
-            <span class="guide-badge" data-i18n="guideCh6Badge">챕터 6 · 배경 일괄 등록</span>
-            <h3 data-i18n="guideBulkTitle">📦 배경 일괄 등록 &amp; 스마트 전체 자동 분배</h3>
-            <p class="guide-copy" data-i18n="guideBulkBody">환경설정 배경 탭의 [📦 배경 일괄 등록]에서 [📁 여러 파일 선택]으로 여러 장을 고릅니다. 대상은 [전체 윈도우 배경 세트], [게임 패널 배경 세트], [스마트 전체 자동 분배]입니다. 로컬과 HTTPS/GitHub Pages 모두 브라우저 IndexedDB(DadTetrisDB / media_files)에 파일 단위 트랜잭션으로 저장됩니다.</p>
-            <ul class="guide-custom-list">
-              <li data-i18n="guideBulkKwIdle">파일명 대기 / idle / wait → bg_idle (전체 윈도우 대기 배경)</li>
-              <li data-i18n="guideBulkKwPanel">[게임 패널 배경 세트] 1번째 파일 → bg_panel_idle, 2~16번째 → bg_panel_lvl_1 … bg_panel_lvl_15. 스마트 모드에서 파일명 패널/panel/보드면 패널 슬롯</li>
-              <li data-i18n="guideBulkKwLevel">[전체 윈도우 배경 세트] 1번째 → bg_idle, 2~16번째 → bg_lvl_1 … bg_lvl_15. 스마트 모드에서 lv숫자/레벨숫자면 해당 레벨</li>
-              <li data-i18n="guideBulkSeq">윈도우/패널 세트는 파일 순서대로 대기→Lv.1~15(이후 파일은 Lv.16~20)에 넣습니다. 스마트 모드에서 이름 규칙이 없으면 앞 21장은 윈도우, 다음 21장은 패널입니다.</li>
-            </ul>
-            <p class="guide-copy" data-i18n="guideBulkProgress">각 파일은 FileReader로 DataURL을 끝까지 읽은 뒤, IndexedDB readwrite 트랜잭션을 한 장씩 열어 put 완료를 기다립니다. 진행 바(#bulk-progress-bar)와 상태 문구가 실시간으로 갱신됩니다.</p>
-            <p class="guide-copy" data-i18n="guideBulkThumbs">저장이 성공할 때마다 40×40 썸네일이 #bulk-preview-grid에 바로 추가됩니다. 끝나면 설정 슬롯(윈도우/패널)과 캔버스 배경이 즉시 갱신되고, 완료 메시지와 썸네일 리스트는 닫히지 않고 유지됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideBulkHow">💡 한 장이 실패해도 다음 파일은 계속 저장됩니다. 완료 토스트에 성공 개수가 표시됩니다. [등록된 배경 전체 초기화]는 커스텀 배경만 지우고 프로필·BGM·영상은 남깁니다. 웹 배포(HTTPS)에서도 같은 브라우저 저장소를 사용합니다.</p>
-          </article>
-        </section>
-
-        <section class="guide-panel-page hidden" data-guide-panel="lang" role="tabpanel">
-          <article class="guide-card">
-            <span class="guide-badge" data-i18n="guideHallRankBadge">챕터 7 · 명예의 전당 &amp; 소셜 랭킹 공유</span>
-            <h3 data-i18n="guideHallRankTitle">🏆 명예의 전당 &amp; 소셜 랭킹 공유</h3>
-            <p class="guide-copy" data-i18n="guideHallRankBody">명예의 전당은 🇰🇷 국내 랭킹과 🌐 글로벌 랭킹 두 탭으로 나뉩니다. BEST 칸을 눌러 열고, 상단 탭으로 전환하세요. 국가는 브라우저 언어/로케일에서 자동 인식됩니다. 한국 기록은 국내+글로벌에 함께 오르고, 해외 기록은 글로벌에만 집계됩니다. AI 오토플레이가 한 프레임이라도 켜진 판은 등록되지 않습니다.</p>
-            <p class="guide-copy" data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideScoreboardHow">💡 BEST 칸을 누르면 명예의 전당이 열립니다. 모바일 세로는 보드 오른쪽 기능타워에 2x2 점수판이 붙고, 그 아래 가로 와이드 DAD 전광판이 이어집니다.</p>
-            <p class="guide-copy" data-i18n="guideHallDualHow">💡 국내 탭은 KR 기록만, 글로벌 탭은 모든 국가 기록을 보여 줍니다. 각 줄에 국기·국가코드, 순위, 닉네임, 점수, 레벨, 줄 수, 일시가 표시됩니다.</p>
-            <p class="guide-copy" data-i18n="guideHallNickname">환경설정 [👤 플레이어 프로필 / 랭킹 설정]에서 게이머 닉네임을 지정합니다. 저장 키는 dad_tetris_player_name이며, 값이 없거나 빈칸으로 제출하면 무조건 ‘시스템’으로 등록됩니다. 자동 기록 모드도 이 닉네임을 사용합니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideHallRankPolicy">⚠️ 공식 정책: 시스템 최적화, 데이터 정합성 유지, 치트 방지 등 운영 관리상 필요에 따라 랭킹 데이터는 언제든 초기화 또는 삭제될 수 있습니다.</p>
-          </article>
-          <article class="guide-card">
-            <span class="guide-badge" data-i18n="guideCh7Badge">챕터 7 · 12개국 언어 &amp; 자가진단</span>
-            <h3 data-i18n="guideLangTitle">🌐 12개국 글로벌 언어 실시간 전환</h3>
-            <p class="guide-copy" data-i18n="guideLangBody">환경설정에서 언어를 바꾸면 UI가 즉시 바뀝니다. 기본은 한국어이며 영어, 힌디어, 중국어 간체, 스페인어, 일본어, 프랑스어, 독일어, 포르투갈어, 러시아어, 베트남어, 인도네시아어를 지원합니다. 선택은 localStorage(tetris_lang)에 저장됩니다.</p>
-            <p class="guide-copy" data-i18n="guideLangList">🇰🇷 한국어 · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia</p>
-          </article>
-          <article class="guide-card guide-card-system">
-            <h3 data-i18n="guideDiagTitle">🧪 0.1초 실시간 무결점 자가진단 (Test Runner)</h3>
-            <p class="guide-copy" data-i18n="guideDiagBody">상단의 [🧪 자가진단] 버튼(또는 단축키 [F9])을 누르면 컴퓨터가 스스로 X/Y 전방향 관통, K키 정지/회전, 스마트 자동 착지, 모바일 터치패드, 프로필 조정/저장, 5대 컬러 테마, 화면 흔들림/네온 파티클, PWA 앱 설치 등 모든 기능의 무결성을 실시간으로 시뮬레이션 검증하고 오류를 자가 수정(Self-Healing)합니다.</p>
-            <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 8대 핵심 항목을 순차 비동기 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 핵심 8종이 통과하면 모던 팝업에 [PASS 8/8]이 출력됩니다.</p>
-            <ol class="guide-custom-list guide-diag-core-list">
-              <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
-              <li data-i18n="guideDiagCore2">2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 및 고스트 큐브 오프스크린 렌더</li>
-              <li data-i18n="guideDiagCore3">3) [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input 다중 선택 · Blob/DataURL 순차 put · #bulk-progress-bar</li>
-              <li data-i18n="guideDiagCore4">4) [설정 데이터] localStorage 키 · dad_tetris_player_name · 기본 닉네임 ‘시스템’ 폴백 · 12개국 TRANSLATIONS</li>
-              <li data-i18n="guideDiagCore5">5) [오디오/비디오] Web Audio API, BGM/SFX 볼륨·음소거 동기화</li>
-              <li data-i18n="guideDiagCore6">6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드</li>
-              <li data-i18n="guideDiagCore7">7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 5대 모듈 바인딩 · 터치 엘리먼트 DOM</li>
-              <li data-i18n="guideDiagCore8">8) [AI 동적 스트레스] 대기 패널 숨김, 15x 5회 낙하, 충돌 0, 15fps, DAD 응원, 파티클 GC, 보드 원상 복구</li>
-            </ol>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. 핵심 8종이 모두 통과하면 “🎉 모든 핵심 시스템(듀얼 캔버스, 5종 스킨, IndexedDB, DAD 전광판, AI 스트레스)이 100% 완벽하게 가동 중입니다! [PASS 8/8]”가 결과창에 출력됩니다.</p>
-          </article>
-          <article class="guide-card">
             <h3 data-i18n="guideDiagExportTitle">📋 진단 로그 복사 &amp; 파일 저장</h3>
             <p class="guide-copy" data-i18n="guideDiagExportBody">자가진단 결과 화면의 [📋 로그 복사]와 [💾 파일로 저장]으로 종합 리포트를 남길 수 있습니다. 리포트에는 12개국어 사전 상태, 윈도우/패널 배경 등록 현황, 스마트 분배 엔진 상태가 포함됩니다.</p>
+            <h3 data-i18n="guideCh5FailTitle">🛠️ FAIL 발생 시 조치</h3>
+            <p class="guide-copy" data-i18n="guideCh5FailBody">FAIL이 뜨면 [📋 로그 복사] 또는 [💾 파일로 저장]으로 리포트를 남긴 뒤, 환경설정의 해당 항목(스킨·배경·언어·저장소)을 한 번 껐다 켜거나 페이지를 새로고침하세요. 자가진단은 가능한 항목을 AUTO-FIXED로 복구합니다.</p>
           </article>
         </section>
 
+        <section class="guide-panel-page hidden" data-guide-panel="board" role="tabpanel" hidden aria-hidden="true"></section>
+        <section class="guide-panel-page hidden" data-guide-panel="bulk" role="tabpanel" hidden aria-hidden="true"></section>
         <section class="guide-panel-page hidden" data-guide-panel="system" role="tabpanel" hidden aria-hidden="true">
-          <p class="guide-i18n-anchor hidden" hidden>
-            <span data-i18n="guideDiagStage6"></span>
-            <span data-i18n="guideDiagStage7"></span>
-            <span data-i18n="guideDiagStage8"></span>
-            <span data-i18n="guideDiagStage9"></span>
+          <p class="guide-i18n-anchor hidden" hidden id="guide-i18n-dump">
+            <span data-i18n="guideAiBuildBody"></span>
+            <span data-i18n="guideAiBuildTitle"></span>
+            <span data-i18n="guideAiConquerBody"></span>
+            <span data-i18n="guideAiConquerTitle"></span>
+            <span data-i18n="guideAiHint"></span>
+            <span data-i18n="guideAiSpeedBody"></span>
+            <span data-i18n="guideAiSpeedTitle"></span>
+            <span data-i18n="guideAutoRecordBody"></span>
+            <span data-i18n="guideAutoRecordTitle"></span>
+            <span data-i18n="guideBgCustomBody"></span>
+            <span data-i18n="guideBgMasterDelete"></span>
+            <span data-i18n="guideBlockSkinHow"></span>
+            <span data-i18n="guideBulkHow"></span>
+            <span data-i18n="guideCh2Badge"></span>
+            <span data-i18n="guideCh2Lead"></span>
+            <span data-i18n="guideCh3Badge"></span>
+            <span data-i18n="guideCh4Lead"></span>
+            <span data-i18n="guideCh5Badge"></span>
+            <span data-i18n="guideCh5Lead"></span>
+            <span data-i18n="guideCh6Badge"></span>
+            <span data-i18n="guideCh7Badge"></span>
+            <span data-i18n="guideCheerBody"></span>
+            <span data-i18n="guideCheerHow"></span>
+            <span data-i18n="guideCheerTitle"></span>
+            <span data-i18n="guideConvenienceTitle"></span>
+            <span data-i18n="guideCustomAudio"></span>
+            <span data-i18n="guideCustomBg"></span>
+            <span data-i18n="guideCustomBgm"></span>
+            <span data-i18n="guideCustomBody"></span>
+            <span data-i18n="guideCustomDuration"></span>
+            <span data-i18n="guideCustomFolderBg"></span>
+            <span data-i18n="guideCustomHint"></span>
+            <span data-i18n="guideCustomMedia"></span>
+            <span data-i18n="guideCustomMediaHow"></span>
+            <span data-i18n="guideCustomPhoto"></span>
+            <span data-i18n="guideCustomTitle"></span>
+            <span data-i18n="guideDadDurationHead"></span>
+            <span data-i18n="guideDadHeroTag"></span>
+            <span data-i18n="guideDadKBody"></span>
+            <span data-i18n="guideDadLockBody2"></span>
+            <span data-i18n="guideDadLockTitle"></span>
+            <span data-i18n="guideDadMobileHint"></span>
+            <span data-i18n="guideDadPerfectTitle"></span>
+            <span data-i18n="guideDadSmartBody"></span>
+            <span data-i18n="guideDadSmartTitle"></span>
+            <span data-i18n="guideDadWhatBody"></span>
+            <span data-i18n="guideDadWhatTitle"></span>
+            <span data-i18n="guideDasHint"></span>
+            <span data-i18n="guideDasTitle"></span>
+            <span data-i18n="guideDiagBody"></span>
+            <span data-i18n="guideDiagLevelBgInterlock"></span>
+            <span data-i18n="guideDiagLevelBgSim"></span>
+            <span data-i18n="guideDiagLevelBgSlots"></span>
             <span data-i18n="guideDiagStage10"></span>
             <span data-i18n="guideDiagStage11"></span>
             <span data-i18n="guideDiagStage12"></span>
@@ -646,6 +591,49 @@
             <span data-i18n="guideDiagStage17"></span>
             <span data-i18n="guideDiagStage18"></span>
             <span data-i18n="guideDiagStage19"></span>
+            <span data-i18n="guideDiagStage6"></span>
+            <span data-i18n="guideDiagStage7"></span>
+            <span data-i18n="guideDiagStage8"></span>
+            <span data-i18n="guideDiagStage9"></span>
+            <span data-i18n="guideDropSpeedBody"></span>
+            <span data-i18n="guideDropSpeedTitle"></span>
+            <span data-i18n="guideFxHint"></span>
+            <span data-i18n="guideFxJuiceBody"></span>
+            <span data-i18n="guideFxJuiceTitle"></span>
+            <span data-i18n="guideFxTitle"></span>
+            <span data-i18n="guideGhostPreviewBody"></span>
+            <span data-i18n="guideGhostPreviewTitle"></span>
+            <span data-i18n="guideHallDualHow"></span>
+            <span data-i18n="guideHallRankBadge"></span>
+            <span data-i18n="guideHallRankBody"></span>
+            <span data-i18n="guideHallRankPolicy"></span>
+            <span data-i18n="guideHallRankTitle"></span>
+            <span data-i18n="guideHardDropDetail"></span>
+            <span data-i18n="guideIdleSplitBody"></span>
+            <span data-i18n="guideIndexedDbHow"></span>
+            <span data-i18n="guideIndexedDbTitle"></span>
+            <span data-i18n="guideKDetail"></span>
+            <span data-i18n="guideLangList"></span>
+            <span data-i18n="guideLangTitle"></span>
+            <span data-i18n="guideMemoryBg"></span>
+            <span data-i18n="guideMemoryProfile"></span>
+            <span data-i18n="guideMemoryTitle"></span>
+            <span data-i18n="guideMobileDblTapTitle"></span>
+            <span data-i18n="guidePanelFxTitle"></span>
+            <span data-i18n="guidePreviewModeBody"></span>
+            <span data-i18n="guidePreviewModeTitle"></span>
+            <span data-i18n="guidePwaBody"></span>
+            <span data-i18n="guidePwaConvenienceBody"></span>
+            <span data-i18n="guidePwaConvenienceTitle"></span>
+            <span data-i18n="guidePwaHint"></span>
+            <span data-i18n="guidePwaTitle"></span>
+            <span data-i18n="guideScoreboardHow"></span>
+            <span data-i18n="guideScoreboardTitle"></span>
+            <span data-i18n="guideSettingsMobileBody"></span>
+            <span data-i18n="guideSettingsMobileHow"></span>
+            <span data-i18n="guideSettingsMobileTitle"></span>
+            <span data-i18n="guideSkinPreviewTitle"></span>
+            <span data-i18n="guideSoftDropDetail"></span>
           </p>
         </section>
       </div>
@@ -1359,6 +1347,6 @@
   <div id="shutdown-screen" class="shutdown-screen hidden" role="status" aria-live="polite">
     <p id="shutdown-message" data-i18n="gameTerminatedMsg">🎮 모든 게임 프로세스가 안전하게 종료되었습니다. 탭을 닫아주세요.</p>
   </div>
-  <script src="./script.js?v=20260817_002"></script>
+  <script src="./script.js?v=20260818_001"></script>
 </body>
 </html>
