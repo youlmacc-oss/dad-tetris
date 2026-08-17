@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="neon-blue">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Dad Tetris</title>
+  <meta name="theme-color" content="#00d2ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DadTetris">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070c'/%3E%3Crect x='24' y='8' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='8' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='24' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='40' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3C/svg%3E" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="style.css?v=20260816_131" type="text/css">
+  <meta name="dad-ui" content="mobile-overlay-20260816_131">
+  <meta name="description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
+  <meta property="og:description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
+</head>
+<body>
+  <div id="autoplay-badge" class="autoplay-badge hidden" aria-live="polite" data-i18n="autoplayBadge">🤖 AI 자동 플레이 중...</div>
+  <div id="goal-toast" class="goal-toast hidden" aria-live="polite">
+    <span id="goal-toast-text" class="goal-toast-text"></span>
+    <span class="conquer-sparks" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </span>
+  </div>
+  <div class="scene-bg" id="scene-bg" aria-hidden="true">
+    <div class="scene-bg-image is-visible" id="scene-bg-image"></div>
+    <div class="scene-bg-image" id="scene-bg-image-next"></div>
+    <div class="scene-bg-dim" id="scene-bg-dim"></div>
+    <div class="scene-bg-extreme" id="scene-bg-extreme"></div>
+  </div>
+  <div class="app game-container app-container" id="game-container">
+    <main class="stage game-layout">
+      <section class="board-wrap game-panel game-board-container" id="board-wrap" aria-label="테트리스 게임판" data-i18n-aria="boardAria">
+        <div class="board-bg" id="board-bg" aria-hidden="true">
+          <div class="board-bg-image is-visible" id="board-bg-image"></div>
+          <div class="board-bg-image" id="board-bg-image-next"></div>
+        </div>
+        <div class="board-canvas-stack" id="tetris-board-wrapper">
+          <canvas id="bg-canvas" class="board-bg-canvas" width="400" height="800" aria-hidden="true"></canvas>
+          <canvas id="tetris-canvas" class="game-canvas" width="400" height="800"></canvas>
+        </div>
+        <div id="overlay" class="overlay game-overlay board-idle-card" data-pause-dbltap="1">
+          <div id="idle-overlay" hidden></div>
+          <div id="start-prompt-overlay" hidden></div>
+          <div id="start-overlay" class="overlay-card start-overlay-card game-overlay-card profile-start-panel" style="width: 92% !important; max-width: 145px !important; min-width: 120px !important; padding: 10px 6px 8px 6px !important; box-sizing: border-box !important; text-align: center !important; margin: 0 auto !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 4px !important;">
+            <div class="profile-frame profile-avatar-container profile-card popup-avatar overlay-avatar-circle" id="profile-frame" style="width: 48px !important; height: 48px !important; min-width: 48px !important; min-height: 48px !important; max-width: 48px !important; max-height: 48px !important; margin: 0 auto 3px auto !important; display: flex !important; justify-content: center !important; align-items: center !important; border: 2px solid #00f0ff !important; box-shadow: 0 0 10px rgba(0, 240, 255, 0.5), inset 0 0 6px rgba(0, 240, 255, 0.2) !important; border-radius: 50% !important;">
+              <canvas id="profile-main-canvas" class="profile-crop-canvas hidden" width="320" height="320"></canvas>
+              <img id="profile-image" class="profile-image profile-avatar-img hidden" alt="프로필 사진">
+              <div id="profile-fallback" class="profile-fallback" style="display: flex !important; align-items: center !important; justify-content: center !important; width: 100% !important; height: 100% !important;">
+                <span class="profile-icon" aria-hidden="true" style="font-size: 26px !important; line-height: 1 !important;">👤</span>
+                <span class="profile-caption" data-i18n="dad" style="display: none !important;">아빠</span>
+              </div>
+            </div>
+            <h1 id="overlay-title" class="overlay-title popup-title" data-i18n="gameTitle" style="font-size: 11.5px !important; font-weight: 800 !important; color: #00f0ff !important; white-space: nowrap !important; margin: 0 0 4px 0 !important; letter-spacing: -0.3px !important; line-height: 1.2 !important; text-align: center !important; width: 100% !important;">DAD TETRIS</h1>
+            <p id="overlay-hint" class="overlay-hint guide-capsule popup-sub-guide key-guide" data-i18n="pressStart" role="button" tabindex="0" style="font-size: 8.5px !important; font-weight: bold !important; color: #ffffff !important; background: linear-gradient(135deg, #00f0ff, #0072ff) !important; border-radius: 6px !important; padding: 5px 3px !important; margin: 0 auto !important; white-space: nowrap !important; display: block !important; width: 100% !important; box-sizing: border-box !important; line-height: 1.2 !important; text-align: center !important;">게임 시작을 눌러 주세요</p>
+            <div id="overlay-actions" class="overlay-actions popup-btn-group overlay-btn-row hidden">
+              <button type="button" id="overlay-restart" class="overlay-restart-btn popup-btn btn-confirm" data-i18n="overlayRestart">🔄 다시 하기</button>
+              <button type="button" id="overlay-quit" class="overlay-quit-btn popup-btn btn-close" data-i18n="overlayQuit">❌ 게임 종료</button>
+            </div>
+          </div>
+        </div>
+        <p id="clear-banner" class="clear-banner hidden"></p>
+        <div id="dad-countdown-overlay" class="dad-countdown-overlay hidden" aria-live="polite">
+          <div class="dad-count-badge">
+            <p id="dad-countdown-label" class="dad-countdown-label hidden">⏳ DAD TIME FREEZE</p>
+            <span id="dad-countdown-num" class="dad-countdown-num">3</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="게임 정보" data-i18n-aria="sidebarAria">
+        <header class="brand sidebar-header-custom mobile-header-bar" id="game-header">
+          <div class="header-top-row">
+            <div class="brand-heading">
+              <div class="profile-avatar-container" id="sidebar-profile-frame">
+                <img id="header-profile-img" class="profile-image profile-avatar-img hidden" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                <div id="sidebar-profile-fallback" class="profile-fallback">
+                  <span class="profile-icon" aria-hidden="true">👤</span>
+                </div>
+              </div>
+              <div class="header-game-title">DAD TETRIS</div>
+            </div>
+            <div class="header-mini-menu" id="header-mini-menu" role="toolbar" aria-label="미니 메뉴">
+              <button type="button" id="settings-open" class="settings-open-btn header-mini-btn" data-i18n="settings" data-i18n-aria="settings" data-i18n-title="settings" title="환경설정" aria-label="환경설정">
+                <span class="mini-ico" aria-hidden="true">⚙️</span>
+                <span class="mini-label">환경설정</span>
+              </button>
+              <button type="button" id="btn-guide" class="btn-guide header-mini-btn" data-i18n="guide" data-i18n-aria="guide" data-i18n-title="guide" title="가이드" aria-label="가이드">
+                <span class="mini-ico" aria-hidden="true">📖</span>
+                <span class="mini-label">가이드</span>
+              </button>
+              <button type="button" id="btn-diagnostics" class="btn-diagnostics header-mini-btn" data-i18n="diagBtn" data-i18n-aria="diagBtn" data-i18n-title="diagBtn" title="자가진단" aria-label="자가진단">
+                <span class="mini-ico" aria-hidden="true">✏️</span>
+                <span class="mini-label">자가진단</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div id="mobile-right-tower" class="mobile-right-tower">
+          <div id="stats-panel" class="hud-stats-row stats-dashboard top-dashboard">
+            <div id="block-guide-row" class="block-guide-row">
+              <section class="card next-card preview-panel" id="next-card">
+                <div class="preview-card-head">
+                  <p class="label" id="next-card-label" data-i18n="next">NEXT</p>
+                </div>
+                <canvas id="next" class="next-canvas" width="240" height="240"></canvas>
+              </section>
+              <section class="card next-card hold-card preview-panel" id="hold-card">
+                <div class="preview-card-head">
+                  <p class="label" id="hold-card-label" data-i18n="hold">HOLD</p>
+                  <button type="button" id="btn-toggle-guide-mode" class="guide-mode-toggle" title="가이드 모드 전환 (NEXT+HOLD ↔ NEXT 1+2)" aria-label="가이드 모드 전환 (NEXT+HOLD ↔ NEXT 1+2)" aria-pressed="false" data-i18n-title="guideModeToggleTitle" data-i18n-aria="guideModeToggleTitle">⇄</button>
+                </div>
+                <canvas id="hold" class="hold-canvas" width="240" height="240"></canvas>
+              </section>
+            </div>
+          </div>
+
+          <div id="stats-bar-row" class="stat-grid stats-bar-row scoreboard-2x2">
+            <section class="card stat-box">
+              <p class="label" data-i18n="score">SCORE</p>
+              <p id="score" class="value">0</p>
+            </section>
+            <section class="card stat-box">
+              <p class="label" data-i18n="level">LEVEL</p>
+              <p id="level" class="value">1</p>
+            </section>
+            <section class="card stat-box">
+              <p class="label" data-i18n="lines">LINES</p>
+              <p id="lines" class="value">0</p>
+            </section>
+            <section class="card stat-box best-card" id="best-card" role="button" tabindex="0" aria-label="명예의 전당 열기" data-i18n-aria="hallOpenAria">
+              <p class="label" data-i18n="best">BEST</p>
+              <p id="best" class="value accent">0</p>
+            </section>
+          </div>
+
+          <div id="mobile-game-controls" class="ai-control-group special-controls-wrap control-btn-group">
+            <div class="hud-row hud-row-main action-row-main">
+              <button type="button" id="game-start" class="game-start-btn btn-start">▶ 게임 시작</button>
+              <button type="button" id="game-end" class="game-end-btn" disabled>■ 게임 종료</button>
+            </div>
+            <div class="hud-row hud-row-autoplay">
+              <button type="button" id="autoplay-toggle" class="autoplay-btn" aria-pressed="false" data-i18n="autoplay">🤖 자동 플레이</button>
+            </div>
+            <div class="dad-speed-row">
+              <button type="button" id="dad-special-toggle" class="dad-special-btn" aria-pressed="false">👑 DAD 스페셜</button>
+              <label class="slider-row autoplay-speed-row ai-speed-panel" for="autoplay-speed">
+                <span class="slider-label" data-i18n="autoplaySpeedShort">AI 속도</span>
+                <span id="autoplay-speed-value" class="slider-value">1.0x</span>
+                <input id="autoplay-speed" class="big-slider" type="range" min="0.5" max="20" step="0.5" value="1">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-actions hud-control-grid" id="hud-control-grid">
+          <div class="hud-row hud-row-diag utility-btn-group" id="hud-diag-guide-row"></div>
+          <div class="hud-row hud-row-utility utility-btn-group">
+            <button type="button" id="mobile-pad-toggle" class="mobile-pad-toggle" aria-pressed="false" data-i18n="mobilePad">📱 모바일 패드</button>
+          </div>
+        </div>
+
+        <div class="sidebar-dock">
+          <div id="dad-cheer-banner" class="dad-cheer-banner" role="status" aria-live="polite">
+            <div class="cheer-header dad-cheer-head">
+              <span id="dad-cheer-badge" class="dad-cheer-badge">💬 DAD STATUS</span>
+            </div>
+            <div id="dad-cheer-text" class="cheer-main-msg dad-cheer-text cheer-text">🎮 아빠의 멋진 플레이를 응원합니다!</div>
+            <div id="dad-cheer-tip" class="cheer-sub-tip">💡 TIP: 차분하게 바닥부터 쌓아가세요!</div>
+          </div>
+          <section class="card help" id="controls-guide">
+            <p class="label" data-i18n="controls">조작법</p>
+            <ul>
+              <li><kbd>←</kbd> <kbd>→</kbd> <span class="help-sep">:</span> <span data-i18n="move">이동</span></li>
+              <li><kbd>↑</kbd> / <kbd>Z</kbd> <span class="help-sep">:</span> <span data-i18n="rotate">회전</span></li>
+              <li><kbd>↓</kbd> <span class="help-sep">:</span> <span data-i18n="softDrop">소프트 드롭</span></li>
+              <li><kbd>Space</kbd> <span class="help-sep">:</span> <span data-i18n="hardDrop">하드 드롭</span></li>
+              <li><kbd>Shift</kbd> / <kbd>H</kbd> / <kbd>C</kbd> <span class="help-sep">:</span> <span data-i18n="holdKey">홀드(HOLD)</span></li>
+              <li class="help-pause"><kbd>Space</kbd><span class="key-x2">×2</span> / <kbd>P</kbd> <span class="help-sep">:</span> <span data-i18n="pause">일시정지</span></li>
+              <li><kbd>Enter</kbd> <span class="help-sep">:</span> <span data-i18n="restart">다시 시작</span></li>
+              <li class="help-dad"><kbd>K</kbd> <span class="help-sep">:</span> <span data-i18n="dadTimeStopHelp">DAD 타임스톱 (스페셜 ON 시)</span></li>
+            </ul>
+          </section>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <nav id="mobile-controls" class="mobile-controls mobile-dpad hidden" aria-hidden="true" data-i18n-aria="mobilePad">
+    <div class="mobile-pad mobile-pad-move" role="group" data-i18n-aria="padMove">
+      <button type="button" id="btn-left" class="pad-btn btn-left" data-touch="left" aria-label="왼쪽 이동" data-i18n-aria="padLeft">◀</button>
+      <button type="button" id="btn-down" class="pad-btn pad-btn-down btn-down" data-touch="down" aria-label="소프트 드롭" data-i18n-aria="padDown">▼</button>
+      <button type="button" id="btn-right" class="pad-btn btn-right" data-touch="right" aria-label="오른쪽 이동" data-i18n-aria="padRight">▶</button>
+    </div>
+    <div class="mobile-pad mobile-pad-action" role="group" data-i18n-aria="padAction">
+      <button type="button" id="btn-rotate" class="pad-btn pad-btn-rotate" data-touch="rotate" aria-label="회전" data-i18n-aria="padRotate">🔄</button>
+      <button type="button" id="btn-drop" class="pad-btn pad-btn-drop" data-touch="drop" aria-label="하드 드롭" data-i18n-aria="padDrop">⚡</button>
+      <button type="button" id="btn-hold" class="pad-btn pad-btn-hold" data-touch="hold" aria-label="홀드" data-i18n-aria="padHold">📦</button>
+      <button type="button" id="btn-timestop" class="pad-btn pad-btn-freeze btn-timestop hidden" data-touch="freeze" aria-label="DAD 타임스톱" data-i18n-aria="padFreeze">⏳</button>
+    </div>
+  </nav>
+
+  <div id="guide-modal" class="modal guide-modal hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+    <div class="modal-backdrop" id="guide-backdrop"></div>
+    <div class="modal-panel guide-panel">
+      <header class="modal-head">
+        <div>
+          <h2 id="guide-title" data-i18n="guideTitle">📖 DAD TETRIS 가이드</h2>
+          <p class="guide-lead" data-i18n="guideLead">아빠와 가족을 위한 한눈에 보는 플레이 안내입니다.</p>
+        </div>
+        <button type="button" id="guide-x" class="modal-x" aria-label="닫기" data-i18n-aria="closeAria">✕</button>
+      </header>
+
+      <div class="guide-tabs" role="tablist">
+        <button type="button" class="guide-tab is-on" data-guide-tab="controls" role="tab" aria-selected="true">
+          <span data-i18n="guideTabControlsMain">챕터 1: 🎮 조작</span>
+          <span class="guide-tab-sub" data-i18n="guideTabControlsSub">&amp; 모바일 패드</span>
+          <span class="guide-i18n-anchor hidden" hidden data-i18n="guideTabControls"></span>
+        </button>
+        <button type="button" class="guide-tab" data-guide-tab="skins" role="tab" aria-selected="false" data-i18n="guideTabSkins">챕터 2: 🧊 5종 스킨</button>
+        <button type="button" class="guide-tab" data-guide-tab="board" role="tab" aria-selected="false" data-i18n="guideTabBoard">챕터 3: 📏 보드·속도</button>
+        <button type="button" class="guide-tab" data-guide-tab="dad" role="tab" aria-selected="false" data-i18n="guideTabDadChapter">챕터 4: 📢 전광판</button>
+        <button type="button" class="guide-tab" data-guide-tab="media" role="tab" aria-selected="false" data-i18n="guideTabMedia">챕터 5: 🖼️ 미디어</button>
+        <button type="button" class="guide-tab" data-guide-tab="bulk" role="tab" aria-selected="false" data-i18n="guideTabBulk">챕터 6: 📦 일괄 등록</button>
+        <button type="button" class="guide-tab" data-guide-tab="lang" role="tab" aria-selected="false" data-i18n="guideTabLang">챕터 7: 🌐 언어·진단</button>
+        <span class="guide-i18n-anchor hidden" hidden data-guide-tab="ai" data-i18n="guideTabAi"></span>
+        <span class="guide-i18n-anchor hidden" hidden data-guide-tab="custom" data-i18n="guideTabCustom"></span>
+        <span class="guide-i18n-anchor hidden" hidden data-guide-tab="system" data-i18n="guideTabSystem"></span>
+      </div>
+
+      <div class="modal-body guide-body" tabindex="0">
+        <section class="guide-panel-page" data-guide-panel="controls" role="tabpanel">
+          <article class="guide-card">
+            <h3 data-i18n="guidePcTitle">💻 PC 키보드</h3>
+            <ul class="guide-key-list">
+              <li><kbd>←</kbd> <kbd>→</kbd> <span class="guide-sep">:</span> <span data-i18n="guideMoveLR">좌우 이동</span></li>
+              <li><kbd>↑</kbd> / <kbd>Z</kbd> <span class="guide-sep">:</span> <span data-i18n="guideRotateDetail">블록 회전</span></li>
+              <li><kbd>↓</kbd> <span class="guide-sep">:</span> <span data-i18n="guideSoftDropDetail">소프트 드롭 (DAD 스페셜 타임스톱 중에는 ‘1칸씩 수동 낙하’)</span></li>
+              <li><kbd>Space</kbd> <span class="guide-sep">:</span> <span data-i18n="guideHardDropDetail">즉시 하드 드롭 (카운트다운 없이 즉시 쿵! 착지 고정)</span></li>
+              <li><kbd>Shift</kbd> / <kbd>H</kbd> <span class="guide-sep">:</span> <span data-i18n="holdKey">홀드(HOLD)</span></li>
+              <li><kbd>P</kbd> <span class="guide-sep">:</span> <span data-i18n="pause">일시정지</span> <span class="guide-sep">/</span> <kbd>Enter</kbd> <span class="guide-sep">:</span> <span data-i18n="restart">다시 시작</span></li>
+              <li class="is-gold"><kbd>K</kbd> <span class="guide-sep">:</span> <span data-i18n="guideKDetail">DAD 긴급 타임스톱 (공중 시간 정지)</span></li>
+            </ul>
+            <p class="guide-copy guide-dad-tip" data-i18n="guidePauseHint">💡 모바일은 보드 중앙 안내문을 터치해 시작하고, PC는 상단 [ ▶ 게임 시작 ]이 게임 중 [ ⏸ 일시정지 ] / [ ▶ 계속하기 ]로 바뀝니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideDasTitle">🎯 DAS / ARR 정밀 조작 튜닝</h3>
+            <p class="guide-copy" data-i18n="guideDasBody">환경설정 [조작 &amp; 감도]에서 DAS(첫 이동 딜레이 100~300ms, 기본 150ms), ARR(연속 이동 15~80ms, 기본 33ms), 소프트드롭 배율(1x~20x, 기본 10x)을 조절합니다. PC 방향키와 모바일 7버튼 터치패드에 바로 적용됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDasHint">💡 값이 작을수록 더 빠른 대시입니다. 설정은 localStorage에 영구 저장됩니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideMobileTitle">📱 모바일 터치패드</h3>
+            <p class="guide-copy" data-i18n="guideMobileArcadeBody">세로 화면은 한 장(100dvh, 스크롤 없음)에 맞춥니다. 상단은 타이틀과 ⚙️설정·📖가이드·✏️진단 미니메뉴, 중앙은 좌측 10×20 게임 보드와 우측 기능타워(시작/종료, NEXT·HOLD, 2x2 점수판, AUTO, DAD 스페셜), 그 아래 가로 와이드 DAD 전광판, 최하단은 7버튼 터치패드입니다. 보드 중앙의 ‘게임 시작을 눌러 주세요’를 터치하면 바로 시작합니다.</p>
+            <p class="guide-copy" data-i18n="guideMobileBoth">양손으로 잡으세요. 왼쪽은 이동·소프트 드롭, 오른쪽은 회전·하드 드롭·홀드·타임스톱입니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideFoldableBody">폴더블폰을 펼치면 왼손 이동키(◀▼▶)와 오른손 액션키(🔄⚡📦⏳) 사이가 자연스럽게 분리되어 양손 엄지로 편안하게 플레이할 수 있습니다.</p>
+            <div class="guide-hands">
+              <div class="guide-hand">
+                <p class="guide-hand-label" data-i18n="guideLeftHand">왼손 · 좌측 컨트롤러</p>
+                <div class="guide-mini-pad">
+                  <span>◀</span><span>▼</span><span>▶</span>
+                </div>
+                <p class="guide-hand-desc" data-i18n="guidePadLeftBody">[◀] 좌 이동 · [▼] 1칸/소프트 드롭 · [▶] 우 이동</p>
+              </div>
+              <div class="guide-hand is-action">
+                <p class="guide-hand-label" data-i18n="guideRightHand">오른손 · 우측 액션</p>
+                <div class="guide-mini-pad is-wide">
+                  <span>🔄</span><span>⚡</span><span>📦</span><span class="is-gold">⏳</span>
+                </div>
+                <p class="guide-hand-desc" data-i18n="guidePadRightBody">[🔄] 회전 · [⚡] 즉시 하드 드롭 · [📦] 홀드 · [⏳] DAD 타임스톱</p>
+              </div>
+            </div>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDadMobileHint">💡 스마트폰에서도 [⏳ 타임스톱]을 터치해 시간을 멈추고, [▼]로 1칸씩 안전하게 내릴 수 있습니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideMobileDblTapBody">일시정지 중 화면 아무 곳이나 두 번 연속 터치하면 즉시 게임이 재개됩니다.</p>
+            <p class="guide-copy" data-i18n="guideSettingsMobileBody">환경설정에서 효과음/BGM을 따로 조절하고, 고스트 블록 On/Off와 모바일 가상 패드·햅틱 진동을 켤 수 있습니다. 하단 터치 버튼은 오작동 없이 바로 반응합니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideAiSpeedTitle">🤖 AI 자동 플레이 &amp; 0.5x ~ 20x 관전</h3>
+            <p class="guide-copy" data-i18n="guideAiSpeedBody">자동 플레이를 켜면 AI가 대신 두고, 사이드바 또는 환경설정에서 0.5x부터 20x까지 배속을 조절하며 관전할 수 있습니다.</p>
+            <div class="guide-ai-row" aria-hidden="true">
+              <span>0.5x</span>
+              <span class="guide-ai-bar"></span>
+              <span>20x</span>
+            </div>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideAiBuildTitle">탑 쌓기(빌드업) + 테트리스 폭파</h3>
+            <p class="guide-copy" data-i18n="guideAiBuildBody">AI는 탑을 높이 쌓아 4줄 테트리스를 노리다가, 위기가 오면 초정밀 생존 모드로 자동 전환합니다.</p>
+            <div class="guide-score-grid">
+              <div class="guide-score-chip"><span data-i18n="clear1">1줄</span><strong>100 × Lv</strong></div>
+              <div class="guide-score-chip"><span data-i18n="clear2">2줄</span><strong>300 × Lv</strong></div>
+              <div class="guide-score-chip"><span data-i18n="clear3">3줄</span><strong>500 × Lv</strong></div>
+              <div class="guide-score-chip is-tetris"><span data-i18n="tetris">테트리스</span><strong>800 × Lv</strong></div>
+            </div>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideAiConquerTitle">20레벨 정복 &amp; 챔피언 축하</h3>
+            <p class="guide-copy" data-i18n="guideAiConquerBody">최고 난이도인 20레벨을 완주하면 AI가 자동 정지하고, 화려한 챔피언 축하 연출이 이어집니다.</p>
+            <div class="guide-level-track" aria-hidden="true">
+              <span>1</span>
+              <span>5</span>
+              <span>10</span>
+              <span class="is-hot">20</span>
+            </div>
+            <p class="guide-copy" data-i18n="guideAiHint">AI 점수는 명예의 전당에 저장되지 않습니다. 직접 플레이해야 기록이 남습니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="skins" role="tabpanel">
+          <article class="guide-card guide-card-block-skin">
+            <span class="guide-badge" data-i18n="guideCh2Badge">챕터 2 · 5종 블록 스킨</span>
+            <h3 data-i18n="guideBlockSkinTitle">🧊 블록 외형 스타일 5종</h3>
+            <p class="guide-copy" data-i18n="guideCh2Lead">환경설정에서 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려집니다. 모달을 닫지 않아도 스킨/그림자 실시간 프리뷰 캔버스 2종으로 질감을 확인할 수 있습니다.</p>
+            <p class="guide-copy" data-i18n="guideBlockSkinBody">환경설정에서 3D 베벨 큐브(기본), 크리스탈 글래스, 3D 홀로그램 글래스(완전 투명 입체 프레임), 사이버 메카닉, 소프트 캔디 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려지고, 실시간 미리보기로 바로 확인할 수 있습니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="blockSkinGemstone">🎲 3D 베벨 큐브 (3D Gemstone)</li>
+              <li data-i18n="blockSkinGlass">💎 크리스탈 글래스 (Crystal Glass)</li>
+              <li data-i18n="blockSkinWireGlass">🧊 3D 홀로그램 글래스 (Hollow Glass - 완전 투명 입체 프레임)</li>
+              <li data-i18n="blockSkinMecha">⚙️ 사이버 메카닉 (Cyber Mecha)</li>
+              <li data-i18n="blockSkinCandy">🍬 소프트 캔디 (Soft Round)</li>
+            </ul>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideBlockSkinHow">💡 환경설정 모달의 실시간 미리보기 캔버스로 고르기 전에 질감을 확인하고, 값은 localStorage(block_skin_style)에 저장됩니다. 모달을 닫지 않아도 보드가 바로 바뀝니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideSkinPreviewTitle">👁️ 실시간 프리뷰 캔버스 2종</h3>
+            <p class="guide-copy" data-i18n="guideSkinPreviewBody">스킨 미리보기(#skin-preview-canvas)는 선택한 5종 질감을 즉시 보여 주고, 그림자 미리보기(#ghost-preview-canvas)는 고스트 투명도를 옆에서 확인할 수 있습니다. 듀얼 레이어 보드(#bg-canvas + #tetris-canvas)는 배경을 한 번만 그리고 블록은 60fps로 따로 그립니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideGhostPreviewBody">환경설정의 그림자 슬라이더 옆 미니 캔버스로 투명도를 실시간 확인할 수 있습니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideFxTitle">💥 줄 삭제 타격감 &amp; 네온 파티클</h3>
+            <p class="guide-copy" data-i18n="guideFxBody">1~3줄을 지우면 기본 네온 파티클과 미세 진동이 납니다. 4줄 테트리스·T-스핀·3연속 콤보는 0.15초 네온 플래시 셰이크+줌이 터지고, 전광판에 🔥 ULTRA COMBO! / ⚡ TETRIS CRUSH! 엠블럼이 뜹니다. 하드드롭 착지 때는 하단 충격파 파티클이 분사됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideFxHint">💡 환경설정의 [화면 진동]으로 세기를 조절할 수 있습니다. 끄면 흔들림이 멈춥니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="board" role="tabpanel">
+          <article class="guide-card">
+            <span class="guide-badge" data-i18n="guideCh3Badge">챕터 3 · 보드 크기 (낙하 거리)</span>
+            <h3 data-i18n="guideBoardSizeTitle">📏 게임 보드 세로 높이 (20 / 24 / 28칸)</h3>
+            <p class="guide-copy" data-i18n="guideCh3Lead">PC에서는 표준 20칸, 롱 드롭 타워 24칸, 울트라 타워 28칸으로 낙하 여유를 확보할 수 있습니다. 화면 너비 768px 이하 모바일은 터치 조작을 위해 표준 20칸으로 자동 고정되고, 보드 높이 선택 UI는 숨겨집니다.</p>
+            <p class="guide-copy" data-i18n="guideBoardSizeBody">보드 크기(낙하 거리 확장) 기능은 대화면 PC 전용 기능이며, 모바일에서는 최적의 터치 조작성을 위해 표준 규격(10×20칸)으로 자동 고정됩니다. PC에서는 표준 20칸, 롱 드롭 24칸, 울트라 타워 28칸을 고를 수 있습니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="boardSizeMobileOnly">📱 모바일 기본 20라인 전용</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideDropSpeedTitle">블록 낙하 속도 조절</h3>
+            <p class="guide-copy" data-i18n="guideDropSpeedBody">환경설정의 '블록 낙하 속도 조절(0.5x~3.0x)'을 통해 손에 맞는 최적의 속도로 여유롭게 또는 다이내믹하게 즐길 수 있습니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideFxJuiceTitle">💥 콤보 플래시 &amp; 하드드롭 충격파</h3>
+            <p class="guide-copy" data-i18n="guideFxJuiceBody">테트리스·T-스핀·3연속 콤보 시 게임 캔버스가 0.15초 네온 줌 플래시로 흔들립니다. 하드드롭으로 바닥에 꽂으면 하단에서 충격파 파티클 라인이 즉시 분사됩니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideGarbageTitle">시작 장애물 라인</h3>
+            <p class="guide-copy" data-i18n="guideGarbageBody">환경설정의 '시작 장애물 라인(0~10층)'을 설정하면 게임 시작 시 바닥에 구멍 뚫린 블록들이 미리 쌓인 상태로 시작하여 짜릿한 역전 클리어 챌린지를 즐길 수 있습니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guidePreviewModeTitle">블록 가이드 모드</h3>
+            <p class="guide-copy" data-i18n="guidePreviewModeBody">블록 가이드 모드를 통해 [NEXT + HOLD] 조합 또는 [NEXT 1 + NEXT 2] 2단계 예고 모드를 선택하여 플레이 스타일에 맞게 즐길 수 있습니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideGhostPreviewBody">환경설정의 그림자 슬라이더 옆 미니 캔버스로 투명도를 실시간 확인할 수 있습니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="dad" role="tabpanel">
+          <article class="guide-card guide-card-dad guide-dad-hero">
+            <span class="guide-badge" data-i18n="guideDadPerfectTitle">👑 DAD 스페셜 완벽 가이드</span>
+            <h3 data-i18n="guideDadWhatTitle">👑 DAD 스페셜 모드란?</h3>
+            <p class="guide-copy guide-hero-tag" data-i18n="guideDadHeroTag">아버지를 위해 특별히 설계된 슈퍼 파워 지원 모드!</p>
+            <p class="guide-copy" data-i18n="guideDadWhatBody">순발력 걱정 NO! 바닥에 닿아도 여유 시간이 생기고, 턱을 넘고 구멍을 찾아 들어가며, 시간이 끝나도 명당자리에 자동으로 맞춰 드립니다.</p>
+          </article>
+          <article class="guide-card guide-card-dad guide-dad-step">
+            <h3 data-i18n="guideDadLockTitle">⏳ 1. 바닥 착지 골든타임 &amp; 선명도 부스트</h3>
+            <p class="guide-copy" data-i18n="guideDadLockBody1">자연 낙하나 소프트 드롭으로 바닥/블록 위에 안착하면 화면에 [3-2-1 카운트다운]이 시작됩니다.</p>
+            <p class="guide-copy" data-i18n="guideDadLockBody2">카운트다운 동안 게임 보드가 더욱 선명하게 밝아져 빈자리를 한눈에 볼 수 있습니다.</p>
+          </article>
+          <article class="guide-card guide-card-dad guide-dad-step">
+            <h3 data-i18n="guideDadSlideTitle">🚀 2. 지형 관통 이동 &amp; 깊은 홈 침투 (Super Slide &amp; Auto-Sink)</h3>
+            <p class="guide-copy" data-i18n="guideDadSlideBody">카운트다운 중에는 블록 턱에 걸리지 않고 다른 블록을 자유롭게 넘나들며, 깊은 구멍(홈)이 있는 곳으로 이동하면 아래 바닥까지 쏙 내려앉아 완벽하게 배치할 수 있습니다.</p>
+          </article>
+          <article class="guide-card guide-card-dad guide-dad-step">
+            <h3 data-i18n="guideDadSmartTitle">🧠 3. 카운트 종료 시 ‘최적 명당자리’ 스마트 자동 배치</h3>
+            <p class="guide-copy" data-i18n="guideDadSmartBody">카운트다운 시간이 끝날 때까지 자리를 확정하지 못했더라도 걱정 마세요! 인공지능이 주변에서 줄을 지울 수 있거나 빈틈이 생기지 않는 가장 완벽한 자리를 찾아 자동으로 쏙 끼워 맞춰줍니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDadAutoSnap">💡 카운트다운 시간이 끝나더라도 걱정 마세요! 미처 자리를 정하지 못했을 경우 게임이 알아서 가장 최적의 명당자리에 블록을 자동으로 맞춰 드립니다.</p>
+          </article>
+          <article class="guide-card guide-card-dad guide-dad-step">
+            <h3 data-i18n="guideDadKTitle">❄️ 4. [K] 키 · 모바일 [⏳] 긴급 타임스톱</h3>
+            <p class="guide-copy" data-i18n="guideDadKBody">공중에서 떨어지는 도중 언제든 누르면 시간이 멈춥니다. [↓] 또는 모바일 [▼]를 누를 때마다 1칸씩 차분하게 수동으로 내릴 수 있습니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDadKHint">💡 타임스톱 중에는 [←/→] 이동, [↑] 회전도 정지를 풀지 않습니다. [Space] / [⚡]로만 즉시 착지합니다.</p>
+          </article>
+          <article class="guide-card guide-card-dad guide-dad-step">
+            <h3 data-i18n="guideDadDurationHead">⚙️ 5. 지속 시간 맞춤 설정</h3>
+            <p class="guide-copy" data-i18n="guideDadDurationBody">[환경설정]에서 3초(기본), 5초(여유), 10초(슈퍼 이지) 중 원하는 시간을 자유롭게 선택할 수 있습니다. 골든타임과 타임스톱에 함께 적용됩니다.</p>
+            <div class="guide-duration-pills" aria-hidden="true">
+              <span class="guide-pill" data-i18n="dadDuration3">3초 (기본)</span>
+              <span class="guide-pill" data-i18n="dadDuration5">5초 (여유)</span>
+              <span class="guide-pill is-hot" data-i18n="dadDuration10">10초 (슈퍼 이지)</span>
+            </div>
+          </article>
+          <article class="guide-card guide-card-cheer">
+            <h3 data-i18n="guideCheerTitle">📢 DAD 실시간 응원 전광판</h3>
+            <p class="guide-copy" data-i18n="guideCh4Lead">PC에서는 사이드바 160px 전광판(#dad-cheer-banner)이, 모바일 세로에서는 보드와 터치패드 사이의 가로 와이드 슬림 바가 콤보·테트리스·위기 탈출을 실시간으로 응원합니다. [K] 키와 모바일 [⏳] 타임스톱으로 공중 시간을 멈출 수 있습니다.</p>
+            <p class="guide-copy" data-i18n="guideCheerBody">연속 콤보, 4줄 테트리스, 위기 탈출 때 DAD 전광판이 실시간 격려 메시지와 골드 펄스 효과로 응원합니다. 3연속 이상은 🔥 ULTRA COMBO!, 테트리스는 ⚡ TETRIS CRUSH! 엠블럼이 팝업됩니다.</p>
+            <p class="guide-copy" data-i18n="guideAudioJuiceBody">하드드롭은 저음 타격+리버브, 연속 배치/콤보는 음계가 1음씩 올라가는 팡파르, [K] 타임스톱은 공간이 늘어지는 피치 벤드 다운으로 재생됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideCheerHow">💡 모바일 세로에서는 전광판이 보드 아래 가로 와이드 슬림 바로 붙고, PC에서는 사이드바 160px 높이를 유지합니다. 응원 문구는 화면 폭에 맞춰 한 줄로 표시됩니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="media" role="tabpanel">
+          <article class="guide-card">
+            <span class="guide-badge" data-i18n="guideCh5Badge">챕터 5 · IndexedDB 커스텀 미디어</span>
+            <h3 data-i18n="guideIndexedDbTitle">💾 IndexedDB 기반 고화질 커스텀 미디어</h3>
+            <p class="guide-copy" data-i18n="guideCh5Lead">대용량 배경 사진·BGM·종료 영상은 IndexedDB(DadTetrisDB / media_files)에 Blob으로 비동기 저장되고, 스킨·보드 높이·볼륨·최고기록은 localStorage에 따로 보존됩니다.</p>
+            <p class="guide-copy" data-i18n="guideIndexedDbBody">환경설정에서 가족 사진, 레벨별 배경, 좋아하는 mp3, 게임 종료 영상을 등록하면 브라우저 용량 한도 안에서 고화질 원본을 유지합니다. 설정값(5종 스킨, ROWS, 볼륨)은 localStorage에 남아 IndexedDB와 분리됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideIndexedDbHow">💡 파일은 DadTetrisDB의 media_files 스토어에 저장됩니다. 자가진단이 연결·쓰기/읽기/삭제를 검증합니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideIdleSplitTitle">🖼️ 윈도우 / 게임 패널 대기 배경 분리</h3>
+            <p class="guide-copy" data-i18n="guideIdleSplitBody">전체 윈도우와 왼쪽 게임 패널은 대기 이미지를 따로 등록합니다. 각 탭에서 블러·투명도를 조절하고, [기본 배경 계속 유지]를 켜면 플레이 중에도 대기 배경이 유지됩니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideIdleSplitWindow">🖥️ 전체 윈도우: 기본 대기 이미지 + 레벨 1~20, 윈도우 전용 블러/투명도</li>
+              <li data-i18n="guideIdleSplitBoard">🎮 게임 패널: 패널 대기 이미지 + 레벨 1~20, 패널 전용 블러/투명도</li>
+            </ul>
+          </article>
+          <article class="guide-card guide-card-memory">
+            <h3 data-i18n="guideMemoryTitle">🖼️ 나만의 추억 헌정! 가족사진 &amp; 테마 커스텀 가이드</h3>
+            <ol class="guide-memory-list">
+              <li data-i18n="guideMemoryProfile">① 프로필 사진: [환경설정]에서 본인 또는 가족사진을 불러와 마우스 드래그와 확대/축소(50%~300%), 위치 조절로 멋진 프로필 아이콘을 만들 수 있습니다.</li>
+              <li data-i18n="guideMemoryBg">② 레벨별 추억 배경: 환경설정에서 사진을 등록하면 레벨이 오를 때마다 배경이 바뀝니다. 파일이 없어도 네온 그리드로 바로 플레이됩니다.</li>
+            </ol>
+          </article>
+          <article class="guide-card guide-card-master-bg">
+            <h3 data-i18n="guideBgCustomTitle">🖼️ 배경 커스텀 마스터 가이드</h3>
+            <ul class="guide-custom-list guide-master-list">
+              <li data-i18n="guideBgMasterToggle">마스터 토글: 등록된 이미지를 삭제하지 않고 스위치 하나로 기본 네온 테마로 즉시 전환할 수 있습니다.</li>
+              <li data-i18n="guideBgMasterWindow">윈도우 배경: 기본/레벨별 배경 등록, 기본 배경 고정 유지, 그리고 윈도우 전용 블러(흐림) 및 투명도 조절 기능을 지원합니다.</li>
+              <li data-i18n="guideBgMasterBoard">게임 패널 배경: 패널 전용 레벨별 배경 등록과 패널 블러/투명도 듀얼 조절로 블록 시인성을 극대화할 수 있습니다.</li>
+              <li data-i18n="guideBgMasterDelete">개별 삭제(🗑️): 각 슬롯마다 등록된 이미지를 개별적으로 삭제/초기화할 수 있습니다.</li>
+            </ul>
+            <p class="guide-i18n-anchor hidden" hidden>
+              <span data-i18n="guideBgCustomBody"></span>
+              <span data-i18n="guideKeepDefaultBg"></span>
+              <span data-i18n="guideWindowFxBody"></span>
+              <span data-i18n="guideDisableAllCustomBg"></span>
+              <span data-i18n="guidePanelFxTitle"></span>
+              <span data-i18n="guidePanelFxBody"></span>
+            </p>
+          </article>
+          <article class="guide-card guide-card-convenience">
+            <h3 data-i18n="guideConvenienceTitle">🕹️ 조작 및 편의 기능</h3>
+            <ul class="guide-custom-list">
+              <li><strong data-i18n="guideMobileDblTapTitle">모바일 더블탭</strong> — <span data-i18n="guideMobileDblTapBody">일시정지 중 화면 아무 곳이나 두 번 연속 터치하면 즉시 게임이 재개됩니다.</span></li>
+              <li><strong data-i18n="guideGhostPreviewTitle">고스트 프리뷰</strong> — <span data-i18n="guideGhostPreviewBody">환경설정의 그림자 슬라이더 옆 미니 캔버스로 투명도를 실시간 확인할 수 있습니다.</span></li>
+              <li><strong data-i18n="guidePwaConvenienceTitle">PWA 앱 설치</strong> — <span data-i18n="guidePwaConvenienceBody">환경설정의 '홈 화면에 앱 설치' 버튼으로 앱처럼 즐길 수 있습니다.</span></li>
+              <li><strong data-i18n="guideAutoRecordTitle">자동 게임기록 모드</strong> — <span data-i18n="guideAutoRecordBody">환경설정의 '자동 게임기록 모드'를 켜면 게임 종료 팝업 없이 '시스템' 이름으로 점수와 일시가 자동 저장되어 흐름 끊김 없이 바로 다음 게임을 즐길 수 있습니다.</span></li>
+              <li><strong data-i18n="guideGarbageTitle">시작 장애물 라인</strong> — <span data-i18n="guideGarbageBody">환경설정의 '시작 장애물 라인(0~10층)'을 설정하면 게임 시작 시 바닥에 구멍 뚫린 블록들이 미리 쌓인 상태로 시작하여 짜릿한 역전 클리어 챌린지를 즐길 수 있습니다.</span></li>
+              <li><strong data-i18n="guidePreviewModeTitle">블록 가이드 모드</strong> — <span data-i18n="guidePreviewModeBody">블록 가이드 모드를 통해 [NEXT + HOLD] 조합 또는 [NEXT 1 + NEXT 2] 2단계 예고 모드를 선택하여 플레이 스타일에 맞게 즐길 수 있습니다.</span></li>
+              <li><strong data-i18n="guideDropSpeedTitle">블록 낙하 속도 조절</strong> — <span data-i18n="guideDropSpeedBody">환경설정의 '블록 낙하 속도 조절(0.5x~3.0x)'을 통해 손에 맞는 최적의 속도로 여유롭게 또는 다이내믹하게 즐길 수 있습니다.</span></li>
+              <li><strong data-i18n="guideBoardSizeTitle">📏 게임 보드 세로 높이 (20 / 24 / 28칸)</strong> — <span data-i18n="guideBoardSizeBody">보드 크기(낙하 거리 확장) 기능은 대화면 PC 전용 기능이며, 모바일에서는 최적의 터치 조작성을 위해 표준 규격(10×20칸)으로 자동 고정됩니다. PC에서는 표준 20칸, 롱 드롭 24칸, 울트라 타워 28칸을 고를 수 있습니다.</span></li>
+              <li><strong data-i18n="guideBlockSkinTitle">🧊 블록 외형 스타일 5종</strong> — <span data-i18n="guideBlockSkinBody">환경설정에서 3D 베벨 큐브(기본), 크리스탈 글래스, 3D 홀로그램 글래스(완전 투명 입체 프레임), 사이버 메카닉, 소프트 캔디 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려지고, 실시간 미리보기로 바로 확인할 수 있습니다.</span></li>
+              <li><strong data-i18n="guideCheerTitle">📢 DAD 실시간 응원 전광판</strong> — <span data-i18n="guideCheerBody">연속 콤보, 4줄 테트리스, 위기 탈출 때 DAD 전광판이 실시간 격려 메시지와 골드 펄스 효과로 응원합니다.</span></li>
+              <li><strong data-i18n="guideScoreboardTitle">📊 2x2 디지털 전광판 &amp; 스코어</strong> — <span data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</span></li>
+              <li><strong data-i18n="guideSettingsMobileTitle">⚙️ 모던 환경설정 &amp; 모바일 조작</strong> — <span data-i18n="guideSettingsMobileBody">환경설정에서 효과음/BGM을 따로 조절하고, 고스트 블록 On/Off와 모바일 가상 패드·햅틱 진동을 켤 수 있습니다. 하단 터치 버튼은 오작동 없이 바로 반응합니다.</span></li>
+            </ul>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideCustomTitle">우리 가족만의 테트리스</h3>
+            <p class="guide-copy" data-i18n="guideCustomBody">환경설정에서 프로필 사진, 윈도우/패널 배경(레벨 1~20), 좋아하는 BGM(mp3)을 등록할 수 있습니다.</p>
+          </article>
+          <article class="guide-card guide-card-dad">
+            <h3 data-i18n="guideCustomDuration">👑 DAD 스페셜 시간(3초/5초/10초)</h3>
+            <p class="guide-copy" data-i18n="guideDadDurationBody">[환경설정]에서 3초(기본), 5초(여유), 10초(슈퍼 이지) 중 원하는 시간을 자유롭게 선택할 수 있습니다. 골든타임과 타임스톱에 함께 적용됩니다.</p>
+            <div class="guide-duration-pills" aria-hidden="true">
+              <span class="guide-pill" data-i18n="dadDuration3">3초 (기본)</span>
+              <span class="guide-pill" data-i18n="dadDuration5">5초 (여유)</span>
+              <span class="guide-pill is-hot" data-i18n="dadDuration10">10초 (슈퍼 이지)</span>
+            </div>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideCustomAudio">🔊 소리 · 모바일 햅틱</h3>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideCustomAudioItem">🎵 BGM과 효과음 볼륨을 따로 조절할 수 있습니다.</li>
+              <li data-i18n="guideCustomHaptic">📳 모바일 터치 햅틱 진동을 켜거나 끌 수 있습니다. (화면 진동 설정)</li>
+            </ul>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideCustomMedia">🖼️ 사진 · 배경 · 음악 등록</h3>
+            <p class="guide-copy" data-i18n="guideCustomMediaHow">⚙️ 환경설정에서 파일을 고르면 바로 적용됩니다. 가족·여행 사진으로 우리 집만의 테트리스를 만들어 보세요.</p>
+            <p class="guide-copy" data-i18n="guideCustomFolderBg">💡 외부 이미지 파일이 없어도 네온 그리드로 플레이됩니다. 윈도우는 기본+레벨 1~20, 게임 패널은 레벨 1~20 사진을 각각 등록할 수 있습니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideCustomPhoto">👤 가족 사진 → 프로필</li>
+              <li data-i18n="guideCustomBg">🖼️ 1~20단계 배경 사진 → 윈도우/패널 레벨별 배경</li>
+              <li data-i18n="guideCustomBgm">🎵 좋아하는 음악(mp3) → BGM</li>
+            </ul>
+            <p class="guide-copy" data-i18n="guideCustomHint">사이드바의 ⚙️ 환경설정을 눌러 보세요.</p>
+          </article>
+          <article class="guide-card guide-card-theme">
+            <h3 data-i18n="guideThemeTitle">🎨 5대 맞춤 네온 컬러 테마</h3>
+            <p class="guide-copy" data-i18n="guideThemeBody">환경설정 [게임] 탭의 둥근 컬러 팔레트를 누르면 화면 전체 테두리, 버튼, 네온 글로우, 포인트 색이 즉시 바뀝니다. 선택한 테마는 다음에 켜도 그대로 유지됩니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="themeNeonBlue">🔷 네온 블루</li>
+              <li data-i18n="themeCyberPink">🌸 사이버 핑크</li>
+              <li data-i18n="themeEmeraldGreen">🌿 에메랄드 그린</li>
+              <li data-i18n="themeSunsetOrange">🌅 차분한 주황</li>
+              <li data-i18n="themeFutureCyber">🔮 미래 사이버펑크</li>
+            </ul>
+            <div class="guide-theme-dots" aria-hidden="true">
+              <span class="theme-swatch" data-theme="neon-blue"></span>
+              <span class="theme-swatch" data-theme="cyber-pink"></span>
+              <span class="theme-swatch" data-theme="emerald-green"></span>
+              <span class="theme-swatch" data-theme="sunset-orange"></span>
+              <span class="theme-swatch" data-theme="future-cyber"></span>
+            </div>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideThemeHow">💡 팔레트를 누르면 0ms로 전환되고 localStorage(dad_tetris_theme)에 영구 저장됩니다.</p>
+          </article>
+          <article class="guide-card guide-card-block-skin">
+            <h3 data-i18n="guideBlockSkinTitle">🧊 블록 외형 스타일 5종</h3>
+            <p class="guide-copy" data-i18n="guideBlockSkinBody">환경설정에서 3D 베벨 큐브(기본), 크리스탈 글래스, 3D 홀로그램 글래스(완전 투명 입체 프레임), 사이버 메카닉, 소프트 캔디 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려지고, 실시간 미리보기로 바로 확인할 수 있습니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="blockSkinGemstone">🎲 3D 베벨 큐브 (3D Gemstone)</li>
+              <li data-i18n="blockSkinGlass">💎 크리스탈 글래스 (Crystal Glass)</li>
+              <li data-i18n="blockSkinWireGlass">🧊 3D 홀로그램 글래스 (Hollow Glass - 완전 투명 입체 프레임)</li>
+              <li data-i18n="blockSkinMecha">⚙️ 사이버 메카닉 (Cyber Mecha)</li>
+              <li data-i18n="blockSkinCandy">🍬 소프트 캔디 (Soft Round)</li>
+            </ul>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideBlockSkinHow">💡 환경설정 모달의 실시간 미리보기 캔버스로 고르기 전에 질감을 확인하고, 값은 localStorage(block_skin_style)에 저장됩니다. 모달을 닫지 않아도 보드가 바로 바뀝니다.</p>
+          </article>
+          <article class="guide-card guide-card-cheer">
+            <h3 data-i18n="guideCheerTitle">📢 DAD 실시간 응원 전광판</h3>
+            <p class="guide-copy" data-i18n="guideCheerBody">연속 콤보, 4줄 테트리스, 위기 탈출 때 DAD 전광판이 실시간 격려 메시지와 골드 펄스 효과로 응원합니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideCheerHow">💡 모바일 세로에서는 전광판이 보드 아래 가로 와이드 슬림 바로 붙고, PC에서는 사이드바 160px 높이를 유지합니다. 응원 문구는 화면 폭에 맞춰 한 줄로 표시됩니다.</p>
+          </article>
+          <article class="guide-card guide-card-scoreboard">
+            <h3 data-i18n="guideScoreboardTitle">📊 2x2 디지털 전광판 &amp; 스코어</h3>
+            <p class="guide-copy" data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideScoreboardHow">💡 BEST 칸을 누르면 명예의 전당이 열립니다. 모바일 세로는 보드 오른쪽 기능타워에 2x2 점수판이 붙고, 그 아래 가로 와이드 DAD 전광판이 이어집니다.</p>
+          </article>
+          <article class="guide-card guide-card-settings-mobile">
+            <h3 data-i18n="guideSettingsMobileTitle">⚙️ 모던 환경설정 &amp; 모바일 조작</h3>
+            <p class="guide-copy" data-i18n="guideSettingsMobileBody">환경설정에서 효과음/BGM을 따로 조절하고, 고스트 블록 On/Off와 모바일 가상 패드·햅틱 진동을 켤 수 있습니다. 하단 터치 버튼은 오작동 없이 바로 반응합니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideSettingsMobileHow">💡 [📱 모바일 패드]로 가상 터치패드를 켜고, 버튼을 누르면 navigator.vibrate 햅틱이 짧게 울립니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideFxTitle">💥 줄 삭제 타격감 &amp; 네온 파티클</h3>
+            <p class="guide-copy" data-i18n="guideFxBody">1~3줄을 지우면 기본 네온 파티클과 미세 진동이 납니다. 4줄 테트리스·T-스핀·3연속 콤보는 0.15초 네온 플래시 셰이크+줌이 터지고, 전광판에 🔥 ULTRA COMBO! / ⚡ TETRIS CRUSH! 엠블럼이 뜹니다. 하드드롭 착지 때는 하단 충격파 파티클이 분사됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideFxHint">💡 환경설정의 [화면 진동]으로 세기를 조절할 수 있습니다. 끄면 흔들림이 멈춥니다.</p>
+          </article>
+          <article class="guide-card guide-card-system">
+            <h3 data-i18n="guideDiagTitle">🧪 0.1초 실시간 무결점 자가진단 (Test Runner)</h3>
+            <p class="guide-copy" data-i18n="guideDiagBody">상단의 [🧪 자가진단] 버튼(또는 단축키 [F9])을 누르면 컴퓨터가 스스로 X/Y 전방향 관통, K키 정지/회전, 스마트 자동 착지, 모바일 터치패드, 프로필 조정/저장, 5대 컬러 테마, 화면 흔들림/네온 파티클, PWA 앱 설치 등 모든 기능의 무결성을 실시간으로 시뮬레이션 검증하고 오류를 자가 수정(Self-Healing)합니다.</p>
+            <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 8대 핵심 항목을 순차 비동기 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 핵심 8종이 통과하면 모던 팝업에 [PASS 8/8]이 출력됩니다.</p>
+            <ol class="guide-custom-list guide-diag-core-list">
+              <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
+              <li data-i18n="guideDiagCore2">2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 렌더러 무결성</li>
+              <li data-i18n="guideDiagCore3">3) [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input 다중 선택 · Blob/DataURL 순차 put · #bulk-progress-bar</li>
+              <li data-i18n="guideDiagCore4">4) [설정 데이터] localStorage 키 · dad_tetris_player_name · 기본 닉네임 ‘시스템’ 폴백 · 12개국 TRANSLATIONS</li>
+              <li data-i18n="guideDiagCore5">5) [오디오/비디오] Web Audio API 및 사운드 매니저 초기화</li>
+              <li data-i18n="guideDiagCore6">6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드</li>
+              <li data-i18n="guideDiagCore7">7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 상호 참조 · 터치 엘리먼트 DOM</li>
+              <li data-i18n="guideDiagCore8">8) [AI 동적 스트레스] 오토플레이 15x 충돌·FPS·라인클리어·DAD 전광판</li>
+            </ol>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. 핵심 8종이 모두 통과하면 “🎉 모든 핵심 시스템(듀얼 캔버스, 5종 스킨, IndexedDB, DAD 전광판, AI 스트레스)이 100% 완벽하게 가동 중입니다! [PASS 8/8]”가 결과창에 출력됩니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guidePwaTitle">📱 스마트폰 PWA 원클릭 앱 설치</h3>
+            <p class="guide-copy" data-i18n="guidePwaBody">환경설정의 '홈 화면에 앱 설치' 버튼으로 앱처럼 즐길 수 있습니다. 서비스 워커가 핵심 파일을 캐시해 오프라인에서도 플레이됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guidePwaHint">💡 설치 버튼은 브라우저가 앱 설치를 지원할 때(주로 HTTPS 또는 localhost) 나타납니다. 아이폰은 공유 → 홈 화면에 추가를 사용하세요.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="bulk" role="tabpanel">
+          <article class="guide-card">
+            <span class="guide-badge" data-i18n="guideCh6Badge">챕터 6 · 배경 일괄 등록</span>
+            <h3 data-i18n="guideBulkTitle">📦 배경 일괄 등록 &amp; 스마트 전체 자동 분배</h3>
+            <p class="guide-copy" data-i18n="guideBulkBody">환경설정 배경 탭의 [📦 배경 일괄 등록]에서 [📁 여러 파일 선택]으로 여러 장을 고릅니다. 대상은 [전체 윈도우 배경 세트], [게임 패널 배경 세트], [스마트 전체 자동 분배]입니다. 로컬과 HTTPS/GitHub Pages 모두 브라우저 IndexedDB(DadTetrisDB / media_files)에 파일 단위 트랜잭션으로 저장됩니다.</p>
+            <ul class="guide-custom-list">
+              <li data-i18n="guideBulkKwIdle">파일명 대기 / idle / wait → bg_idle (전체 윈도우 대기 배경)</li>
+              <li data-i18n="guideBulkKwPanel">[게임 패널 배경 세트] 1번째 파일 → bg_panel_idle, 2~16번째 → bg_panel_lvl_1 … bg_panel_lvl_15. 스마트 모드에서 파일명 패널/panel/보드면 패널 슬롯</li>
+              <li data-i18n="guideBulkKwLevel">[전체 윈도우 배경 세트] 1번째 → bg_idle, 2~16번째 → bg_lvl_1 … bg_lvl_15. 스마트 모드에서 lv숫자/레벨숫자면 해당 레벨</li>
+              <li data-i18n="guideBulkSeq">윈도우/패널 세트는 파일 순서대로 대기→Lv.1~15(이후 파일은 Lv.16~20)에 넣습니다. 스마트 모드에서 이름 규칙이 없으면 앞 21장은 윈도우, 다음 21장은 패널입니다.</li>
+            </ul>
+            <p class="guide-copy" data-i18n="guideBulkProgress">각 파일은 FileReader로 DataURL을 끝까지 읽은 뒤, IndexedDB readwrite 트랜잭션을 한 장씩 열어 put 완료를 기다립니다. 진행 바(#bulk-progress-bar)와 상태 문구가 실시간으로 갱신됩니다.</p>
+            <p class="guide-copy" data-i18n="guideBulkThumbs">저장이 성공할 때마다 40×40 썸네일이 #bulk-preview-grid에 바로 추가됩니다. 끝나면 설정 슬롯(윈도우/패널)과 캔버스 배경이 즉시 갱신되고, 완료 메시지와 썸네일 리스트는 닫히지 않고 유지됩니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideBulkHow">💡 한 장이 실패해도 다음 파일은 계속 저장됩니다. 완료 토스트에 성공 개수가 표시됩니다. [등록된 배경 전체 초기화]는 커스텀 배경만 지우고 프로필·BGM·영상은 남깁니다. 웹 배포(HTTPS)에서도 같은 브라우저 저장소를 사용합니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="lang" role="tabpanel">
+          <article class="guide-card">
+            <span class="guide-badge" data-i18n="guideHallRankBadge">챕터 7 · 명예의 전당 &amp; 소셜 랭킹 공유</span>
+            <h3 data-i18n="guideHallRankTitle">🏆 명예의 전당 &amp; 소셜 랭킹 공유</h3>
+            <p class="guide-copy" data-i18n="guideHallRankBody">명예의 전당은 🇰🇷 국내 랭킹과 🌐 글로벌 랭킹 두 탭으로 나뉩니다. BEST 칸을 눌러 열고, 상단 탭으로 전환하세요. 국가는 브라우저 언어/로케일에서 자동 인식됩니다. 한국 기록은 국내+글로벌에 함께 오르고, 해외 기록은 글로벌에만 집계됩니다. AI 오토플레이가 한 프레임이라도 켜진 판은 등록되지 않습니다.</p>
+            <p class="guide-copy" data-i18n="guideScoreboardBody">SCORE, LEVEL, LINES, BEST 네 칸의 2x2 디지털 점수판으로 현재 점수와 최고 기록을 한눈에 확인하세요.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideScoreboardHow">💡 BEST 칸을 누르면 명예의 전당이 열립니다. 모바일 세로는 보드 오른쪽 기능타워에 2x2 점수판이 붙고, 그 아래 가로 와이드 DAD 전광판이 이어집니다.</p>
+            <p class="guide-copy" data-i18n="guideHallDualHow">💡 국내 탭은 KR 기록만, 글로벌 탭은 모든 국가 기록을 보여 줍니다. 각 줄에 국기·국가코드, 순위, 닉네임, 점수, 레벨, 줄 수, 일시가 표시됩니다.</p>
+            <p class="guide-copy" data-i18n="guideHallNickname">환경설정 [👤 플레이어 프로필 / 랭킹 설정]에서 게이머 닉네임을 지정합니다. 저장 키는 dad_tetris_player_name이며, 값이 없거나 빈칸으로 제출하면 무조건 ‘시스템’으로 등록됩니다. 자동 기록 모드도 이 닉네임을 사용합니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideHallRankPolicy">⚠️ 공식 정책: 시스템 최적화, 데이터 정합성 유지, 치트 방지 등 운영 관리상 필요에 따라 랭킹 데이터는 언제든 초기화 또는 삭제될 수 있습니다.</p>
+          </article>
+          <article class="guide-card">
+            <span class="guide-badge" data-i18n="guideCh7Badge">챕터 7 · 12개국 언어 &amp; 자가진단</span>
+            <h3 data-i18n="guideLangTitle">🌐 12개국 글로벌 언어 실시간 전환</h3>
+            <p class="guide-copy" data-i18n="guideLangBody">환경설정에서 언어를 바꾸면 UI가 즉시 바뀝니다. 기본은 한국어이며 영어, 힌디어, 중국어 간체, 스페인어, 일본어, 프랑스어, 독일어, 포르투갈어, 러시아어, 베트남어, 인도네시아어를 지원합니다. 선택은 localStorage(tetris_lang)에 저장됩니다.</p>
+            <p class="guide-copy" data-i18n="guideLangList">🇰🇷 한국어 · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia</p>
+          </article>
+          <article class="guide-card guide-card-system">
+            <h3 data-i18n="guideDiagTitle">🧪 0.1초 실시간 무결점 자가진단 (Test Runner)</h3>
+            <p class="guide-copy" data-i18n="guideDiagBody">상단의 [🧪 자가진단] 버튼(또는 단축키 [F9])을 누르면 컴퓨터가 스스로 X/Y 전방향 관통, K키 정지/회전, 스마트 자동 착지, 모바일 터치패드, 프로필 조정/저장, 5대 컬러 테마, 화면 흔들림/네온 파티클, PWA 앱 설치 등 모든 기능의 무결성을 실시간으로 시뮬레이션 검증하고 오류를 자가 수정(Self-Healing)합니다.</p>
+            <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 8대 핵심 항목을 순차 비동기 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 핵심 8종이 통과하면 모던 팝업에 [PASS 8/8]이 출력됩니다.</p>
+            <ol class="guide-custom-list guide-diag-core-list">
+              <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
+              <li data-i18n="guideDiagCore2">2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 및 고스트 큐브 오프스크린 렌더</li>
+              <li data-i18n="guideDiagCore3">3) [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input 다중 선택 · Blob/DataURL 순차 put · #bulk-progress-bar</li>
+              <li data-i18n="guideDiagCore4">4) [설정 데이터] localStorage 키 · dad_tetris_player_name · 기본 닉네임 ‘시스템’ 폴백 · 12개국 TRANSLATIONS</li>
+              <li data-i18n="guideDiagCore5">5) [오디오/비디오] Web Audio API, BGM/SFX 볼륨·음소거 동기화</li>
+              <li data-i18n="guideDiagCore6">6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드</li>
+              <li data-i18n="guideDiagCore7">7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 5대 모듈 바인딩 · 터치 엘리먼트 DOM</li>
+              <li data-i18n="guideDiagCore8">8) [AI 동적 스트레스] 대기 패널 숨김, 15x 5회 낙하, 충돌 0, 15fps, DAD 응원, 파티클 GC, 보드 원상 복구</li>
+            </ol>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. 핵심 8종이 모두 통과하면 “🎉 모든 핵심 시스템(듀얼 캔버스, 5종 스킨, IndexedDB, DAD 전광판, AI 스트레스)이 100% 완벽하게 가동 중입니다! [PASS 8/8]”가 결과창에 출력됩니다.</p>
+          </article>
+          <article class="guide-card">
+            <h3 data-i18n="guideDiagExportTitle">📋 진단 로그 복사 &amp; 파일 저장</h3>
+            <p class="guide-copy" data-i18n="guideDiagExportBody">자가진단 결과 화면의 [📋 로그 복사]와 [💾 파일로 저장]으로 종합 리포트를 남길 수 있습니다. 리포트에는 12개국어 사전 상태, 윈도우/패널 배경 등록 현황, 스마트 분배 엔진 상태가 포함됩니다.</p>
+          </article>
+        </section>
+
+        <section class="guide-panel-page hidden" data-guide-panel="system" role="tabpanel" hidden aria-hidden="true">
+          <p class="guide-i18n-anchor hidden" hidden>
+            <span data-i18n="guideDiagStage6"></span>
+            <span data-i18n="guideDiagStage7"></span>
+            <span data-i18n="guideDiagStage8"></span>
+            <span data-i18n="guideDiagStage9"></span>
+            <span data-i18n="guideDiagStage10"></span>
+            <span data-i18n="guideDiagStage11"></span>
+            <span data-i18n="guideDiagStage12"></span>
+            <span data-i18n="guideDiagStage13"></span>
+            <span data-i18n="guideDiagStage14"></span>
+            <span data-i18n="guideDiagStage15"></span>
+            <span data-i18n="guideDiagStage16"></span>
+            <span data-i18n="guideDiagStage17"></span>
+            <span data-i18n="guideDiagStage18"></span>
+            <span data-i18n="guideDiagStage19"></span>
+          </p>
+        </section>
+      </div>
+
+      <footer class="modal-foot guide-foot">
+        <button type="button" id="guide-close" class="ghost-btn" data-i18n="guideClose">닫기</button>
+        <button type="button" id="guide-start" class="save-btn" data-i18n="guideStart">🚀 지금 게임 시작하기</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="modal settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-backdrop modal-overlay" id="settings-backdrop"></div>
+    <div class="modal-panel modal-content">
+      <header class="modal-head">
+        <h2 id="settings-title" data-i18n="settingsTitle">⚙️ 환경설정</h2>
+        <button type="button" id="settings-x" class="modal-x" aria-label="닫기" data-i18n-aria="closeAria">✕</button>
+      </header>
+
+      <div class="settings-tabs" role="tablist">
+        <button type="button" class="settings-tab is-on" data-tab="game" role="tab" aria-selected="true" data-i18n="tabGame">게임</button>
+        <button type="button" class="settings-tab" data-tab="levelbg" role="tab" aria-selected="false" data-i18n="tabLevelBg">🖼️ 배경 설정</button>
+        <button type="button" class="settings-tab" data-tab="videos" role="tab" aria-selected="false" data-i18n="tabEventVideo">🎬 이벤트 동영상</button>
+        <button type="button" class="settings-tab" data-tab="scores" id="scores-tab" role="tab" aria-selected="false" data-i18n="tabScoreboard">🏆 스코어 관리</button>
+      </div>
+
+      <div class="modal-body tab-panel" data-tab-panel="game">
+        <section class="settings-card settings-card-graphics">
+          <h3 class="settings-section-title" data-i18n="settingsSectionGraphics">🎨 그래픽 &amp; 블록 비주얼</h3>
+
+          <section class="setting-block theme-block">
+            <p class="row-title" data-i18n="themeTitle">🎨 컬러 테마</p>
+            <div class="theme-palette" role="radiogroup" aria-label="컬러 테마">
+              <button type="button" class="theme-swatch is-on" data-theme="neon-blue" title="🔷 네온 블루" aria-pressed="true"></button>
+              <button type="button" class="theme-swatch" data-theme="cyber-pink" title="🌸 사이버 핑크" aria-pressed="false"></button>
+              <button type="button" class="theme-swatch" data-theme="emerald-green" title="🌿 에메랄드 그린" aria-pressed="false"></button>
+              <button type="button" class="theme-swatch" data-theme="sunset-orange" title="🌅 차분한 주황" aria-pressed="false"></button>
+              <button type="button" class="theme-swatch" data-theme="future-cyber" title="🔮 미래 사이버펑크" aria-pressed="false"></button>
+            </div>
+            <p id="theme-name" class="setting-hint">🔷 네온 블루</p>
+            <button type="button" id="btn-install-pwa" class="pwa-install-btn" data-i18n="pwaInstall">📲 홈 화면에 앱 설치 (PWA)</button>
+          </section>
+
+          <label class="select-row block-skin-row" for="select-block-skin">
+            <span class="row-title" data-i18n="blockSkinTitle">🧊 블록 외형 스타일</span>
+            <div class="block-skin-select-wrap">
+              <select id="select-block-skin" aria-describedby="block-skin-hint">
+                <option value="gemstone" data-i18n="blockSkinGemstone" selected>🎲 3D 베벨 큐브 (3D Gemstone)</option>
+                <option value="glass" data-i18n="blockSkinGlass">💎 크리스탈 글래스 (Crystal Glass)</option>
+                <option value="wire_glass" data-i18n="blockSkinWireGlass">🧊 3D 홀로그램 글래스 (Hollow Glass - 완전 투명 입체 프레임)</option>
+                <option value="mecha" data-i18n="blockSkinMecha">⚙️ 사이버 메카닉 (Cyber Mecha)</option>
+                <option value="candy" data-i18n="blockSkinCandy">🍬 소프트 캔디 (Soft Round)</option>
+              </select>
+              <div class="skin-preview-container" aria-hidden="true">
+                <span class="skin-preview-label" data-i18n="skinPreviewLabel">👁️ 실시간 미리보기</span>
+                <canvas id="skin-preview-canvas" width="140" height="75"></canvas>
+              </div>
+            </div>
+            <span id="block-skin-hint" class="setting-hint" data-i18n="blockSkinHint">선택한 스타일에 따라 블록의 질감과 입체감이 실시간으로 변경됩니다.</span>
+          </label>
+
+          <section class="setting-block">
+            <button type="button" class="toggle-row" data-setting="ghost">
+              <span class="toggle-name" data-i18n="ghost">👻 미리보기 그림자</span>
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">ON</span>
+            </button>
+            <div class="ghost-preview-row">
+              <label class="slider-row" for="ghost-strength" data-needs="ghost">
+                <span class="slider-label" data-i18n="ghostOpacity">그림자 진하기</span>
+                <span id="ghost-strength-value" class="slider-value">40%</span>
+                <input id="ghost-strength" class="big-slider slider-ghost-opacity" type="range" min="0" max="100" step="1" value="40">
+              </label>
+              <div class="ghost-preview-box" aria-hidden="true" title="고스트 미리보기">
+                <canvas id="ghost-preview-canvas" class="ghost-preview-canvas" width="60" height="60"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <section class="setting-block">
+            <button type="button" class="toggle-row" data-setting="shake">
+              <span class="toggle-name" data-i18n="shake">🫨 화면 진동</span>
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">ON</span>
+            </button>
+            <label class="slider-row" for="shake-strength" data-needs="shake">
+              <span class="slider-label" data-i18n="shakePower">진동 강도</span>
+              <span id="shake-strength-value" class="slider-value">70%</span>
+              <input id="shake-strength" class="big-slider" type="range" min="0" max="100" step="1" value="70">
+            </label>
+          </section>
+
+          <section class="setting-block setting-bg">
+            <p class="row-title" data-i18n="bgAdjust">🖼️ 배경 어둡기 / 블러</p>
+            <p class="setting-hint" data-i18n="bgAdjustHint">윈도우 배경의 어둡기/블러입니다. 게임 패널 배경은 [배경 설정] 탭에서 조절합니다.</p>
+            <label class="slider-row" for="bg-dim" data-needs="levelBgEnabled">
+              <span class="slider-label" data-i18n="dim">어둡기</span>
+              <span id="bg-dim-value" class="slider-value">55%</span>
+              <input id="bg-dim" class="big-slider" type="range" min="0" max="100" step="1" value="55">
+            </label>
+            <label class="slider-row" for="bg-blur" data-needs="levelBgEnabled">
+              <span class="slider-label" data-i18n="blur">블러</span>
+              <span id="bg-blur-value" class="slider-value">6px</span>
+              <input id="bg-blur" class="big-slider" type="range" min="0" max="20" step="1" value="6">
+            </label>
+          </section>
+
+          <section class="setting-block setting-profile">
+            <p class="row-title" data-i18n="profileTitle">👤 프로필 사진 등록</p>
+            <p id="profile-file-name" class="bgm-track">선택된 사진 없음</p>
+            <div class="profile-tune">
+              <div class="profile-preview-wrap">
+                <div class="profile-frame profile-frame-mini profile-crop-area profile-preview-box" id="profile-crop-area">
+                  <canvas id="profile-crop-canvas" class="profile-crop-canvas hidden" width="320" height="320"></canvas>
+                  <img id="profile-preview" class="profile-image profile-avatar-img hidden" alt="프로필 미리보기">
+                  <div id="profile-preview-fallback" class="profile-fallback">
+                    <span class="profile-icon" aria-hidden="true">👤</span>
+                    <span class="profile-caption" data-i18n="dad">아빠</span>
+                  </div>
+                </div>
+                <p class="setting-hint" data-i18n="profileDrag">원 안에서 드래그하면 위치가 바뀝니다. 휠로 50%~300% 확대/축소할 수 있습니다. (100% = 원본 크기)</p>
+              </div>
+              <div class="slider-row profile-zoom-row">
+                <span class="slider-label" data-i18n="zoom">🔍 확대/축소 (Scale)</span>
+                <span id="profile-zoom-value" class="slider-value">100%</span>
+                <div class="zoom-slider-wrap">
+                  <button type="button" id="profile-zoom-out" class="zoom-step-btn" title="🔍-" aria-label="축소">➖</button>
+                  <input id="profile-zoom" class="big-slider" type="range" min="50" max="300" step="1" value="100">
+                  <button type="button" id="profile-zoom-in" class="zoom-step-btn" title="🔍+" aria-label="확대">➕</button>
+                </div>
+              </div>
+              <label class="slider-row" for="profile-x">
+                <span class="slider-label" data-i18n="posX">↔️ 가로 위치 (X Offset)</span>
+                <span id="profile-x-value" class="slider-value">0px</span>
+                <input id="profile-x" class="big-slider" type="range" min="-200" max="200" step="1" value="0">
+              </label>
+              <label class="slider-row" for="profile-y">
+                <span class="slider-label" data-i18n="posY">↕️ 세로 위치 (Y Offset)</span>
+                <span id="profile-y-value" class="slider-value">0px</span>
+                <input id="profile-y" class="big-slider" type="range" min="-200" max="200" step="1" value="0">
+              </label>
+              <div class="profile-edit-actions">
+                <button type="button" id="profile-reset" class="ghost-btn" data-i18n="resetPos">🔄 위치/크기 초기화</button>
+                <button type="button" id="profile-save-btn" class="save-btn" data-i18n="profileSaveCrop">✅ 저장 완료</button>
+              </div>
+            </div>
+            <div class="profile-pick-row">
+              <button type="button" id="profile-pick-btn" class="file-btn" data-i18n="profileChoose">📷 사진 불러오기 / 변경</button>
+              <input id="profile-file" class="file-input hidden" type="file" accept="image/*">
+            </div>
+          </section>
+        </section>
+
+        <section class="settings-card settings-card-sound">
+          <h3 class="settings-section-title" data-i18n="settingsSectionSound">🔊 사운드 &amp; 볼륨 조절</h3>
+
+          <section class="setting-block">
+            <button type="button" class="toggle-row" data-setting="sound">
+              <span class="toggle-name" data-i18n="sound">🔇 전체 음소거 / 효과음</span>
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">ON</span>
+            </button>
+            <label class="slider-row" for="sound-volume" data-needs="sound">
+              <span class="slider-label" data-i18n="soundVolume">🔔 SFX 볼륨</span>
+              <span id="sound-volume-value" class="slider-value">80%</span>
+              <input id="sound-volume" class="big-slider" type="range" min="0" max="100" step="1" value="80">
+            </label>
+            <section class="setting-block land-sfx-block">
+              <p class="row-title" data-i18n="landSfxTitle">착지 효과음 톤 / 감도</p>
+              <label class="slider-row" for="land-sfx-lowpass" data-needs="sound">
+                <span class="slider-label" data-i18n="landSfxLowpass">착지 효과음 톤 (Low-Pass Filter)</span>
+                <span id="land-sfx-lowpass-value" class="slider-value">439 Hz</span>
+                <input id="land-sfx-lowpass" class="big-slider" type="range" min="0" max="100" step="1" value="40">
+              </label>
+              <label class="slider-row" for="land-sfx-decay" data-needs="sound">
+                <span class="slider-label" data-i18n="landSfxDecay">착지 효과음 감도 (Decay)</span>
+                <span id="land-sfx-decay-value" class="slider-value">296 ms</span>
+                <input id="land-sfx-decay" class="big-slider" type="range" min="0" max="100" step="1" value="30">
+              </label>
+              <p class="setting-hint" data-i18n="landSfxHint">슬라이더를 움직이면 착지음이 바로 미리 재생됩니다. 톤은 먹먹함↔선명함, 감도는 짧고 딱딱함↔길고 울림입니다.</p>
+            </section>
+          </section>
+
+          <section class="setting-block setting-bgm">
+            <button type="button" class="toggle-row" data-setting="bgm">
+              <span class="toggle-name media-card-title" data-i18n="bgm">🎵 배경음악</span>
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">OFF</span>
+            </button>
+            <p id="bgm-track" class="bgm-track">기본 제공 프리셋 적용 중</p>
+            <p id="bgm-asset-badge" class="asset-badge is-preset" data-i18n="assetPresetOn">기본 제공 프리셋 적용 중</p>
+            <div class="asset-actions bgm-file-row">
+              <label class="file-btn bgm-pick-btn" for="bgm-file">
+                <span data-i18n="chooseMusic">🎵 음악 파일 선택</span>
+                <input id="bgm-file" class="file-input" type="file" accept="audio/*">
+              </label>
+              <button type="button" id="bgm-restore" class="ghost-btn bgm-restore-btn" data-i18n="restoreDefaultAsset">기본값으로 되돌리기</button>
+            </div>
+            <label class="slider-row" for="bgm-volume">
+              <span class="slider-label" data-i18n="bgmVolume">🎵 BGM 볼륨</span>
+              <span id="bgm-volume-value" class="slider-value">70%</span>
+              <input id="bgm-volume" class="big-slider" type="range" min="0" max="100" step="1" value="70">
+            </label>
+          </section>
+        </section>
+
+        <section class="settings-card settings-card-play">
+          <h3 class="settings-section-title" data-i18n="settingsSectionPlay">🕹️ 게임플레이 &amp; 편의기능</h3>
+
+          <button type="button" class="toggle-row" data-setting="dadSpecial">
+            <span class="toggle-name" data-i18n="dadSpecialSetting">👑 DAD 스페셜 보조 기능</span>
+            <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+            <span class="toggle-state">OFF</span>
+          </button>
+
+          <button type="button" class="toggle-row" data-setting="haptic">
+            <span class="toggle-name" data-i18n="haptic">📱 모바일 터치 햅틱 피드백</span>
+            <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+            <span class="toggle-state">ON</span>
+          </button>
+
+          <label class="select-row lang-row" for="select-language">
+            <span class="row-title" data-i18n="language">🌐 언어 설정 (Language)</span>
+            <select id="select-language" name="language" autocomplete="off">
+              <option value="ko" selected>🇰🇷 한국어</option>
+              <option value="en">🇺🇸 English</option>
+              <option value="hi">🇮🇳 हिन्दी</option>
+              <option value="zh-CN">🇨🇳 简体中文</option>
+              <option value="es">🇪🇸 Español</option>
+              <option value="ja">🇯🇵 日本語</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="de">🇩🇪 Deutsch</option>
+              <option value="pt-BR">🇧🇷 Português</option>
+              <option value="ru">🇷🇺 Русский</option>
+              <option value="vi">🇻🇳 Tiếng Việt</option>
+              <option value="id">🇮🇩 Bahasa Indonesia</option>
+            </select>
+          </label>
+
+          <label class="select-row" for="start-level">
+            <span class="row-title" data-i18n="startLevel">🎮 시작 레벨</span>
+            <select id="start-level" aria-describedby="start-level-hint">
+              <option value="1">1레벨</option>
+              <option value="2">2레벨</option>
+              <option value="3">3레벨</option>
+              <option value="4">4레벨</option>
+              <option value="5">5레벨</option>
+              <option value="6">6레벨</option>
+              <option value="7">7레벨</option>
+              <option value="8">8레벨</option>
+              <option value="9">9레벨</option>
+              <option value="10">10레벨</option>
+            </select>
+            <span id="start-level-hint" class="setting-hint">Level 1: 편안한 속도</span>
+          </label>
+
+          <div id="board-size-setting-group" class="setting-block board-size-setting-group">
+            <label class="select-row board-size-row" for="select-board-size">
+              <span class="row-title" data-i18n="boardSizeTitle">📏 게임 보드 세로 높이 (낙하 거리)</span>
+              <select id="select-board-size" aria-describedby="board-size-hint">
+                <option value="20" data-i18n="boardSize20" selected>⚡ 표준 규격 (10 × 20칸)</option>
+                <option value="24" class="board-size-pc-only" data-i18n="boardSize24">🚀 롱 드롭 타워 (10 × 24칸) [추천: 낙하거리 +4칸]</option>
+                <option value="28" class="board-size-pc-only" data-i18n="boardSize28">🏰 울트라 타워 (10 × 28칸) [여유: 낙하거리 +8칸]</option>
+              </select>
+              <span id="board-size-hint" class="setting-hint" data-i18n="boardSizeHint">보드 세로 칸 수를 늘려 블록 낙하 시간과 판단 여유 공간을 더 넓게 확보합니다.</span>
+            </label>
+            <p id="board-size-mobile-badge" class="board-size-mobile-badge" data-i18n="boardSizeMobileOnly">📱 모바일 기본 20라인 전용</p>
+          </div>
+
+          <section class="setting-block garbage-lines-block">
+            <label class="slider-row" for="start-garbage-lines">
+              <span class="slider-label" data-i18n="startGarbageLines">🧱 시작 장애물 라인 (0 ~ 10층)</span>
+              <span id="start-garbage-lines-value" class="slider-value">0층 (클린 보드)</span>
+              <input id="start-garbage-lines" class="big-slider" type="range" min="0" max="10" step="1" value="0">
+            </label>
+            <p class="setting-hint" data-i18n="startGarbageHint">게임 시작 시 바닥부터 빈칸이 포함된 장애물 블록을 미리 깔아두고 시작하는 핸디캡/챌린지 기능입니다.</p>
+          </section>
+
+          <label class="select-row preview-mode-row" for="select-preview-mode">
+            <span class="row-title" data-i18n="previewGuideMode">🧩 블록 가이드 모드</span>
+            <select id="select-preview-mode" aria-describedby="preview-mode-hint">
+              <option value="standard" data-i18n="previewModeStandard">표준 모드 (좌: NEXT / 우: HOLD)</option>
+              <option value="dual" data-i18n="previewModeDual">2단 넥스트 모드 (좌: NEXT 1 / 우: NEXT 2)</option>
+            </select>
+            <span id="preview-mode-hint" class="setting-hint" data-i18n="previewModeHint">2단 넥스트 모드 선택 시 HOLD 대신 다다음(차차기) 블록까지 미리 확인하며 전략적인 플레이가 가능합니다.</span>
+          </label>
+
+          <section class="setting-block drop-speed-block">
+            <label class="slider-row drop-speed-row" for="slider-drop-speed-multiplier">
+              <span class="slider-label" data-i18n="dropSpeedMultiplier">⏱️ 블록 낙하 속도 조절</span>
+              <span id="drop-speed-multiplier-value" class="slider-value">1.0x (표준)</span>
+              <input id="slider-drop-speed-multiplier" class="big-slider" type="range" min="0.5" max="3" step="0.1" value="1">
+            </label>
+            <p class="setting-hint" data-i18n="dropSpeedHint">레벨업에 따른 속도 증가 곡선은 유지되며, 전체적인 기본 낙하 속도를 아버지의 손에 맞게 느리거나 빠르게 조절합니다.</p>
+          </section>
+
+          <section class="setting-block handling-block" id="handling-settings">
+            <p class="row-title" data-i18n="handlingTitle">🕹️ 조작 &amp; 감도</p>
+            <label class="slider-row" for="slider-das">
+              <span class="slider-label" data-i18n="dasLabel">DAS (첫 이동 딜레이)</span>
+              <span id="slider-das-value" class="slider-value">150ms</span>
+              <input id="slider-das" class="big-slider" type="range" min="100" max="300" step="5" value="150">
+            </label>
+            <p class="setting-hint" data-i18n="dasHint">키를 누른 뒤 연속 이동이 시작되기까지의 첫 대기 시간입니다. 기본 150ms.</p>
+            <label class="slider-row" for="slider-arr">
+              <span class="slider-label" data-i18n="arrLabel">ARR (연속 이동 속도)</span>
+              <span id="slider-arr-value" class="slider-value">33ms</span>
+              <input id="slider-arr" class="big-slider" type="range" min="15" max="80" step="1" value="33">
+            </label>
+            <p class="setting-hint" data-i18n="arrHint">DAS 이후 좌우가 반복되는 간격입니다. 값이 작을수록 빠릅니다. 기본 33ms.</p>
+            <label class="slider-row" for="slider-softdrop">
+              <span class="slider-label" data-i18n="softdropLabel">소프트드롭 속도 배율</span>
+              <span id="slider-softdrop-value" class="slider-value">10x</span>
+              <input id="slider-softdrop" class="big-slider" type="range" min="1" max="20" step="1" value="10">
+            </label>
+            <p class="setting-hint" data-i18n="softdropHint">아래 키/모바일 ▼ 소프트드롭 배율입니다. 1x~20x, 기본 10x. PC와 터치패드에 함께 적용됩니다.</p>
+          </section>
+
+          <section class="setting-block dad-duration-block">
+            <p class="row-title" id="dad-duration-title" data-i18n="dadDurationTitle">👑 DAD 스페셜 지속 시간</p>
+            <div class="dad-duration-seg" role="radiogroup" aria-labelledby="dad-duration-title">
+              <button type="button" class="dad-duration-btn is-on" data-dad-duration="3" aria-pressed="true" data-i18n="dadDuration3">3초 (기본)</button>
+              <button type="button" class="dad-duration-btn" data-dad-duration="5" aria-pressed="false" data-i18n="dadDuration5">5초 (여유)</button>
+              <button type="button" class="dad-duration-btn" data-dad-duration="10" aria-pressed="false" data-i18n="dadDuration10">10초 (슈퍼 이지)</button>
+            </div>
+            <p class="setting-hint" data-i18n="dadDurationHint">골든타임과 [K] 타임스톱에 함께 적용됩니다.</p>
+          </section>
+
+          <section class="setting-block">
+            <button type="button" id="mobile-pad-setting" class="toggle-row" aria-pressed="false">
+              <span class="toggle-name" data-i18n="mobilePad">📱 모바일 패드</span>
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">OFF</span>
+            </button>
+            <p class="setting-hint" data-i18n="mobilePadHint">화면이 좁거나 터치 기기에서는 자동으로 켜집니다. PC에서도 표시해 테스트할 수 있습니다.</p>
+          </section>
+
+          <section class="setting-block player-nickname-block" id="player-nickname-block">
+            <p class="row-title" data-i18n="playerNicknameSection">👤 플레이어 프로필 / 랭킹 설정</p>
+            <label class="select-row" for="input-player-nickname">
+              <span class="row-title" data-i18n="playerNicknameTitle">게이머 닉네임</span>
+              <input id="input-player-nickname" class="name-input player-nickname-input" type="text" maxlength="8" value="시스템" autocomplete="nickname" data-i18n-placeholder="playerNicknamePlaceholder" placeholder="닉네임 입력 (기본값: 시스템)">
+            </label>
+            <p class="setting-hint" data-i18n="playerNicknameHint">랭킹 등록에 쓰입니다. 비우면 기본값 ‘시스템’으로 저장됩니다. 한글/영문 8자까지.</p>
+          </section>
+
+          <section class="setting-block auto-record-block">
+            <button type="button" id="toggle-auto-record" class="toggle-row auto-record-toggle" data-setting="autoRecordMode" aria-pressed="false">
+              <span class="toggle-name" data-i18n="autoRecordMode">⚡ 자동 게임기록 모드</span>
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">OFF</span>
+            </button>
+            <p class="setting-hint" data-i18n="autoRecordHint">게임 종료 후 기록 팝업을 띄우지 않고, 설정한 게이머 닉네임(없으면 ‘시스템’)으로 날짜와 점수를 자동 저장합니다.</p>
+          </section>
+
+          <section class="setting-block">
+            <label class="slider-row autoplay-speed-row" for="autoplay-speed-settings">
+              <span class="slider-label" data-i18n="autoplaySpeed">AI 플레이 속도</span>
+              <span id="autoplay-speed-settings-value" class="slider-value">속도: 1.0x (표준)</span>
+              <input id="autoplay-speed-settings" class="big-slider" type="range" min="0.5" max="20" step="0.5" value="1">
+            </label>
+            <p class="setting-hint" data-i18n="autoplaySpeedHint">0.5x 슬로우 · 1x 표준 · 10x 고속 · 20x 초고속</p>
+          </section>
+        </section>
+      </div>
+
+
+      <div class="modal-body tab-panel hidden" data-tab-panel="levelbg">
+        <section class="setting-block bg-master-block">
+          <button type="button" id="toggle-disable-all-custom-bg" class="toggle-row level-bg-auto-toggle master-bg-toggle" data-setting="disableAllCustomBg" aria-pressed="false">
+            <span class="toggle-name" data-i18n="disableAllCustomBg">🚫 배경 이미지 전체 사용 안 함 (순정 네온 모드)</span>
+            <span class="toggle-controls">
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">OFF</span>
+            </span>
+          </button>
+          <p class="setting-hint" data-i18n="disableAllCustomBgHint">등록된 이미지는 그대로 보존되며, 켜면 배경 이미지를 숨기고 기본 사이버펑크 네온 테마로 즉시 전환됩니다.</p>
+        </section>
+        <div id="custom-bg-details" class="custom-bg-details">
+        <article class="level-bg-card level-bg-card-default bulk-bg-card" id="bulk-bg-card">
+          <div class="bulk-bg-head">
+            <div>
+              <p class="level-bg-title" data-i18n="bulkBgTitle">📦 배경 일괄 등록</p>
+              <p class="level-bg-caption" data-i18n="bulkBgHint">여러 장의 사진을 한 번에 선택하면 대기 이미지 및 레벨별 슬롯에 순서대로 자동 배치됩니다.</p>
+            </div>
+          </div>
+          <div class="bulk-bg-target bulk-target-group" role="radiogroup" aria-label="일괄 등록 대상">
+            <label class="bulk-bg-radio bulk-radio-btn bulk-option-card">
+              <input type="radio" name="bulk-bg-target" id="bulk-bg-target-window" value="window_all" checked>
+              <span data-i18n="bulkBgTargetWindow">전체 윈도우<br>배경 세트</span>
+            </label>
+            <label class="bulk-bg-radio bulk-radio-btn bulk-option-card">
+              <input type="radio" name="bulk-bg-target" id="bulk-bg-target-board" value="panel_all">
+              <span data-i18n="bulkBgTargetBoard">게임 패널<br>배경 세트</span>
+            </label>
+            <label class="bulk-bg-radio bulk-radio-btn bulk-option-card">
+              <input type="radio" name="bulk-bg-target" id="bulk-bg-target-smart" value="smart_all">
+              <span data-i18n="bulkBgTargetSmart">스마트 전체<br>자동 분배</span>
+            </label>
+          </div>
+          <div class="asset-actions bulk-bg-actions">
+            <button type="button" id="btn-bulk-select-files" class="file-btn">
+              <span data-i18n="bulkBgChoose">📁 여러 파일 선택</span>
+            </button>
+            <input id="bulk-bg-file-input" type="file" multiple accept="image/*" style="display: none;" aria-hidden="true">
+            <button type="button" id="btn-clear-all-bg" class="btn-danger-subtle" data-i18n="bulkBgClearAll">🗑️ 등록된 배경 전체 초기화</button>
+          </div>
+          <div id="bulk-upload-status-box" class="bulk-upload-status-box" hidden>
+            <div class="bulk-progress-shell">
+              <div id="bulk-progress-bar" style="width: 0%; height: 6px; background: #00f0ff; border-radius: 3px; transition: width 0.2s;"></div>
+            </div>
+            <div id="bulk-status-text" data-i18n="bulkStatusIdle" style="font-size: 0.76rem; color: #a5f3fc; margin-top: 6px;">대기 중...</div>
+            <div id="bulk-preview-grid" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; max-height: 80px; overflow-y: auto;"></div>
+          </div>
+        </article>
+        <section class="setting-block">
+          <p class="row-title" data-i18n="bgTargetTitle">배경 대상</p>
+          <div class="bg-target-toggle" role="tablist" aria-label="배경 대상">
+            <button type="button" class="bg-target-btn is-on" data-bg-target="window" role="tab" aria-selected="true" data-i18n="bgTargetWindow">🖥️ 전체 윈도우 배경</button>
+            <button type="button" class="bg-target-btn" data-bg-target="board" role="tab" aria-selected="false" data-i18n="bgTargetBoard">🎮 게임 패널 배경</button>
+          </div>
+          <button type="button" id="toggle-keep-default-bg" class="toggle-row level-bg-auto-toggle keep-default-bg-toggle" data-setting="keepDefaultWindowBg">
+            <span class="toggle-name" data-i18n="keepDefaultWindowBg">📌 기본 배경 계속 유지 (레벨업 시 변경 안 함)</span>
+            <span class="toggle-controls">
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">OFF</span>
+            </span>
+          </button>
+          <div id="window-bg-fx" class="board-bg-fx window-bg-fx">
+            <p class="setting-hint" data-i18n="windowBgFxHint">전체 윈도우 배경에만 적용됩니다. 실시간으로 반영됩니다.</p>
+            <div class="board-bg-fx-sliders">
+            <label class="slider-row" for="window-bg-blur">
+              <span class="slider-label" data-i18n="windowBgBlur">🌫️ 블러</span>
+              <span id="window-bg-blur-value" class="slider-value">0px</span>
+              <input id="window-bg-blur" class="big-slider" type="range" min="0" max="20" step="1" value="0">
+            </label>
+            <label class="slider-row" for="window-bg-opacity">
+              <span class="slider-label" data-i18n="windowBgOpacity">👁️ 투명도</span>
+              <span id="window-bg-opacity-value" class="slider-value">100%</span>
+              <input id="window-bg-opacity" class="big-slider" type="range" min="0" max="100" step="1" value="100">
+            </label>
+            </div>
+          </div>
+          <div id="board-bg-fx" class="board-bg-fx is-window-mode board-bg-tab-pane" data-tab-content="board-bg">
+            <p class="setting-hint" data-i18n="boardBgFxHint">게임 패널(보드) 배경에만 적용됩니다. 실시간으로 반영됩니다.</p>
+            <div class="board-bg-fx-sliders">
+            <label class="slider-row" for="board-bg-blur">
+              <span class="slider-label" data-i18n="blur">블러</span>
+              <span id="board-bg-blur-value" class="slider-value">0px</span>
+              <input id="board-bg-blur" class="big-slider" type="range" min="0" max="20" step="1" value="0">
+            </label>
+            <label class="slider-row" for="board-bg-opacity">
+              <span class="slider-label" data-i18n="boardBgOpacity">투명도</span>
+              <span id="board-bg-opacity-value" class="slider-value">80%</span>
+              <input id="board-bg-opacity" class="big-slider" type="range" min="0" max="100" step="1" value="80">
+            </label>
+            </div>
+          </div>
+          <button type="button" class="toggle-row level-bg-auto-toggle" data-setting="levelBgEnabled">
+            <span class="toggle-name" data-i18n="levelBgAuto">🖼️ 레벨별 배경 자동 변경</span>
+            <span class="toggle-controls">
+              <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+              <span class="toggle-state">OFF</span>
+            </span>
+          </button>
+          <p class="setting-hint level-bg-hint" data-i18n="levelBgHint">💡 권장 해상도: 1920x1080 (16:9 비율). 다른 해상도의 이미지도 자동으로 화면에 맞춰 적용됩니다.</p>
+        </section>
+        <article class="level-bg-card level-bg-card-default" data-level-bg="default">
+          <div class="level-bg-card-head">
+            <div>
+              <p class="level-bg-title" data-i18n="idleBgTitle">🖼️ 기본 대기 배경 이미지</p>
+              <p class="level-bg-caption" data-i18n="idleBgCaption">대기 화면과 게임 종료 화면에 사용됩니다</p>
+            </div>
+            <div class="level-bg-thumb"><img id="idle-bg-thumb" class="hidden" alt=""></div>
+          </div>
+          <p id="idle-bg-file" class="level-bg-file">기본 네온 그리드 적용됨</p>
+          <p id="idle-bg-badge" class="asset-badge is-preset" data-i18n="assetPresetOn">기본 제공 프리셋 적용 중</p>
+          <div class="asset-actions">
+            <label class="file-btn">
+              <span data-i18n="chooseLevelBg">🖼️ 이미지 선택</span>
+              <input class="file-input" type="file" accept="image/*" data-level-bg-file="default">
+            </label>
+            <button type="button" class="btn-delete-bg" data-restore-bg="default" data-i18n="deleteBg" disabled>🗑️ 삭제</button>
+          </div>
+        </article>
+        <div id="tab-content-board-bg" class="board-bg-tab-pane">
+        <article class="level-bg-card level-bg-card-default board-idle-bg-card is-window-hidden" id="board-idle-bg-card" data-level-bg="board-idle" hidden>
+          <div class="level-bg-card-head">
+            <div>
+              <p class="level-bg-title" data-i18n="idleBgTitleBoard">🖼️ 게임 패널 기본 대기 배경 이미지</p>
+              <p class="level-bg-caption" data-i18n="idleBgCaptionBoard">대기 화면과 게임 오버 패널에 사용됩니다</p>
+            </div>
+            <div class="level-bg-thumb"><img id="board-idle-bg-preview" class="hidden" alt=""></div>
+          </div>
+          <p id="board-idle-bg-file" class="level-bg-file">기본 네온 그리드 적용됨</p>
+          <p id="board-idle-bg-badge" class="asset-badge is-preset" data-i18n="assetPresetOn">기본 제공 프리셋 적용 중</p>
+          <div class="asset-actions">
+            <label class="file-btn" for="input-board-idle-bg">
+              <span data-i18n="chooseLevelBg">🖼️ 이미지 선택</span>
+            </label>
+            <input type="file" id="input-board-idle-bg" accept="image/*" style="display:none">
+            <button type="button" id="btn-delete-board-idle-bg" class="btn-danger-subtle btn-delete-bg" data-i18n="deleteBg" disabled>🗑️ 삭제</button>
+          </div>
+        </article>
+        </div>
+        <p class="row-title level-play-bg-title" data-i18n="levelPlayBgTitle">🎮 레벨 1 ~ 레벨 20 배경 이미지</p>
+        <p class="setting-hint" data-i18n="levelBgExtremeHint">등록한 이미지가 없으면 네온 그리드가 유지됩니다. 윈도우와 게임 패널 모두 기본 대기+레벨 1~20을 등록할 수 있습니다.</p>
+        <div id="level-bg-list" class="level-bg-list"></div>
+        </div>
+      </div>
+
+      <div class="modal-body tab-panel hidden" data-tab-panel="videos">
+        <section class="setting-block">
+          <button type="button" class="toggle-row" data-setting="videosEnabled">
+            <span class="toggle-name media-card-title" data-i18n="eventVideo">🎬 이벤트 동영상</span>
+            <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+            <span class="toggle-state">ON</span>
+          </button>
+          <p class="setting-hint" data-i18n="eventVideoHint">끄면 점수 달성·게임 종료 축하 팝업이 나오지 않습니다. 미리보기는 계속 사용할 수 있습니다.</p>
+        </section>
+
+        <section class="video-slot" data-video="goal1">
+          <div class="video-slot-head">
+            <p class="video-title media-card-title" id="video-title-goal1">🎉 5,000점 달성 영상</p>
+            <button type="button" class="preview-btn" data-preview="goal1" data-i18n="preview">▶️ 미리보기</button>
+          </div>
+          <label class="goal-row" for="goal1-score">
+            <span class="slider-label" data-i18n="goal1">1차 목표 점수</span>
+            <input id="goal1-score" class="score-input" type="number" min="100" max="999999" step="100" value="5000">
+            <input id="goal1-score-slider" class="big-slider" type="range" min="100" max="100000" step="100" value="5000">
+            <span id="goal1-hint" class="setting-hint">1차 목표 5,000점에 도달하면 축하 팝업이 재생됩니다.</span>
+          </label>
+          <p class="video-status" id="video-status-goal1">등록된 영상 없음</p>
+          <label class="file-btn">
+            <span data-i18n="fileSelect">파일 선택 (MP4 등)</span>
+            <input class="file-input" type="file" accept="video/*" data-video-file="goal1">
+          </label>
+          <input class="url-input" type="url" data-video-url="goal1" placeholder="유튜브 또는 영상 URL 입력" data-i18n-placeholder="videoUrlPlaceholder">
+        </section>
+
+        <section class="video-slot" data-video="goal2">
+          <div class="video-slot-head">
+            <p class="video-title media-card-title" id="video-title-goal2">🏆 10,000점 달성 영상</p>
+            <button type="button" class="preview-btn" data-preview="goal2" data-i18n="preview">▶️ 미리보기</button>
+          </div>
+          <label class="goal-row" for="goal2-score">
+            <span class="slider-label" data-i18n="goal2">2차 목표 점수</span>
+            <input id="goal2-score" class="score-input" type="number" min="100" max="999999" step="100" value="10000">
+            <input id="goal2-score-slider" class="big-slider" type="range" min="100" max="100000" step="100" value="10000">
+            <span id="goal2-hint" class="setting-hint">2차 목표 10,000점에 도달하면 축하 팝업이 재생됩니다.</span>
+          </label>
+          <p class="video-status" id="video-status-goal2">등록된 영상 없음</p>
+          <label class="file-btn">
+            <span data-i18n="fileSelect">파일 선택 (MP4 등)</span>
+            <input class="file-input" type="file" accept="video/*" data-video-file="goal2">
+          </label>
+          <input class="url-input" type="url" data-video-url="goal2" placeholder="유튜브 또는 영상 URL 입력" data-i18n-placeholder="videoUrlPlaceholder">
+        </section>
+
+        <section class="video-slot" data-video="gameover">
+          <div class="video-slot-head">
+            <p class="video-title media-card-title" id="video-title-gameover" data-i18n="gameoverVideo">👏 게임 종료 (수고하셨습니다) 영상</p>
+            <button type="button" class="preview-btn" data-preview="gameover" data-i18n="preview">▶️ 미리보기</button>
+          </div>
+          <p class="video-status" id="video-status-gameover">등록된 영상 없음</p>
+          <label class="file-btn">
+            <span data-i18n="fileSelect">파일 선택 (MP4 등)</span>
+            <input class="file-input" type="file" accept="video/*" data-video-file="gameover">
+          </label>
+          <input class="url-input" type="url" data-video-url="gameover" placeholder="유튜브 또는 영상 URL 입력" data-i18n-placeholder="videoUrlPlaceholder">
+        </section>
+      </div>
+
+      <div class="modal-body tab-panel hidden" data-tab-panel="scores">
+        <p class="setting-hint" data-i18n="hallHint">명예의 전당에서 1위부터 10위까지 기록을 보고 관리할 수 있습니다.</p>
+        <button type="button" id="open-hall-from-settings" class="save-btn" data-i18n="openHall">🏆 명예의 전당 열기</button>
+      </div>
+
+      <footer class="modal-foot settings-foot">
+        <button type="button" id="settings-reset" class="ghost-btn danger settings-reset-btn" data-i18n="resetSettings">🔄 기본값 복원</button>
+        <button type="button" id="settings-save" class="save-btn settings-done-btn" data-i18n="saveAndClose">💾 설정 완료 / 닫기</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="celebrate-modal" class="modal celebrate-modal hidden" role="dialog" aria-modal="true" aria-labelledby="celebrate-message">
+    <div class="modal-backdrop" id="celebrate-backdrop"></div>
+    <div class="modal-panel celebrate-panel">
+      <p id="celebrate-message" class="celebrate-message"></p>
+      <div id="celebrate-stage" class="celebrate-stage is-fallback">
+        <video id="celebrate-video" class="celebrate-video hidden" playsinline controls></video>
+        <iframe id="celebrate-frame" class="celebrate-frame hidden" title="축하 영상" data-i18n-title="celebrateFrame" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <div id="celebrate-fallback" class="celebrate-fallback" aria-hidden="true"></div>
+      </div>
+      <button type="button" id="celebrate-close" class="save-btn popup-btn btn-confirm btn-close" data-i18n="closeResume">닫기 / 게임 재개</button>
+    </div>
+  </div>
+
+  <div id="score-save-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="score-save-title">
+    <div class="modal-backdrop" id="score-save-backdrop"></div>
+    <div id="gameover-modal" class="modal-panel score-save-panel custom-modal-content popup-box">
+      <h2 id="score-save-title" class="popup-title" data-i18n="gameOverMsg">👏 수고하셨습니다!</h2>
+      <p class="score-save-lead popup-desc" data-i18n="enterName">이름을 입력해 주세요</p>
+      <p id="score-save-summary" class="score-save-summary popup-score">점수 0 · 레벨 1</p>
+      <div id="rank-submit-box" class="rank-submit-box">
+        <label class="select-row" for="player-name">
+          <span class="slider-label" data-i18n="playerName">플레이어 이름</span>
+          <input id="player-name" class="name-input" type="text" maxlength="8" value="시스템" autocomplete="nickname" data-i18n-placeholder="playerNicknamePlaceholder" placeholder="닉네임 입력 (기본값: 시스템)">
+        </label>
+        <p id="ranking-notice-submit" class="ranking-notice" data-i18n="ranking_notice">랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다</p>
+      </div>
+      <button type="button" id="score-save-btn" class="save-btn popup-btn btn-confirm" data-i18n="saveRecord">기록 저장</button>
+      <button type="button" id="score-save-skip" class="ghost-btn popup-btn btn-close" data-i18n="skipSave">저장하지 않기</button>
+    </div>
+  </div>
+
+  <div id="autoplay-end-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="autoplay-end-title">
+    <div class="modal-backdrop" id="autoplay-end-backdrop"></div>
+    <div class="modal-panel score-save-panel custom-modal-content popup-box">
+      <h2 id="autoplay-end-title" class="popup-title" data-i18n="autoplayEndedTitle">🤖 AI 자동 플레이가 종료되었습니다</h2>
+      <p id="autoplay-end-summary" class="score-save-summary popup-score">점수 0 · 레벨 1</p>
+      <p class="setting-hint popup-desc popup-sub" data-i18n="autoplayEndedHint">이 점수는 명예의 전당에 저장되지 않습니다.</p>
+      <button type="button" id="autoplay-end-close" class="save-btn popup-btn btn-confirm btn-close" data-i18n="close">닫기</button>
+    </div>
+  </div>
+
+  <div id="hall-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="hall-title">
+    <div class="modal-backdrop" id="hall-backdrop"></div>
+    <div id="hall-of-fame-modal" class="modal-panel hall-panel">
+      <header class="modal-head">
+        <h2 id="hall-title" data-i18n="hallTitle">🏆 명예의 전당</h2>
+        <button type="button" id="hall-x" class="modal-x" aria-label="닫기" data-i18n-aria="closeAria">✕</button>
+      </header>
+      <div class="hall-tabs" id="hall-rank-tabs" role="tablist" aria-label="랭킹 구분">
+        <button type="button" id="tab-rank-domestic" class="hall-tab is-on" data-rank-tab="domestic" role="tab" aria-selected="true" data-i18n="tabRankDomestic">🇰🇷 국내 랭킹</button>
+        <button type="button" id="tab-rank-global" class="hall-tab" data-rank-tab="global" role="tab" aria-selected="false" data-i18n="tabRankGlobal">🌐 글로벌 랭킹</button>
+      </div>
+      <div class="hall-list" id="hall-list" role="tabpanel"></div>
+      <footer class="modal-foot hall-foot">
+        <button type="button" id="hall-reset" class="ghost-btn danger" data-i18n="resetAll">전체 기록 초기화</button>
+        <button type="button" id="hall-close" class="save-btn" data-i18n="close">닫기</button>
+      </footer>
+      <p id="ranking-notice-hall" class="ranking-notice" data-i18n="rankingNoticeFull">ℹ️ 랭킹 차트의 기록은 데이터 최적화 및 운영/관리 필요성에 의해 사전 예고 없이 초기화되거나 삭제될 수 있습니다.</p>
+      <canvas id="rank-share-card" class="rank-share-card" width="400" height="500" hidden aria-hidden="true"></canvas>
+    </div>
+  </div>
+
+  <div id="diag-modal" class="modal diag-modal hidden" role="dialog" aria-modal="true" aria-labelledby="diag-title">
+    <div class="modal-backdrop" id="diag-backdrop"></div>
+    <div class="modal-panel diag-panel">
+      <header class="modal-head diag-head">
+        <h2 id="diag-title" data-i18n="diagTitle">🧪 실시간 자동 진단 콘솔</h2>
+        <button type="button" id="diag-x" class="modal-x" aria-label="닫기" data-i18n-aria="closeAria">✕</button>
+      </header>
+      <div class="diag-progress-wrap">
+        <div class="diag-progress-meta">
+          <span id="diag-current" class="diag-current">대기 중</span>
+          <span id="diag-percent" class="diag-percent">0%</span>
+        </div>
+        <div class="diag-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="diag-progress-fill" class="diag-progress-fill"></div>
+        </div>
+        <div id="diag-stages" class="diag-stages" aria-label="진단 단계"></div>
+      </div>
+      <div id="diag-items" class="diag-items"></div>
+      <div id="diag-log-container" class="diag-log-box">
+        <div class="diag-toolbar diag-log-toolbar">
+          <button type="button" id="btn-copy-diag-log" class="diag-action-btn" data-i18n="diagCopyLog">📋 로그 복사</button>
+          <button type="button" id="btn-export-diag-log" class="diag-action-btn" data-i18n="diagSaveFile">💾 파일로 저장</button>
+        </div>
+        <pre id="diag-log" class="diag-log" aria-live="polite"></pre>
+        <div class="diag-toolbar diag-log-toolbar diag-log-toolbar-bottom">
+          <button type="button" class="diag-action-btn" data-diag-export="copy" data-i18n="diagCopyLog">📋 로그 복사</button>
+          <button type="button" class="diag-action-btn" data-diag-export="export" data-i18n="diagSaveFile">💾 파일로 저장</button>
+        </div>
+        <p id="diag-export-toast" class="diag-export-toast hidden" role="status"></p>
+      </div>
+      <footer class="modal-foot diag-foot">
+        <button type="button" id="diag-run" class="save-btn" data-i18n="diagRun">▶ 전수 검사 시작</button>
+        <button type="button" id="diag-close" class="ghost-btn" data-i18n="diagClose" disabled>닫기</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="pwa-guide-modal" class="modal pwa-guide-modal hidden" role="dialog" aria-modal="true" aria-labelledby="pwa-guide-title">
+    <div class="modal-backdrop" id="pwa-guide-backdrop"></div>
+    <div class="modal-panel pwa-guide-panel">
+      <header class="modal-head">
+        <h2 id="pwa-guide-title" data-i18n="pwaGuideTitle">📲 홈 화면에 추가</h2>
+        <button type="button" id="pwa-guide-x" class="modal-x" aria-label="닫기" data-i18n-aria="closeAria">✕</button>
+      </header>
+      <p id="pwa-guide-body" class="pwa-guide-body" data-i18n="pwaGuideBody">브라우저 상단/하단 메뉴(⋮ 또는 공유 버튼 ⎋) ➜ [홈 화면에 추가]를 눌러주세요!</p>
+      <footer class="modal-foot">
+        <button type="button" id="pwa-guide-ok" class="pwa-guide-ok" data-i18n="pwaGuideOk">확인</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="ingame-confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ingame-confirm-title">
+    <div class="modal-backdrop" id="ingame-confirm-backdrop"></div>
+    <div class="modal-panel custom-modal-content popup-box alert-box ingame-confirm-panel">
+      <h2 id="ingame-confirm-title" class="popup-title alert-title" data-i18n="confirmAction">확인</h2>
+      <p id="ingame-confirm-desc" class="popup-desc popup-sub"></p>
+      <div class="ingame-confirm-actions">
+        <button type="button" id="ingame-confirm-cancel" class="ghost-btn popup-btn btn-close" data-i18n="confirmCancel">취소</button>
+        <button type="button" id="ingame-confirm-ok" class="save-btn popup-btn btn-confirm" data-i18n="confirmOk">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="shutdown-screen" class="shutdown-screen hidden" role="status" aria-live="polite">
+    <p id="shutdown-message" data-i18n="gameTerminatedMsg">🎮 모든 게임 프로세스가 안전하게 종료되었습니다. 탭을 닫아주세요.</p>
+  </div>
+  <script src="./script.js?v=20260816_131"></script>
+</body>
+</html>

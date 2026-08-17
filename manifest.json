@@ -1,0 +1,19 @@
+{
+  "name": "DAD TETRIS",
+  "short_name": "DadTetris",
+  "description": "아빠를 위한 테트리스",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a14",
+  "theme_color": "#00d2ff",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
