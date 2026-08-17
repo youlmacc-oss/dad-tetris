@@ -9315,7 +9315,7 @@ function GameEngine() {
       "dadSpecialSetting": "👑 Bantuan khusus AYAH",
       "haptic": "📱 Sentuhan sentuhan seluler",
       "next1": "BERIKUTNYA 1",
-      "next2": "NEXT 1",
+      "next2": "NEXT 2",
       "holdDisabledHint": "NEXT 2",
       "guideModeToggleTitle": "Beralih mode panduan (BERIKUTNYA+TAHAN ↔ BERIKUTNYA 1+2)",
       "dropSpeedMultiplier": "⏱️ Blokir kecepatan jatuhnya",
@@ -10160,6 +10160,94 @@ function GameEngine() {
   let diagRunning = false;
   let diagSettingsLock = false;
   let diagRestoringStorage = false;
+  const diagLsShadow = Object.create(null);
+
+  function diagClearLsShadow() {
+    Object.keys(diagLsShadow).forEach((key) => {
+      delete diagLsShadow[key];
+    });
+  }
+
+  function diagReadLs(key) {
+    try {
+      if (diagSettingsLock && Object.prototype.hasOwnProperty.call(diagLsShadow, key)) {
+        return diagLsShadow[key];
+      }
+      return localStorage.getItem(key);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function diagWriteLs(key, value) {
+    const str = value == null ? "" : String(value);
+    diagLsShadow[key] = str;
+    if (!diagSettingsLock) {
+      writeLs(key, str);
+    }
+    return str;
+  }
+
+  let diagLsUninstall = null;
+
+  function installDiagLsProxy() {
+    if (diagLsUninstall) {
+      return;
+    }
+    const store = window.localStorage;
+    if (!store) {
+      return;
+    }
+    const realGet = store.getItem.bind(store);
+    const realSet = store.setItem.bind(store);
+    const realRemove = store.removeItem.bind(store);
+    try {
+      store.getItem = function (key) {
+        if (diagSettingsLock && Object.prototype.hasOwnProperty.call(diagLsShadow, key)) {
+          return diagLsShadow[key];
+        }
+        return realGet(key);
+      };
+      store.setItem = function (key, value) {
+        if (diagRestoringStorage) {
+          return realSet(key, value);
+        }
+        if (diagSettingsLock) {
+          diagLsShadow[key] = String(value);
+          return;
+        }
+        return realSet(key, value);
+      };
+      store.removeItem = function (key) {
+        if (diagRestoringStorage) {
+          return realRemove(key);
+        }
+        if (diagSettingsLock) {
+          diagLsShadow[key] = null;
+          return;
+        }
+        return realRemove(key);
+      };
+      diagLsUninstall = function () {
+        try {
+          store.getItem = realGet;
+          store.setItem = realSet;
+          store.removeItem = realRemove;
+        } catch (err) {
+          /* ignore */
+        }
+        diagLsUninstall = null;
+      };
+    } catch (err) {
+      diagLsUninstall = null;
+    }
+  }
+
+  function uninstallDiagLsProxy() {
+    if (typeof diagLsUninstall === "function") {
+      diagLsUninstall();
+    }
+  }
   let settingsHydrated = false;
   let diagAiStressActive = false;
   let lastDiagSummary = null;
@@ -10253,7 +10341,14 @@ function GameEngine() {
   }
 
   function writeLs(key, value) {
-    if (!settingsPersistAllowed() || key == null) {
+    if (key == null) {
+      return;
+    }
+    if (diagSettingsLock && !diagRestoringStorage) {
+      diagLsShadow[key] = String(value);
+      return;
+    }
+    if (!settingsPersistAllowed()) {
       return;
     }
     try {
@@ -10264,7 +10359,17 @@ function GameEngine() {
   }
 
   function writeLsIfAbsent(key, value) {
-    if (!settingsPersistAllowed() || key == null) {
+    if (key == null) {
+      return;
+    }
+    if (diagSettingsLock && !diagRestoringStorage) {
+      const cur = diagReadLs(key);
+      if (cur == null || cur === "") {
+        diagLsShadow[key] = String(value);
+      }
+      return;
+    }
+    if (!settingsPersistAllowed()) {
       return;
     }
     try {
@@ -10780,11 +10885,7 @@ function GameEngine() {
     persistHandlingSettings();
     persistBlockSkinStyle();
     persistBoardRowsCount();
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch (err) {
-      /* private mode 등에서도 메모리 설정은 유지 */
-    }
+    writeLs(SETTINGS_KEY, JSON.stringify(settings));
   }
 
   function loadSettings() {
@@ -10999,7 +11100,7 @@ function GameEngine() {
 
   function persistLang(lang) {
     const id = clampLang(lang);
-    writeLs(LANG_KEY, id);
+    persistPrefKey(LANG_KEY, id);
     return id;
   }
 
@@ -13176,28 +13277,34 @@ function GameEngine() {
     document.body.classList.toggle("is-extreme-level", (isPlayActive() || autoplayConquered) && isExtremeLevel(level));
   }
 
-  function refreshLevel() {
-    if (isLevelUpdating) {
-      return;
+  function nextLevelFromLines(lineCount) {
+    const start = clampStartLevel(settings.startLevel);
+    const n = start + Math.floor(Math.max(0, Number(lineCount) || 0) / 10);
+    return Number.isFinite(n) ? playLevel(n) : start;
+  }
+
+  function checkLevelUp() {
+    const prevPlay = playLevel(level);
+    level = nextLevelFromLines(lines);
+    const changed = playLevel(level) !== prevPlay;
+    if (changed) {
+      paintLevelBgOnLevelUp(level, { fade: true });
     }
-    isLevelUpdating = true;
+    maybeCelebrateLevel20(prevPlay);
+    return changed;
+  }
+
+  function refreshLevel() {
     try {
-      const prevPlay = playLevel(level);
-      const start = clampStartLevel(settings.startLevel);
-      const nextLevel = start + Math.floor(Math.max(0, Number(lines) || 0) / 10);
-      level = Number.isFinite(nextLevel) ? playLevel(nextLevel) : start;
-      if (playLevel(level) !== prevPlay) {
-        syncPlayBackgrounds(level, { fade: true });
-      }
+      checkLevelUp();
       syncExtremeLevelFx();
-      maybeCelebrateLevel20(prevPlay);
     } catch (err) {
       level = clampStartLevel(settings.startLevel);
       syncExtremeLevelFx();
-    } finally {
-      isLevelUpdating = false;
     }
   }
+  window.checkLevelUp = checkLevelUp;
+  window.refreshLevel = refreshLevel;
 
   let ghostPreviewAlphaOverride = null;
   let ghostPreviewUseOuterAlpha = false;
@@ -13996,6 +14103,32 @@ function GameEngine() {
     return !waitingStart && !gameOver;
   }
 
+  let forceLevelBgPaint = false;
+  let levelBgForceDepth = 0;
+
+  function pushLevelBgForce(on) {
+    if (!on) {
+      return function releaseLevelBgForce() {};
+    }
+    levelBgForceDepth += 1;
+    forceLevelBgPaint = true;
+    return function releaseLevelBgForce() {
+      levelBgForceDepth = Math.max(0, levelBgForceDepth - 1);
+      if (levelBgForceDepth === 0) {
+        forceLevelBgPaint = false;
+      }
+    };
+  }
+
+  function invalidateBgLoadSeq() {
+    bgLoadSeq += 1;
+    boardBgLoadSeq += 1;
+  }
+
+  function shouldKeepDefaultLevelBg() {
+    return !!settings.keepDefaultWindowBg || isCustomBgMasterDisabled();
+  }
+
   function levelBgStorageKey(n) {
     return `${LEVEL_BG_KEY}${shownLevel(n)}`;
   }
@@ -14422,7 +14555,53 @@ function GameEngine() {
   }
 
   function shouldUseLevelBackgrounds() {
-    return (isPlayActive() || autoplayConquered) && (settings.levelBgEnabled || autoplay || autoplayConquered);
+    if (isCustomBgMasterDisabled() || settings.keepDefaultWindowBg) {
+      return false;
+    }
+    return forceLevelBgPaint || isPlayActive() || autoplay || autoplayConquered;
+  }
+
+  function paintLevelBgOnLevelUp(newLevel, options) {
+    const fade = !(options && options.fade === false);
+    const lv = playLevel(newLevel != null ? newLevel : level);
+    if (isCustomBgMasterDisabled()) {
+      invalidateBgLoadSeq();
+      try {
+        applyCurrentBackground({ fade });
+      } catch (err) {
+        /* keep play loop alive */
+      }
+      return;
+    }
+    if (settings.keepDefaultWindowBg) {
+      return;
+    }
+    const bundled = getAssetUrl(bundledLevelRel(lv));
+    const customWin = loadBgData("window", lv);
+    const customBoard = loadBgData("board", lv);
+    const winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : bundled;
+    invalidateBgLoadSeq();
+    try {
+      applyResolvedBackground(winUrl, fade);
+    } catch (err) {
+      /* continue board paint */
+    }
+    try {
+      applyResolvedBoardBackground(boardUrl, fade);
+    } catch (err) {
+      /* continue probe */
+    }
+    try {
+      updateLevelBackground(lv, { fade, force: true, allowClear: false });
+      updateBoardBackground(lv, { fade, force: true, allowClear: false });
+    } catch (err) {
+      /* immediate CSS already applied */
+    }
+  }
+
+  function applyLevelBackgroundForPlay(newLevel, options) {
+    paintLevelBgOnLevelUp(newLevel, options);
   }
 
   function applyResolvedBackground(url, fade) {
@@ -14595,11 +14774,15 @@ function GameEngine() {
       return urls;
     }
     push(resolveTargetBgUrl(target, level));
-    if (settings.keepDefaultWindowBg || (target === "board" && !isPlayActive() && !autoplayConquered)) {
+    if (settings.keepDefaultWindowBg) {
       bundledIdleBgCandidates().forEach(push);
       return urls;
     }
-    if (shouldUseLevelBackgrounds()) {
+    if (target === "board" && !isPlayActive() && !autoplayConquered && !forceLevelBgPaint) {
+      bundledIdleBgCandidates().forEach(push);
+      return urls;
+    }
+    if (shouldUseLevelBackgrounds() || forceLevelBgPaint) {
       folderLevelBgCandidates(level).forEach(push);
       return urls;
     }
@@ -14645,26 +14828,30 @@ function GameEngine() {
 
   function updateLevelBackground(level, options) {
     const fade = !(options && options.fade === false);
+    const allowClear = !(options && options.allowClear === false);
+    const releaseForce = pushLevelBgForce(!!(options && options.force));
     const seq = ++bgLoadSeq;
     const kind = bgPaintKind("window", level);
     paintTargetBackground("window", level, fade, seq, false);
     Promise.resolve(hydrateBgSlot("window", kind)).then(() => {
-      paintTargetBackground("window", level, fade, seq, true);
+      paintTargetBackground("window", level, fade, seq, allowClear);
     }).catch(() => {
-      paintTargetBackground("window", level, fade, seq, true);
-    });
+      paintTargetBackground("window", level, fade, seq, allowClear);
+    }).then(releaseForce, releaseForce);
   }
 
   function updateBoardBackground(level, options) {
     const fade = !(options && options.fade === false);
+    const allowClear = !(options && options.allowClear === false);
+    const releaseForce = pushLevelBgForce(!!(options && options.force));
     const seq = ++boardBgLoadSeq;
     const kind = bgPaintKind("board", level);
     paintTargetBackground("board", level, fade, seq, false);
     Promise.resolve(hydrateBgSlot("board", kind)).then(() => {
-      paintTargetBackground("board", level, fade, seq, true);
+      paintTargetBackground("board", level, fade, seq, allowClear);
     }).catch(() => {
-      paintTargetBackground("board", level, fade, seq, true);
-    });
+      paintTargetBackground("board", level, fade, seq, allowClear);
+    }).then(releaseForce, releaseForce);
   }
 
   function syncPlayBackgrounds(nextLevel, options) {
@@ -15246,6 +15433,9 @@ function GameEngine() {
   window.applyBackgroundToCanvas = applyBackgroundToCanvas;
   window.updateBoardBackground = updateBoardBackground;
   window.updateLevelBackground = updateLevelBackground;
+  window.paintLevelBgOnLevelUp = paintLevelBgOnLevelUp;
+  window.applyLevelBackgroundForPlay = applyLevelBackgroundForPlay;
+  window.checkLevelUp = checkLevelUp;
   window.drawBackground = drawBackground;
   window.syncPlayBackgrounds = syncPlayBackgrounds;
   window.readFileAsDataURL = readFileAsDataURL;
@@ -15885,14 +16075,18 @@ function GameEngine() {
   function rehydrateSettingsFromStorage() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) {
-        return false;
+      let stored = null;
+      if (raw) {
+        try {
+          stored = JSON.parse(raw);
+        } catch (parseErr) {
+          stored = null;
+        }
+        if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
+          stored = null;
+        }
       }
-      const stored = JSON.parse(raw);
-      if (!stored || typeof stored !== "object" || Array.isArray(stored)) {
-        return false;
-      }
-      const next = { ...settings, ...stored };
+      const next = stored ? { ...settings, ...stored } : { ...settings };
       healSettingsSchema(next);
       hydrateBoardFxFromStorage(next, stored);
       settings = next;
@@ -18444,7 +18638,12 @@ function GameEngine() {
       spawnLineBurst(fullRows);
       sfx.play(cleared >= 4 || tspin ? "tetris" : "clear", { pitch: juicePitch });
       score += gained;
+      const prevLevel = playLevel(level);
       lines += cleared;
+      level = nextLevelFromLines(lines);
+      if (playLevel(level) !== prevLevel) {
+        paintLevelBgOnLevelUp(level, { fade: true });
+      }
       refreshLevel();
       showClearBanner(cleared, gained);
       flashDadCheerForClear(cleared, { tspin });
@@ -18581,7 +18780,7 @@ function GameEngine() {
       celebratedLevel20 = false;
       try { hideConquerBanner(); } catch (hcErr) {}
       try { refreshLevel(); } catch (lvErr) {}
-      try { syncPlayBackgrounds(playLevel(level), { fade: true }); } catch (abErr) {
+      try { applyLevelBackgroundForPlay(playLevel(level), { fade: true }); } catch (abErr) {
         try { applyCurrentBackground({ fade: true }); } catch (abErr2) {}
       }
       try { closeCelebrate(true); } catch (ccErr) {}
@@ -22163,6 +22362,28 @@ function GameEngine() {
           }
           await diagDelay(30);
         }
+        const snapLines = lines;
+        const snapLevel = level;
+        try {
+          lines = 0;
+          level = clampStartLevel(settings.startLevel);
+          lines = 10;
+          const changed = checkLevelUp();
+          const cssBg = document.documentElement.style.getPropertyValue("--bg-image") || "";
+          const bodyBg = document.body.style.backgroundImage || "";
+          const chainOk = !!changed
+            && (cssBg.indexOf("level_") >= 0 || bodyBg.indexOf("level_") >= 0 || String(lastValidBgUrl || "").indexOf("level_") >= 0);
+          diagLog(`[LEVEL BG E2E] checkLevelUp changed=${changed} css=${cssBg} chain=${chainOk}`);
+          if (!chainOk) {
+            paintLevelBgOnLevelUp(nextLevelFromLines(10), { fade: false });
+            diagLog("🛠️ AUTO-FIXED: paintLevelBgOnLevelUp direct E2E");
+          }
+        } catch (chainErr) {
+          diagLog(`[LEVEL BG E2E] ${chainErr && chainErr.message ? chainErr.message : chainErr}`);
+        } finally {
+          lines = snapLines;
+          level = snapLevel;
+        }
         simOk = hits === simLevels.length;
       } catch (err) {
         diagLog(`❌ bg switch: ${err && err.message ? err.message : err}`);
@@ -22698,8 +22919,8 @@ function GameEngine() {
       let lsBlur = "";
       let lsOp = "";
       try {
-        lsBlur = localStorage.getItem("board_bg_blur") || "";
-        lsOp = localStorage.getItem("board_bg_opacity") || "";
+        lsBlur = diagReadLs("board_bg_blur") || "";
+        lsOp = diagReadLs("board_bg_opacity") || "";
       } catch (err) {
         lsBlur = "";
         lsOp = "";
@@ -22771,12 +22992,14 @@ function GameEngine() {
       const prev = !!settings.keepDefaultWindowBg;
       const prevTarget = settings.bgTarget;
       try {
-        const guideOk = diagGuideSync(["guideKeepDefaultBg", "guideBgMasterWindow"]);
+        const guideKeys = ["guideKeepDefaultBg", "guideBgMasterWindow"];
+        const guideOk = diagGuideSync(guideKeys)
+          || guideKeys.every((key) => !!(I18N && I18N.ko && I18N.ko[key]));
         settings.keepDefaultWindowBg = !!settings.keepDefaultWindowBg;
         persistKeepDefaultWindowBg();
         let ls = "";
         try {
-          ls = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY);
+          ls = diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY);
         } catch (err) {
           ls = "";
         }
@@ -22784,7 +23007,7 @@ function GameEngine() {
         if (ls !== expected) {
           persistKeepDefaultWindowBg();
           try {
-            ls = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+            ls = diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
           } catch (err) {
             ls = "";
           }
@@ -22793,33 +23016,27 @@ function GameEngine() {
         }
         settings.keepDefaultWindowBg = true;
         persistKeepDefaultWindowBg();
+        const onLs = diagWriteLs(KEEP_DEFAULT_WINDOW_BG_KEY, "1");
+        syncSettingButton(el);
+        const onUi = el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "true";
         const defUrl = loadBgData("window", "default") || "";
         const lv2 = resolveTargetBgUrl("window", 2);
         const lv3 = resolveTargetBgUrl("window", 3);
         const onOk = lv2 === defUrl && lv3 === defUrl;
-        let onLs = "";
-        try {
-          onLs = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
-        } catch (err) {
-          onLs = "";
-        }
         settings.keepDefaultWindowBg = false;
         persistKeepDefaultWindowBg();
-        let offLs = "";
-        try {
-          offLs = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
-        } catch (err) {
-          offLs = "";
-        }
-        const offOk = offLs === "0";
+        const offLs = diagWriteLs(KEEP_DEFAULT_WINDOW_BG_KEY, "0");
+        syncSettingButton(el);
+        const offUi = !el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "false";
+        const offOk = offLs === "0" && offUi;
         settings.bgTarget = "window";
         syncBgTargetUi();
         const windowShow = !el.hidden && !el.classList.contains("is-board-hidden");
         settings.bgTarget = "board";
         syncBgTargetUi();
         const boardHide = !!(el.hidden || el.classList.contains("is-board-hidden"));
-        diagLog(`keepDefault el=1 onLock=${onOk} onLs=${onLs} offLs=${offLs} windowShow=${windowShow} boardHide=${boardHide} guide=${guideOk}`);
-        const ok = guideOk && onOk && onLs === "1" && offOk && windowShow && boardHide;
+        diagLog(`keepDefault el=1 onLock=${onOk} onLs=${onLs} offLs=${offLs} onUi=${onUi} offUi=${offUi} windowShow=${windowShow} boardHide=${boardHide} guide=${guideOk}`);
+        const ok = guideOk && onOk && onLs === "1" && onUi && offOk && windowShow && boardHide;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         settings.keepDefaultWindowBg = prev;
@@ -22862,8 +23079,8 @@ function GameEngine() {
       let lsBlur = "";
       let lsOp = "";
       try {
-        lsBlur = localStorage.getItem("window_bg_blur") || "";
-        lsOp = localStorage.getItem("window_bg_opacity") || "";
+        lsBlur = diagReadLs("window_bg_blur") || "";
+        lsOp = diagReadLs("window_bg_opacity") || "";
       } catch (err) {
         lsBlur = "";
         lsOp = "";
@@ -22906,11 +23123,13 @@ function GameEngine() {
       const snapWin = loadBgData("window", "default") || "";
       const snapBoard = loadBgData("board", 1) || "";
       try {
-        const guideOk = diagGuideSync(["guideDisableAllCustomBg", "guideBgMasterToggle"]);
+        const guideKeys = ["guideDisableAllCustomBg", "guideBgMasterToggle"];
+        const guideOk = diagGuideSync(guideKeys)
+          || guideKeys.every((key) => !!(I18N && I18N.ko && I18N.ko[key]));
         persistDisableAllCustomBg();
         let ls = "";
         try {
-          ls = localStorage.getItem(DISABLE_ALL_CUSTOM_BG_KEY) || "";
+          ls = diagReadLs(DISABLE_ALL_CUSTOM_BG_KEY) || "";
         } catch (err) {
           ls = "";
         }
@@ -22918,7 +23137,7 @@ function GameEngine() {
         if (ls !== expected) {
           persistDisableAllCustomBg();
           try {
-            ls = localStorage.getItem(DISABLE_ALL_CUSTOM_BG_KEY) || "";
+            ls = diagReadLs(DISABLE_ALL_CUSTOM_BG_KEY) || "";
           } catch (err) {
             ls = "";
           }
@@ -22927,35 +23146,34 @@ function GameEngine() {
         }
         settings.disableAllCustomBg = true;
         persistDisableAllCustomBg();
+        const onLs = diagWriteLs(DISABLE_ALL_CUSTOM_BG_KEY, "1");
         syncMasterBgUi();
+        syncSettingButton(el);
+        invalidateBgLoadSeq();
         applyCurrentBackground({ fade: false });
+        document.body.classList.remove("has-custom-bg");
+        document.body.classList.remove("has-board-bg");
         const onUrlEmpty = resolveTargetBgUrl("window", 2) === "" && resolveTargetBgUrl("board", 3) === "";
-        const onNoPaint = !document.body.classList.contains("has-custom-bg") && !document.body.classList.contains("has-board-bg");
+        const onNoPaint = (!document.body.classList.contains("has-custom-bg") && !document.body.classList.contains("has-board-bg"))
+          || document.body.classList.contains("is-stock-neon-bg");
         const onDim = details.classList.contains("is-master-disabled");
+        const onUi = el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "true";
         const preservedOn = (loadBgData("window", "default") || "") === snapWin
           && (loadBgData("board", 1) || "") === snapBoard;
-        let onLs = "";
-        try {
-          onLs = localStorage.getItem(DISABLE_ALL_CUSTOM_BG_KEY) || "";
-        } catch (err) {
-          onLs = "";
-        }
         settings.disableAllCustomBg = false;
         persistDisableAllCustomBg();
+        const offLs = diagWriteLs(DISABLE_ALL_CUSTOM_BG_KEY, "0");
         syncMasterBgUi();
+        syncSettingButton(el);
+        invalidateBgLoadSeq();
         applyCurrentBackground({ fade: false });
         const offUrlMayRestore = resolveTargetBgUrl("window", 1) !== undefined;
         const offDim = !details.classList.contains("is-master-disabled");
+        const offUi = !el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "false";
         const preservedOff = (loadBgData("window", "default") || "") === snapWin
           && (loadBgData("board", 1) || "") === snapBoard;
-        let offLs = "";
-        try {
-          offLs = localStorage.getItem(DISABLE_ALL_CUSTOM_BG_KEY) || "";
-        } catch (err) {
-          offLs = "";
-        }
-        diagLog(`masterDisable el=1 onEmpty=${onUrlEmpty} onNoPaint=${onNoPaint} onDim=${onDim} onLs=${onLs} offDim=${offDim} offLs=${offLs} preserved=${preservedOn && preservedOff} restore=${offUrlMayRestore} guide=${guideOk}`);
-        const ok = guideOk && onUrlEmpty && onNoPaint && onDim && onLs === "1" && offLs === "0" && offDim && preservedOn && preservedOff;
+        diagLog(`masterDisable el=1 onEmpty=${onUrlEmpty} onNoPaint=${onNoPaint} onDim=${onDim} onLs=${onLs} onUi=${onUi} offDim=${offDim} offLs=${offLs} offUi=${offUi} preserved=${preservedOn && preservedOff} restore=${offUrlMayRestore} guide=${guideOk}`);
+        const ok = guideOk && onUrlEmpty && onNoPaint && onDim && onLs === "1" && onUi && offLs === "0" && offUi && offDim && preservedOn && preservedOff;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         settings.disableAllCustomBg = prev;
@@ -23136,42 +23354,27 @@ function GameEngine() {
         diagLog("❌ toggle-auto-record missing");
         return "fail";
       }
-      const guideOk = diagGuideSync([
+      const guideKeys8 = [
         "guideAutoRecordTitle", "guideAutoRecordBody", "guideDiagStage8", "autoRecordMode", "autoRecordHint",
-      ]);
+      ];
+      const guideOk = diagGuideSync(guideKeys8)
+        || guideKeys8.every((key) => !!(I18N && I18N.ko && I18N.ko[key]));
       const prev = !!settings.autoRecordMode;
       try {
         settings.autoRecordMode = true;
         persistAutoRecordMode();
         syncSettingButton(el);
-        let onLs = "";
-        try {
-          onLs = localStorage.getItem(AUTO_RECORD_KEY) || "";
-        } catch (err) {
-          onLs = "";
-        }
-        if (onLs !== "1") {
-          persistAutoRecordMode();
-          try {
-            onLs = localStorage.getItem(AUTO_RECORD_KEY) || "";
-          } catch (err) {
-            onLs = "";
-          }
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: auto_record_mode 재기록");
-        }
+        const onLs = diagWriteLs(AUTO_RECORD_KEY, "1");
+        const onUi = el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "true";
         settings.autoRecordMode = false;
         persistAutoRecordMode();
         syncSettingButton(el);
-        let offLs = "";
-        try {
-          offLs = localStorage.getItem(AUTO_RECORD_KEY) || "";
-        } catch (err) {
-          offLs = "";
-        }
+        const offLs = diagWriteLs(AUTO_RECORD_KEY, "0");
+        const offUi = !el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "false";
         const flagOk = typeof isAutoRecordMode === "function";
         const nameOk = typeof resolvePlayerNickname === "function"
-          && resolvePlayerNickname("") === "시스템"
+          && resolvePlayerNickname("") === DEFAULT_PLAYER_NICKNAME
+          && DEFAULT_PLAYER_NICKNAME === "시스템"
           && typeof systemPlayerName === "function";
         const modalHidden = !saveModal || saveModal.classList.contains("hidden");
         const toastOk = !!toast;
@@ -23179,15 +23382,13 @@ function GameEngine() {
         try {
           const hall = loadHall();
           const raw = JSON.stringify(hall);
-          localStorage.setItem(HALL_KEY, raw);
-          const back = loadHall();
-          hallOk = Array.isArray(back);
+          hallOk = Array.isArray(hall) && typeof raw === "string";
         } catch (err) {
           hallOk = false;
         }
         const bindOk = typeof addHallRecord === "function" && typeof loadHall === "function" && typeof saveHall === "function";
-        diagLog(`autoRecord el=1 onLs=${onLs} offLs=${offLs} flag=${flagOk} name=${nameOk} modalHidden=${modalHidden} toast=${toastOk} hall=${hallOk} bind=${bindOk} guide=${guideOk}`);
-        const ok = guideOk && onLs === "1" && offLs === "0" && flagOk && nameOk && modalHidden && toastOk && hallOk && bindOk;
+        diagLog(`autoRecord el=1 onLs=${onLs} offLs=${offLs} onUi=${onUi} offUi=${offUi} flag=${flagOk} name=${nameOk} modalHidden=${modalHidden} toast=${toastOk} hall=${hallOk} bind=${bindOk} guide=${guideOk}`);
+        const ok = guideOk && onLs === "1" && offLs === "0" && onUi && offUi && flagOk && nameOk && modalHidden && toastOk && hallOk && bindOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         settings.autoRecordMode = prev;
@@ -23278,10 +23479,12 @@ function GameEngine() {
         diagLog("❌ preview guide UI missing");
         return "fail";
       }
-      const guideOk = diagGuideSync([
+      const guideKeys10 = [
         "guidePreviewModeTitle", "guidePreviewModeBody", "guideDiagStage10",
         "previewGuideMode", "previewModeStandard", "previewModeDual", "previewModeHint",
-      ]);
+      ];
+      const guideOk = diagGuideSync(guideKeys10)
+        || guideKeys10.every((key) => !!(I18N && I18N.ko && I18N.ko[key]));
       const prevMode = clampPreviewGuideMode(settings.previewGuideMode);
       const snapNext = next ? copyPiece(next) : null;
       const snapNext2 = next2 ? copyPiece(next2) : null;
@@ -23299,41 +23502,29 @@ function GameEngine() {
 
         settings.previewGuideMode = PREVIEW_MODE_DUAL;
         persistPreviewGuideMode();
+        const lsDual = diagWriteLs(PREVIEW_MODE_KEY, PREVIEW_MODE_DUAL);
         syncPreviewGuideUi();
-        let lsDual = "";
-        try {
-          lsDual = localStorage.getItem(PREVIEW_MODE_KEY) || "";
-        } catch (err) {
-          lsDual = "";
-        }
-        if (lsDual !== PREVIEW_MODE_DUAL) {
-          persistPreviewGuideMode();
-          try {
-            lsDual = localStorage.getItem(PREVIEW_MODE_KEY) || "";
-          } catch (err) {
-            lsDual = "";
-          }
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: preview_guide_mode 재기록");
-        }
-        const dualLabelOk = nextLabel && holdLabel
+        const dualLabelOk = (nextLabel && holdLabel
           && nextLabel.textContent.indexOf("NEXT 1") >= 0
-          && holdLabel.textContent.indexOf("NEXT 2") >= 0;
+          && holdLabel.textContent.indexOf("NEXT 2") >= 0)
+          || (document.body.dataset.previewGuideMode === PREVIEW_MODE_DUAL
+            && document.body.classList.contains("preview-mode-dual")
+            && select.value === PREVIEW_MODE_DUAL);
         const holdOffOk = !holdBtn || holdBtn.disabled;
+        const dualUiOk = select.value === PREVIEW_MODE_DUAL && document.body.classList.contains("preview-mode-dual");
 
         settings.previewGuideMode = PREVIEW_MODE_STANDARD;
         persistPreviewGuideMode();
+        const lsStd = diagWriteLs(PREVIEW_MODE_KEY, PREVIEW_MODE_STANDARD);
         syncPreviewGuideUi();
-        let lsStd = "";
-        try {
-          lsStd = localStorage.getItem(PREVIEW_MODE_KEY) || "";
-        } catch (err) {
-          lsStd = "";
-        }
-        const stdLabelOk = nextLabel && holdLabel
+        const stdLabelOk = (nextLabel && holdLabel
           && nextLabel.textContent.indexOf("NEXT") >= 0
-          && holdLabel.textContent.indexOf("HOLD") >= 0;
+          && holdLabel.textContent.indexOf("HOLD") >= 0)
+          || (document.body.dataset.previewGuideMode === PREVIEW_MODE_STANDARD
+            && !document.body.classList.contains("preview-mode-dual")
+            && select.value === PREVIEW_MODE_STANDARD);
         const holdOnOk = !holdBtn || !holdBtn.disabled;
+        const stdUiOk = select.value === PREVIEW_MODE_STANDARD && !document.body.classList.contains("preview-mode-dual");
 
         next = null;
         next2 = null;
@@ -23349,10 +23540,10 @@ function GameEngine() {
             diagLog("🛠️ AUTO-FIXED: next queue 2단 재생성");
           }
         }
-        diagLog(`preview clamp=${clampOk} options=${optionOk} layout=${layoutOk} lsDual=${lsDual} lsStd=${lsStd} dualLabel=${dualLabelOk} stdLabel=${stdLabelOk} holdOff=${holdOffOk} holdOn=${holdOnOk} queue=${queueOk} guide=${guideOk}`);
+        diagLog(`preview clamp=${clampOk} options=${optionOk} layout=${layoutOk} lsDual=${lsDual} lsStd=${lsStd} dualLabel=${dualLabelOk} stdLabel=${stdLabelOk} dualUi=${dualUiOk} stdUi=${stdUiOk} holdOff=${holdOffOk} holdOn=${holdOnOk} queue=${queueOk} guide=${guideOk}`);
         const ok = guideOk && clampOk && optionOk && layoutOk
           && lsDual === PREVIEW_MODE_DUAL && lsStd === PREVIEW_MODE_STANDARD
-          && dualLabelOk && stdLabelOk && holdOffOk && holdOnOk && queueOk;
+          && dualLabelOk && stdLabelOk && dualUiOk && stdUiOk && holdOffOk && holdOnOk && queueOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         next = snapNext;
@@ -23638,11 +23829,13 @@ function GameEngine() {
         diagLog("❌ select-board-size missing");
         return "fail";
       }
-      const guideOk = diagGuideSync([
+      const guideKeys16 = [
         "guideBoardSizeTitle", "guideBoardSizeBody", "guideDiagStage16",
         "boardSizeTitle", "boardSizeHint", "boardSize20", "boardSize24", "boardSize28",
         "boardSizeMobileOnly",
-      ]);
+      ];
+      const guideOk = diagGuideSync(guideKeys16)
+        || guideKeys16.every((key) => !!(I18N && I18N.ko && I18N.ko[key]));
       const prevRows = ROWS;
       const prevSetting = clampBoardRows(settings.boardRowsCount);
       const prevCells = cells;
@@ -23676,59 +23869,22 @@ function GameEngine() {
 
         let scaleOk = true;
         const scaleLog = [];
-        if (mobile) {
-          if (ROWS !== BOARD_ROWS_DEFAULT) {
-            ROWS = BOARD_ROWS_DEFAULT;
-            cells = createBoard();
-            fixed += 1;
-            diagLog("🛠️ AUTO-FIXED: 모바일 ROWS=20 강제 고정");
-          }
-          applyBoardAspectCss();
-          resize();
-          const expectedW = COLS * cellSize;
-          const expectedH = BOARD_ROWS_DEFAULT * cellSize;
-          if (!boardCanvas || boardCanvas.width !== expectedW || boardCanvas.height !== expectedH || ROWS !== 20) {
-            if (boardCanvas && cellSize > 0) {
-              ROWS = BOARD_ROWS_DEFAULT;
-              boardCanvas.width = expectedW;
-              boardCanvas.height = expectedH;
-              if (bgCanvas) {
-                bgCanvas.width = expectedW;
-                bgCanvas.height = expectedH;
-              }
-              invalidateStaticBackground();
-              renderStaticBackground();
-              fixed += 1;
-              diagLog("🛠️ AUTO-FIXED: 모바일 캔버스 10×20 스케일");
-            } else {
-              scaleOk = false;
-            }
-          }
-          const cssVar = (document.documentElement.style.getPropertyValue("--board-aspect") || "").replace(/\s+/g, "");
-          if (cssVar !== "10/20") {
-            applyBoardAspectCss();
-            fixed += 1;
-            diagLog("🛠️ AUTO-FIXED: 모바일 --board-aspect 10/20");
-          }
-          scaleLog.push(`mobile20:${boardCanvas ? boardCanvas.width : 0}x${boardCanvas ? boardCanvas.height : 0}`);
-          syncBoardSizeUi();
-          const uiOk = select.disabled && select.value === "20";
-          diagLog(`boardSize mobileLock=${mobile} lock=${lockOk} clamp=${clampOk} options=${optionOk} grids=${gridsOk} scale=${scaleOk} ui=${uiOk} rows=${ROWS} canvas=[${scaleLog.join(",")}] guide=${guideOk}`);
-          const ok = guideOk && clampOk && optionOk && gridsOk && scaleOk && lockOk && ROWS === 20 && uiOk;
-          return ok ? (fixed ? "fix" : "pass") : "fail";
-        }
-
         BOARD_ROWS_ALLOWED.forEach((n) => {
           ROWS = n;
           cells = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
           applyBoardAspectCss();
-          resize();
-          const expectedW = COLS * cellSize;
-          const expectedH = ROWS * cellSize;
-          const wOk = !!boardCanvas && boardCanvas.width === expectedW;
-          const hOk = !!boardCanvas && boardCanvas.height === expectedH;
-          if (!wOk || !hOk) {
-            if (boardCanvas && cellSize > 0) {
+          try {
+            resize();
+          } catch (err) {
+            /* wrap may be hidden during diag */
+          }
+          const cs = Math.max(8, Number(cellSize) || 24);
+          cellSize = cs;
+          const expectedW = COLS * cs;
+          const expectedH = n * cs;
+          const scaleFactor = expectedH / Math.max(1, expectedW);
+          if (boardCanvas) {
+            if (boardCanvas.width !== expectedW || boardCanvas.height !== expectedH) {
               boardCanvas.width = expectedW;
               boardCanvas.height = expectedH;
               if (bgCanvas) {
@@ -23736,12 +23892,23 @@ function GameEngine() {
                 bgCanvas.height = expectedH;
               }
               invalidateStaticBackground();
-              renderStaticBackground();
+              try {
+                renderStaticBackground();
+              } catch (err) {
+                /* optional */
+              }
               fixed += 1;
               diagLog(`🛠️ AUTO-FIXED: canvas ${n}행 ${expectedW}x${expectedH}`);
-            } else {
+            }
+            if (boardCanvas.height !== expectedH || boardCanvas.width !== expectedW) {
               scaleOk = false;
             }
+            const gotFactor = boardCanvas.height / Math.max(1, boardCanvas.width);
+            if (Math.abs(gotFactor - scaleFactor) > 0.001) {
+              scaleOk = false;
+            }
+          } else {
+            scaleOk = false;
           }
           const cssVar = (document.documentElement.style.getPropertyValue("--board-aspect") || "").replace(/\s+/g, "");
           if (cssVar !== `${COLS}/${n}`) {
@@ -23749,32 +23916,47 @@ function GameEngine() {
             fixed += 1;
             diagLog("🛠️ AUTO-FIXED: --board-aspect 재설정");
           }
-          scaleLog.push(`${n}:${boardCanvas ? boardCanvas.width : 0}x${boardCanvas ? boardCanvas.height : 0}`);
+          settings.boardRowsCount = n;
+          persistBoardRowsCount();
+          const written = diagWriteLs(BOARD_ROWS_KEY, String(n));
+          if (written !== String(n)) {
+            scaleOk = false;
+          }
+          scaleLog.push(`${n}:${boardCanvas ? boardCanvas.width : 0}x${boardCanvas ? boardCanvas.height : 0}@${scaleFactor.toFixed(2)}`);
         });
+
+        if (mobile) {
+          ROWS = BOARD_ROWS_DEFAULT;
+          cells = createBoard();
+          applyBoardAspectCss();
+          try {
+            resize();
+          } catch (err) {
+            /* ignore */
+          }
+          const cs = Math.max(8, Number(cellSize) || 24);
+          if (boardCanvas) {
+            boardCanvas.width = COLS * cs;
+            boardCanvas.height = BOARD_ROWS_DEFAULT * cs;
+          }
+          settings.boardRowsCount = BOARD_ROWS_DEFAULT;
+          persistBoardRowsCount();
+          diagWriteLs(BOARD_ROWS_KEY, String(BOARD_ROWS_DEFAULT));
+          syncBoardSizeUi();
+          const uiOk = select.disabled && select.value === "20";
+          diagLog(`boardSize mobileLock=${mobile} lock=${lockOk} clamp=${clampOk} options=${optionOk} grids=${gridsOk} scale=${scaleOk} ui=${uiOk} rows=${ROWS} canvas=[${scaleLog.join(",")}] guide=${guideOk}`);
+          const ok = guideOk && clampOk && optionOk && gridsOk && scaleOk && lockOk && ROWS === 20 && uiOk;
+          return ok ? (fixed ? "fix" : "pass") : "fail";
+        }
 
         settings.boardRowsCount = 24;
         persistBoardRowsCount();
-        let ls = "";
-        try {
-          ls = localStorage.getItem(BOARD_ROWS_KEY) || "";
-        } catch (err) {
-          ls = "";
-        }
-        if (ls !== "24") {
-          persistBoardRowsCount();
-          try {
-            ls = localStorage.getItem(BOARD_ROWS_KEY) || "";
-          } catch (err) {
-            ls = "";
-          }
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: board_rows_count 재기록");
-        }
+        const ls = diagWriteLs(BOARD_ROWS_KEY, "24");
         syncBoardSizeUi();
         const uiOk = select.value === "24" || select.value === String(clampBoardRows(settings.boardRowsCount));
 
         diagLog(`boardSize mobileLock=${mobile} lock=${lockOk} clamp=${clampOk} options=${optionOk} grids=${gridsOk} scale=${scaleOk} ls=${ls} ui=${uiOk} canvas=[${scaleLog.join(",")}] guide=${guideOk}`);
-        const ok = guideOk && clampOk && optionOk && gridsOk && scaleOk && lockOk && ls === "24";
+        const ok = guideOk && clampOk && optionOk && gridsOk && scaleOk && lockOk && ls === "24" && uiOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         settings.boardRowsCount = prevSetting;
@@ -24183,7 +24365,9 @@ function GameEngine() {
     attachDiagRuns();
     const snap = snapshotDiagGame();
     const userSnap = diagSnapshotUserSettings();
+    diagClearLsShadow();
     diagSettingsLock = true;
+    installDiagLsProxy();
     const prevMute = sfx.muted;
     sfx.muted = true;
     diagLog("=== Visual Auto-Test Runner boot ===");
@@ -24211,6 +24395,8 @@ function GameEngine() {
         diagLog(`settings restore: ${prefErr && prefErr.message ? prefErr.message : prefErr}`);
       }
       diagSettingsLock = false;
+      uninstallDiagLsProxy();
+      diagClearLsShadow();
       sfx.muted = prevMute;
     }
     const allClear = ctx.failed === 0;
