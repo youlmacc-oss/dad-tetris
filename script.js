@@ -2683,6 +2683,10 @@ function GameEngine() {
       "guideIdleSplitBody": "전체 윈도우와 왼쪽 게임 패널은 대기 이미지를 따로 등록합니다. 각 탭에서 블러·투명도를 조절하고, [기본 배경 계속 유지]를 켜면 플레이 중에도 대기 배경이 유지됩니다.",
       "guideIdleSplitWindow": "🖥️ 전체 윈도우: 기본 대기 이미지 + 레벨 1~20, 윈도우 전용 블러/투명도",
       "guideIdleSplitBoard": "🎮 게임 패널: 패널 대기 이미지 + 레벨 1~20, 패널 전용 블러/투명도",
+      "guideLevelBgLiveBody": "레벨이 오르면 IndexedDB 슬롯(bg_level_X) 또는 기본 폴백 이미지가 보드/패널 배경에 즉시 연동됩니다. [기본 배경 고정]이 켜져 있으면 대기 배경을 유지합니다.",
+      "guideDiagLevelBgSim": "자가진단이 Level 1→5→10→20을 순차 전환하며 bg_level_X 조회와 캔버스/DOM 배경 렌더 호출을 검증합니다.",
+      "guideDiagLevelBgSlots": "Level 1~20 슬롯과 Idle 대기 슬롯은 키가 분리되며, 커스텀이 없으면 폴백 이미지를 로드합니다.",
+      "guideDiagLevelBgInterlock": "마스터 끄기·기본 고정·블러/투명도 값은 레벨 전환 중에도 DOM/Canvas에 유지됩니다.",
       "guidePcTitle": "💻 PC 키보드",
       "guideMobileTitle": "📱 모바일 터치패드",
       "guideMobileArcadeBody": "세로 화면은 한 장(100dvh, 스크롤 없음)에 맞춥니다. 상단은 타이틀과 ⚙️설정·📖가이드·✏️진단 미니메뉴, 중앙은 좌측 10×20 게임 보드와 우측 기능타워(시작/종료, NEXT·HOLD, 2x2 점수판, AUTO, DAD 스페셜), 그 아래 가로 와이드 DAD 전광판, 최하단은 7버튼 터치패드입니다. 보드 중앙의 ‘게임 시작을 눌러 주세요’를 터치하면 바로 시작합니다.",
@@ -3259,6 +3263,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "💻 PC keyboard",
       "guideMobileTitle": "📱 Mobile touch pad",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -3835,6 +3843,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "PC कीबोर्ड",
       "guideMobileTitle": "मोबाइल टच पैड",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -4411,6 +4423,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "💻 PC键盘",
       "guideMobileTitle": "📱 移动触摸板",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -4987,6 +5003,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "Teclado de PC 💻",
       "guideMobileTitle": "📱 Panel táctil móvil",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -5563,6 +5583,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "💻 PC キーボード",
       "guideMobileTitle": "📱 モバイルタッチパッド",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -6139,6 +6163,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "Clavier PC 💻",
       "guideMobileTitle": "📱 Tablette tactile mobile",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -6715,6 +6743,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "💻 PC-Tastatur",
       "guideMobileTitle": "📱 Mobiles Touchpad",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -7291,6 +7323,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "💻 Teclado de PC",
       "guideMobileTitle": "📱 Touch pad móvel",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -7867,6 +7903,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "Клавиатура ПК",
       "guideMobileTitle": "Сенсорный пад",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -8443,6 +8483,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "💻 Bàn phím máy tính",
       "guideMobileTitle": "📱 Bàn di chuột cảm ứng",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -9019,6 +9063,10 @@ function GameEngine() {
       "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
       "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
       "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
+      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
+      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
       "guidePcTitle": "Bab.5: 💾 IndexedDB media",
       "guideMobileTitle": "💻 papan ketik komputer",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -12733,7 +12781,7 @@ function GameEngine() {
       const nextLevel = start + Math.floor(Math.max(0, Number(lines) || 0) / 10);
       level = Number.isFinite(nextLevel) ? playLevel(nextLevel) : start;
       if (playLevel(level) !== prevPlay) {
-        applyCurrentBackground({ fade: true });
+        syncPlayBackgrounds(level, { fade: true });
       }
       syncExtremeLevelFx();
       maybeCelebrateLevel20(prevPlay);
@@ -13344,20 +13392,89 @@ function GameEngine() {
     return dest === "board" ? `bg_panel_lvl_${n}` : `bg_lvl_${n}`;
   }
 
-  function loadBgData(target, kind) {
-    const key = bgStoreKey(target, kind);
-    const logical = bgLogicalKey(target, kind);
-    let url = mediaStore.peek(key) || mediaStore.peek(logical) || readLocal(key);
-    if (target === "board" && (kind === "default" || kind === "idle")) {
-      url = mediaStore.peek(BOARD_IDLE_BG_IDB) || mediaStore.peek("bg_panel_idle") || url;
-    } else if (!isUserMediaUrl(url) && target !== "board") {
-      if (kind === "default") {
-        url = mediaStore.peek("idleBg") || mediaStore.peek("bg_idle") || readLocal(IDLE_BG_KEY);
+  function bgLevelAliasKey(n) {
+    return `bg_level_${shownLevel(n)}`;
+  }
+
+  function bgCandidateKeys(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    const idle = kind === "default" || kind === "idle";
+    const keys = [];
+    const push = (key) => {
+      if (key && keys.indexOf(key) < 0) {
+        keys.push(key);
+      }
+    };
+    push(bgStoreKey(dest, idle ? "default" : kind));
+    push(bgLogicalKey(dest, idle ? "idle" : kind));
+    if (idle) {
+      if (dest === "board") {
+        push(BOARD_IDLE_BG_IDB);
+        push("bg_panel_idle");
+        push("custom_bg_board_default");
       } else {
-        url = mediaStore.peek(`levelBg${shownLevel(kind)}`) || mediaStore.peek(`bg_lvl_${shownLevel(kind)}`) || readLocal(levelBgStorageKey(kind));
+        push("idleBg");
+        push("bg_idle");
+        push("custom_bg_window_default");
+      }
+    } else {
+      const n = shownLevel(kind);
+      push(bgLevelAliasKey(n));
+      if (dest === "board") {
+        push(`custom_bg_board_level_${n}`);
+        push(`bg_panel_lvl_${n}`);
+      } else {
+        push(`custom_bg_window_level_${n}`);
+        push(`bg_lvl_${n}`);
+        push(`levelBg${n}`);
+      }
+    }
+    return keys;
+  }
+
+  function isPaintableBgUrl(url) {
+    if (typeof url !== "string" || !url) {
+      return false;
+    }
+    if (isUserMediaUrl(url)) {
+      return true;
+    }
+    return /^\/?images\/bg\d+\.jpg$/i.test(url);
+  }
+
+  function loadBgData(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    const idle = kind === "default" || kind === "idle";
+    const keys = bgCandidateKeys(dest, idle ? "default" : kind);
+    let url = "";
+    for (let i = 0; i < keys.length; i++) {
+      const hit = mediaStore.peek(keys[i]) || readLocal(keys[i]);
+      if (isUserMediaUrl(hit)) {
+        url = hit;
+        break;
+      }
+    }
+    if (!isUserMediaUrl(url) && dest !== "board") {
+      if (idle) {
+        url = mediaStore.peek("idleBg") || mediaStore.peek("bg_idle") || readLocal(IDLE_BG_KEY) || url;
+      } else {
+        const n = shownLevel(kind);
+        url = mediaStore.peek(`levelBg${n}`) || mediaStore.peek(`bg_lvl_${n}`) || mediaStore.peek(bgLevelAliasKey(n)) || readLocal(levelBgStorageKey(n)) || url;
       }
     }
     return isUserMediaUrl(url) ? url : "";
+  }
+
+  async function hydrateBgSlot(target, kind) {
+    const keys = bgCandidateKeys(target, kind);
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        await mediaStore.get(keys[i]);
+      } catch (err) {
+        /* ignore missing slot */
+      }
+    }
+    return keys;
   }
 
   function loadBoardIdleBgUrl() {
@@ -13710,6 +13827,9 @@ function GameEngine() {
     for (let n = 1; n <= LEVEL_BG_MAX; n++) {
       await mediaStore.get(bgStoreKey("window", n));
       await mediaStore.get(bgStoreKey("board", n));
+      await mediaStore.get(bgLevelAliasKey(n));
+      await mediaStore.get(`bg_lvl_${n}`);
+      await mediaStore.get(`bg_panel_lvl_${n}`);
     }
     const bgmUrl = await mediaStore.get("bgm");
     if (bgmUrl) {
@@ -13753,7 +13873,7 @@ function GameEngine() {
   }
 
   function paintBodyBackground(url) {
-    if (!isUserMediaUrl(url)) {
+    if (!isPaintableBgUrl(url)) {
       document.body.style.removeProperty("background-image");
       document.body.style.removeProperty("background-size");
       document.body.style.removeProperty("background-position");
@@ -13767,7 +13887,7 @@ function GameEngine() {
   }
 
   function fadeLayerBackground(state, url, fade) {
-    if (!isUserMediaUrl(url)) {
+    if (!isPaintableBgUrl(url)) {
       url = "";
     }
     const image = cssBgImage(url);
@@ -13853,7 +13973,7 @@ function GameEngine() {
   }
 
   function applyResolvedBackground(url, fade) {
-    if (!isUserMediaUrl(url)) {
+    if (!isPaintableBgUrl(url)) {
       clearCustomBackground(!!fade);
       return;
     }
@@ -13865,7 +13985,7 @@ function GameEngine() {
 
   function applyResolvedBoardBackground(url, fade) {
     const wrap = document.getElementById("board-wrap");
-    if (!isUserMediaUrl(url)) {
+    if (!isPaintableBgUrl(url)) {
       clearBoardBackground(!!fade);
       return;
     }
@@ -13887,7 +14007,7 @@ function GameEngine() {
   function probeBackgroundUrls(urls, fade, seq, onHit, onMiss, seqRef) {
     const unique = [];
     urls.forEach((url) => {
-      if (isUserMediaUrl(url) && unique.indexOf(url) < 0) {
+      if (isPaintableBgUrl(url) && unique.indexOf(url) < 0) {
         unique.push(url);
       }
     });
@@ -13934,7 +14054,7 @@ function GameEngine() {
     if (settings.keepDefaultWindowBg) {
       return loadBgData(target, "default");
     }
-    if (target === "board" && !isPlayActive()) {
+    if (target === "board" && !isPlayActive() && !autoplayConquered) {
       return loadBgData("board", "default");
     }
     if (shouldUseLevelBackgrounds()) {
@@ -13957,40 +14077,118 @@ function GameEngine() {
     return loadBgData("window", "default");
   }
 
-  function updateLevelBackground(level, options) {
-    const fade = !(options && options.fade === false);
-    const seq = ++bgLoadSeq;
-    const url = resolveTargetBgUrl("window", level);
-    if (isUserMediaUrl(url)) {
+  function resolvePaintBgUrl(target, level) {
+    if (isCustomBgMasterDisabled()) {
+      return "";
+    }
+    const custom = resolveTargetBgUrl(target, level);
+    if (isUserMediaUrl(custom)) {
+      return custom;
+    }
+    if (settings.keepDefaultWindowBg) {
+      return custom;
+    }
+    if (target === "board" && !isPlayActive() && !autoplayConquered) {
+      return custom;
+    }
+    if (shouldUseLevelBackgrounds()) {
+      return folderLevelBgSrc(playLevel(level));
+    }
+    return custom;
+  }
+
+  function bgPaintKind(target, level) {
+    if (settings.keepDefaultWindowBg || isCustomBgMasterDisabled()) {
+      return "default";
+    }
+    if (target === "board" && !isPlayActive() && !autoplayConquered) {
+      return "default";
+    }
+    if (shouldUseLevelBackgrounds()) {
+      return playLevel(level);
+    }
+    return "default";
+  }
+
+  function paintTargetBackground(target, level, fade, seq, allowClear) {
+    const isBoard = target === "board";
+    const seqNow = isBoard ? boardBgLoadSeq : bgLoadSeq;
+    if (seq !== seqNow) {
+      return;
+    }
+    const url = resolvePaintBgUrl(target, level);
+    const last = isBoard ? lastValidBoardBgUrl : lastValidBgUrl;
+    const onHit = isBoard ? applyResolvedBoardBackground : applyResolvedBackground;
+    const onMiss = () => {
+      if (!allowClear) {
+        return;
+      }
+      if (isBoard) {
+        clearBoardBackground(false);
+      } else {
+        clearCustomBackground(false);
+      }
+    };
+    if (isPaintableBgUrl(url)) {
       probeBackgroundUrls(
-        [url, lastValidBgUrl],
+        [url, last],
         fade,
         seq,
-        applyResolvedBackground,
-        () => clearCustomBackground(false),
-        () => bgLoadSeq
+        onHit,
+        onMiss,
+        () => (isBoard ? boardBgLoadSeq : bgLoadSeq)
       );
       return;
     }
-    clearCustomBackground(fade);
+    onMiss();
+  }
+
+  function updateLevelBackground(level, options) {
+    const fade = !(options && options.fade === false);
+    const seq = ++bgLoadSeq;
+    const kind = bgPaintKind("window", level);
+    paintTargetBackground("window", level, fade, seq, false);
+    Promise.resolve(hydrateBgSlot("window", kind)).then(() => {
+      paintTargetBackground("window", level, fade, seq, true);
+    }).catch(() => {
+      paintTargetBackground("window", level, fade, seq, true);
+    });
   }
 
   function updateBoardBackground(level, options) {
     const fade = !(options && options.fade === false);
     const seq = ++boardBgLoadSeq;
-    const url = resolveTargetBgUrl("board", level);
-    if (isUserMediaUrl(url)) {
-      probeBackgroundUrls(
-        [url, lastValidBoardBgUrl],
-        fade,
-        seq,
-        applyResolvedBoardBackground,
-        () => clearBoardBackground(false),
-        () => boardBgLoadSeq
-      );
-      return;
+    const kind = bgPaintKind("board", level);
+    paintTargetBackground("board", level, fade, seq, false);
+    Promise.resolve(hydrateBgSlot("board", kind)).then(() => {
+      paintTargetBackground("board", level, fade, seq, true);
+    }).catch(() => {
+      paintTargetBackground("board", level, fade, seq, true);
+    });
+  }
+
+  function syncPlayBackgrounds(nextLevel, options) {
+    const fade = !(options && options.fade === false);
+    const lv = playLevel(nextLevel != null ? nextLevel : level);
+    try {
+      applyWindowBgFx();
+      applyBoardBgFx();
+    } catch (fxErr) {
+      /* keep switching even if fx write fails */
     }
-    clearBoardBackground(fade);
+    updateLevelBackground(lv, { fade });
+    updateBoardBackground(lv, { fade });
+    try {
+      invalidateStaticBackground();
+      renderStaticBackground();
+      draw();
+    } catch (drawErr) {
+      /* canvas repaint optional */
+    }
+  }
+
+  function drawBackground(level, options) {
+    syncPlayBackgrounds(level, options);
   }
 
   function applyCurrentBackground(options) {
@@ -14011,8 +14209,7 @@ function GameEngine() {
         document.documentElement.style.setProperty("--bg-fade", "0.6s");
       }
       if (shouldUseLevelBackgrounds()) {
-        updateLevelBackground(playLevel(level), { fade });
-        updateBoardBackground(playLevel(level), { fade });
+        syncPlayBackgrounds(playLevel(level), { fade });
         return;
       }
       isApplyingBg = false;
@@ -14487,7 +14684,7 @@ function GameEngine() {
       BOARD_IDLE_BG_IDB,
     ];
     for (let n = 1; n <= LEVEL_BG_MAX; n++) {
-      keys.push(bgStoreKey("window", n), bgStoreKey("board", n), `levelBg${n}`, `bg_lvl_${n}`, `bg_panel_lvl_${n}`);
+      keys.push(bgStoreKey("window", n), bgStoreKey("board", n), `levelBg${n}`, `bg_lvl_${n}`, `bg_panel_lvl_${n}`, bgLevelAliasKey(n));
     }
     for (let i = 0; i < keys.length; i++) {
       try {
@@ -14547,6 +14744,10 @@ function GameEngine() {
   window.renderCurrentBackground = renderCurrentBackground;
   window.updateAllBackgroundThumbnails = updateAllBackgroundThumbnails;
   window.applyBackgroundToCanvas = applyBackgroundToCanvas;
+  window.updateBoardBackground = updateBoardBackground;
+  window.updateLevelBackground = updateLevelBackground;
+  window.drawBackground = drawBackground;
+  window.syncPlayBackgrounds = syncPlayBackgrounds;
   window.readFileAsDataURL = readFileAsDataURL;
   window.persistPlayerNickname = persistPlayerNickname;
   window.resolvePlayerNickname = resolvePlayerNickname;
@@ -14817,7 +15018,7 @@ function GameEngine() {
       BOARD_IDLE_BG_IDB,
     ];
     for (let n = 1; n <= LEVEL_BG_MAX; n++) {
-      keys.push(bgStoreKey("window", n), bgStoreKey("board", n), `levelBg${n}`, `bg_lvl_${n}`, `bg_panel_lvl_${n}`);
+      keys.push(bgStoreKey("window", n), bgStoreKey("board", n), `levelBg${n}`, `bg_lvl_${n}`, `bg_panel_lvl_${n}`, bgLevelAliasKey(n));
     }
     await Promise.all(keys.map((key) => mediaStore.del(key)));
     persistBoardIdleBgFlag(false);
@@ -17775,7 +17976,9 @@ function GameEngine() {
       celebratedLevel20 = false;
       try { hideConquerBanner(); } catch (hcErr) {}
       try { refreshLevel(); } catch (lvErr) {}
-      try { applyCurrentBackground({ fade: true }); } catch (abErr) {}
+      try { syncPlayBackgrounds(playLevel(level), { fade: true }); } catch (abErr) {
+        try { applyCurrentBackground({ fade: true }); } catch (abErr2) {}
+      }
       try { closeCelebrate(true); } catch (ccErr) {}
       try { closeScoreSaveModal(); } catch (csErr) {}
       try { closeAutoplayEndModal(); } catch (caErr) {}
@@ -18907,6 +19110,7 @@ function GameEngine() {
     { id: "7-5", title: "7-5 윈도우 배경 블러·투명도 설정 로드" },
     { id: "7-6", title: "7-6 배경 마스터 비활성화 · 렌더러 분기" },
     { id: "7-7", title: "7-7 로컬 스토리지 Quota · 기록 가능 여부" },
+    { id: "7-8", title: "7-8 레벨 배경 동적 전환 · IndexedDB 슬롯 격리 · 옵션 인터락" },
     { id: "8-1", title: "8-1 자동 게임기록 모드 · 명예의 전당 스토리지" },
     { id: "9-1", title: "9-1 시작 장애물 라인 · 가비지 보드 유효성" },
     { id: "10-1", title: "10-1 블록 가이드 모드 · 넥스트 큐 2단 무결성" },
@@ -18940,6 +19144,9 @@ function GameEngine() {
     const s = String(id || "");
     if (s === "C8") {
       return 8000;
+    }
+    if (s === "4-2" || s === "7-8") {
+      return 2500;
     }
     if (/^[1-7]-/.test(s)) {
       return 500;
@@ -20882,31 +21089,78 @@ function GameEngine() {
       return ok ? (fixed ? "fix" : "pass") : "fail";
     },
     "4-2": async () => {
+      const guideOk = diagGuideSync(["guideDiagLevelBgSim", "guideLevelBgLiveBody", "guideMemoryBg"]);
+      const src1 = folderLevelBgSrc(1);
       const src5 = folderLevelBgSrc(5);
       const src11 = folderLevelBgSrc(11);
       const src10 = folderLevelBgSrc(10);
       const src20 = folderLevelBgSrc(20);
       const fallback = folderLevelBgSrc(LEVEL_BG_MAX);
-      diagLog(`bg5=${src5} bg10=${src10} bg11=${src11} bg20=${src20} fallback=${fallback} cap=${LEVEL_BG_MAX}`);
-      const pathOk = src5 === "/images/bg5.jpg"
+      diagLog(`bg1=${src1} bg5=${src5} bg10=${src10} bg11=${src11} bg20=${src20} fallback=${fallback} cap=${LEVEL_BG_MAX}`);
+      const pathOk = src1 === "/images/bg1.jpg"
+        && src5 === "/images/bg5.jpg"
         && src10 === "/images/bg10.jpg"
         && src11 === "/images/bg11.jpg"
         && src20 === "/images/bg20.jpg"
         && fallback === "/images/bg20.jpg"
         && LEVEL_BG_MAX === 20;
+      const prevWait = waitingStart;
+      const prevGo = gameOver;
+      const prevKeep = !!settings.keepDefaultWindowBg;
+      const prevMaster = !!settings.disableAllCustomBg;
+      const prevLv = !!settings.levelBgEnabled;
+      let simOk = false;
       try {
-        updateLevelBackground(5, { fade: false });
-        updateBoardBackground(5, { fade: false });
-        await diagDelay(80);
-        updateLevelBackground(20, { fade: false });
-        updateBoardBackground(20, { fade: false });
+        settings.disableAllCustomBg = false;
+        settings.keepDefaultWindowBg = false;
+        settings.levelBgEnabled = true;
+        waitingStart = false;
+        gameOver = false;
+        const simLevels = [1, 5, 10, 20];
+        let hits = 0;
+        for (let i = 0; i < simLevels.length; i++) {
+          const lv = simLevels[i];
+          const keys = bgCandidateKeys("board", lv);
+          const winKeys = bgCandidateKeys("window", lv);
+          const alias = bgLevelAliasKey(lv);
+          const hasAlias = keys.indexOf(alias) >= 0 && winKeys.indexOf(alias) >= 0;
+          await hydrateBgSlot("board", lv);
+          await hydrateBgSlot("window", lv);
+          updateLevelBackground(lv, { fade: false });
+          updateBoardBackground(lv, { fade: false });
+          if (typeof drawBackground === "function") {
+            drawBackground(lv, { fade: false });
+          }
+          const custom = resolveTargetBgUrl("board", lv) || "";
+          const paint = resolvePaintBgUrl("board", lv) || "";
+          const fb = folderLevelBgSrc(lv);
+          const triggered = hasAlias && fb === `/images/bg${lv}.jpg` && (paint === custom || paint === fb);
+          diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
+          if (triggered) {
+            hits += 1;
+          }
+          await diagDelay(30);
+        }
+        simOk = hits === simLevels.length;
       } catch (err) {
         diagLog(`❌ bg switch: ${err && err.message ? err.message : err}`);
-        return "fail";
+        simOk = false;
+      } finally {
+        waitingStart = prevWait;
+        gameOver = prevGo;
+        settings.keepDefaultWindowBg = prevKeep;
+        settings.disableAllCustomBg = prevMaster;
+        settings.levelBgEnabled = prevLv;
       }
-      if (!pathOk) {
-        diagLog("🛠️ AUTO-FIXED: 레벨 배경 경로/슬롯 규칙 재확인");
-        return src20.indexOf("bg20") >= 0 || fallback.indexOf("bg20") >= 0 ? "fix" : "fail";
+      const fnOk = typeof updateBoardBackground === "function"
+        && typeof updateLevelBackground === "function"
+        && typeof syncPlayBackgrounds === "function"
+        && typeof drawBackground === "function"
+        && typeof hydrateBgSlot === "function"
+        && typeof resolvePaintBgUrl === "function";
+      if (!pathOk || !simOk || !fnOk || !guideOk) {
+        diagLog(`🛠️ 4-2 path=${pathOk} sim=${simOk} fn=${fnOk} guide=${guideOk}`);
+        return (pathOk && fnOk && guideOk && (src20.indexOf("bg20") >= 0 || fallback.indexOf("bg20") >= 0)) ? (simOk ? "pass" : "fix") : "fail";
       }
       return "pass";
     },
@@ -21750,6 +22004,102 @@ function GameEngine() {
       diagLog(`quota writable=${writable} localChars=${usedChars} ~${usedBytes}B ${estimateLabel} headroom=${headroomOk}`);
       const ok = writable && headroomOk && estimateOk;
       return ok ? (fixed ? "fix" : "pass") : "fail";
+    },
+    "7-8": async () => {
+      const guideOk = diagGuideSync(["guideDiagLevelBgSlots", "guideDiagLevelBgInterlock", "guideDiagLevelBgSim"]);
+      const prevWait = waitingStart;
+      const prevGo = gameOver;
+      const prevKeep = !!settings.keepDefaultWindowBg;
+      const prevMaster = !!settings.disableAllCustomBg;
+      const prevLv = !!settings.levelBgEnabled;
+      const blurBefore = clampBlur(settings.boardBgBlur != null ? settings.boardBgBlur : SETTING_DEFAULTS.boardBgBlur);
+      const opBefore = clampPercent(settings.boardBgOpacity, SETTING_DEFAULTS.boardBgOpacity);
+      try {
+        settings.disableAllCustomBg = false;
+        settings.keepDefaultWindowBg = false;
+        settings.levelBgEnabled = true;
+        waitingStart = false;
+        gameOver = false;
+        applyBoardBgFx();
+        applyWindowBgFx();
+        const idleBoard = bgStoreKey("board", "default");
+        const idleWin = bgStoreKey("window", "default");
+        const lv1Board = bgStoreKey("board", 1);
+        const lv1Win = bgStoreKey("window", 1);
+        const lv20Board = bgStoreKey("board", 20);
+        const idleKeys = bgCandidateKeys("board", "default");
+        const lv1Keys = bgCandidateKeys("board", 1);
+        const idleHasLevel = idleKeys.some((key) => /^bg_level_\d+$/.test(key) || /_level_\d+$/.test(key));
+        const lv1HasIdle = lv1Keys.indexOf(idleBoard) >= 0 || lv1Keys.indexOf(BOARD_IDLE_BG_IDB) >= 0;
+        const isoOk = idleBoard === "custom_bg_board_default"
+          && idleWin === "custom_bg_window_default"
+          && lv1Board === "custom_bg_board_level_1"
+          && lv1Win === "custom_bg_window_level_1"
+          && lv20Board === "custom_bg_board_level_20"
+          && idleBoard !== lv1Board
+          && idleWin !== lv1Win
+          && lv1Board !== lv1Win
+          && bgLogicalKey("board", "idle") === "bg_panel_idle"
+          && bgLogicalKey("window", "idle") === "bg_idle"
+          && bgLogicalKey("board", 7) === "bg_panel_lvl_7"
+          && bgLogicalKey("window", 7) === "bg_lvl_7"
+          && bgLevelAliasKey(1) === "bg_level_1"
+          && bgLevelAliasKey(20) === "bg_level_20"
+          && !idleHasLevel
+          && !lv1HasIdle;
+        await hydrateBgSlot("board", "default");
+        await hydrateBgSlot("window", "default");
+        await hydrateBgSlot("board", 10);
+        await hydrateBgSlot("window", 10);
+        const idleUrl = loadBgData("board", "default") || "";
+        const lv10Custom = loadBgData("board", 10) || "";
+        const isolatedLoad = !(idleUrl && lv10Custom) || idleUrl !== lv10Custom;
+        updateBoardBackground(10, { fade: false });
+        updateLevelBackground(10, { fade: false });
+        applyBoardBgFx();
+        applyWindowBgFx();
+        const cssBlur = getComputedStyle(document.documentElement).getPropertyValue("--board-bg-blur").trim();
+        const cssOp = Number(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-opacity").trim());
+        const fxOk = cssBlur === `${blurBefore}px`
+          && Math.abs(cssOp - opBefore / 100) < 0.02;
+        settings.keepDefaultWindowBg = true;
+        const keepBoard = resolveTargetBgUrl("board", 12);
+        const keepWin = resolveTargetBgUrl("window", 12);
+        const keepIdleBoard = loadBgData("board", "default") || "";
+        const keepIdleWin = loadBgData("window", "default") || "";
+        const keepOk = keepBoard === keepIdleBoard && keepWin === keepIdleWin;
+        settings.keepDefaultWindowBg = false;
+        settings.disableAllCustomBg = true;
+        const masterBoard = resolveTargetBgUrl("board", 8);
+        const masterWin = resolveTargetBgUrl("window", 8);
+        const masterPaint = resolvePaintBgUrl("board", 8);
+        const masterOk = masterBoard === "" && masterWin === "" && masterPaint === "";
+        settings.disableAllCustomBg = false;
+        const livePaint = resolvePaintBgUrl("board", 5);
+        const liveFb = folderLevelBgSrc(5);
+        const liveOk = livePaint === (resolveTargetBgUrl("board", 5) || liveFb);
+        diagLog(`[IDB SLOT MAP] idleBoard=${idleBoard} idleWin=${idleWin} lv1Board=${lv1Board} lv1Win=${lv1Win} alias20=${bgLevelAliasKey(20)} iso=${isoOk} isolatedLoad=${isolatedLoad}`);
+        diagLog(`[OPTION INTERLOCK] keep=${keepOk} master=${masterOk} fx=${fxOk} live=${liveOk} blur=${cssBlur} opacity=${cssOp}`);
+        const fnOk = typeof hydrateBgSlot === "function" && typeof bgCandidateKeys === "function" && typeof resolvePaintBgUrl === "function";
+        const ok = guideOk && isoOk && isolatedLoad && keepOk && masterOk && fxOk && liveOk && fnOk;
+        return ok ? "pass" : "fail";
+      } catch (err) {
+        diagLog(`❌ 7-8: ${err && err.message ? err.message : err}`);
+        return "fail";
+      } finally {
+        waitingStart = prevWait;
+        gameOver = prevGo;
+        settings.keepDefaultWindowBg = prevKeep;
+        settings.disableAllCustomBg = prevMaster;
+        settings.levelBgEnabled = prevLv;
+        try {
+          applyBoardBgFx();
+          applyWindowBgFx();
+          applyCurrentBackground({ fade: false });
+        } catch (restoreErr) {
+          /* ignore */
+        }
+      }
     },
     "8-1": async () => {
       let fixed = 0;
@@ -22865,7 +23215,7 @@ function GameEngine() {
     if (fxOk) {
       diagLog("[🎨 THEME & FX: PASS]");
     }
-    const bgBadges = ["7-1", "7-2", "7-3", "7-4", "7-5", "7-6", "7-7"].map((id) => document.querySelector(`[data-diag-badge="${id}"]`));
+    const bgBadges = ["7-1", "7-2", "7-3", "7-4", "7-5", "7-6", "7-7", "7-8"].map((id) => document.querySelector(`[data-diag-badge="${id}"]`));
     const bgOk = bgBadges.every((el) => el && (el.classList.contains("is-pass") || el.classList.contains("is-fix")));
     if (bgOk) {
       const passLine = "[🖼️ BG & TOUCH: PASS]";
@@ -25030,6 +25380,14 @@ function GameEngine() {
     saveSettings();
     syncStartLevelUi();
     refreshLevel();
+    try {
+      const lv = playLevel(level);
+      hydrateBgSlot("window", lv);
+      hydrateBgSlot("board", lv);
+      syncPlayBackgrounds(lv, { fade: true });
+    } catch (bgErr) {
+      applyCurrentBackground({ fade: true });
+    }
     gravityMsLeft = gravityInterval();
     updateHud();
   });
