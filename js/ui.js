@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.1-stable */
+/* Dad Tetris v1.1.4-ultimate */
 "use strict";
 
 import { dbManager, storageUtil } from "./storage.js";
@@ -11,12 +11,85 @@ let cheerResetTimer = 0;
 let diagnosticsRunner = null;
 let diagnosticsBusy = false;
 
+function writeKeepDefaultBgNow(checked) {
+  const val = checked ? "1" : "0";
+  try {
+    localStorage.setItem("dad_tetris_keep_default_bg", val);
+    localStorage.setItem("keep_default_window_bg", val);
+  } catch (err) {
+    /* private mode */
+  }
+  if (window.gameSettings) {
+    window.gameSettings.keepDefaultBg = checked ? 1 : 0;
+    window.gameSettings.keepDefaultWindowBg = !!checked;
+  }
+  if (typeof window.syncSettings === "function") {
+    try {
+      window.syncSettings(window.gameSettings);
+    } catch (syncErr) {
+      /* live bundle still wrote LS */
+    }
+  }
+  return val;
+}
+
+export function bindKeepDefaultBgToggle() {
+  const keepDefaultEl = document.getElementById("keep-default-bg");
+  if (keepDefaultEl && keepDefaultEl.dataset.keepBgBound !== "1") {
+    keepDefaultEl.dataset.keepBgBound = "1";
+    keepDefaultEl.addEventListener("change", (e) => {
+      writeKeepDefaultBgNow(!!(e.target && e.target.checked));
+    });
+  }
+  const aliasEl = document.getElementById("keep-default-bg-checkbox");
+  if (aliasEl && aliasEl.dataset.keepBgBound !== "1") {
+    aliasEl.dataset.keepBgBound = "1";
+    aliasEl.addEventListener("change", (e) => {
+      writeKeepDefaultBgNow(!!(e.target && e.target.checked));
+    });
+  }
+}
+
+export function bindBgTargetTabs() {
+  document.querySelectorAll(".bg-target-btn").forEach((btn) => {
+    if (!btn || btn.dataset.slotListBound === "1") {
+      return;
+    }
+    btn.dataset.slotListBound = "1";
+    btn.addEventListener("click", () => {
+      const dest = btn.dataset.bgTarget === "board" ? "board" : "window";
+      const setTarget = (host && typeof host.setCurrentBgTarget === "function")
+        ? host.setCurrentBgTarget
+        : window.setCurrentBgTarget;
+      const render = (host && typeof host.renderBgSlotList === "function")
+        ? host.renderBgSlotList
+        : window.renderBgSlotList;
+      const after = () => {
+        if (typeof render === "function") {
+          return render(dest);
+        }
+        return undefined;
+      };
+      try {
+        if (typeof setTarget === "function") {
+          return Promise.resolve(setTarget(dest)).then(after, after);
+        }
+      } catch (err) {
+        /* fall through */
+      }
+      return after();
+    });
+  });
+}
+
 export function bindUiController(nextHost) {
   host = nextHost || host;
   if (host && typeof host.runVisualAutoTest === "function") {
     diagnosticsRunner = host.runVisualAutoTest;
   }
   bindBulkBgFilePicker();
+  bindKeepDefaultBgToggle();
+  bindBgTargetTabs();
   bindPlayerNicknameField();
   return uiController;
 }

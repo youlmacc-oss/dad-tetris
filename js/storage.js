@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.1-stable */
+/* Dad Tetris v1.1.4-ultimate */
 "use strict";
 
 const DB_NAME = "DadTetrisDB";
@@ -434,6 +434,21 @@ export const dbManager = {
   clearMedia: clearAll,
   STORE,
   DB_NAME,
+  async bulkPut(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    const results = [];
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i] || {};
+      const key = row.key || row.id || row.name;
+      const data = row.blob || row.value || row.data || row.file;
+      if (!key || !data) {
+        results.push(false);
+        continue;
+      }
+      results.push(!!(await saveMediaFile(key, data)));
+    }
+    return results.length ? results.every(Boolean) : true;
+  },
 };
 
 export const storageUtil = {
@@ -464,6 +479,52 @@ export const storageUtil = {
     BOARD_IDLE_BG_CUSTOM: "dad_tetris_board_idle_bg_custom",
     WINDOW_IDLE_BG: "custom_bg_window_default",
     BULK_BG_PROBE: "__diag_bulk_bg__",
+    KEEP_DEFAULT_BG: "dad_tetris_keep_default_bg",
+    KEEP_DEFAULT_WINDOW_BG: "keep_default_window_bg",
+  },
+  isCustomProfileImage(raw) {
+    return typeof raw === "string" && raw.length > 24
+      && (raw.indexOf("data:image/") === 0 || raw.indexOf("blob:") === 0);
+  },
+  getProfileImage() {
+    const raw = this.get(this.KEYS.PROFILE_IMG, "");
+    return this.isCustomProfileImage(raw) ? raw : "";
+  },
+  syncSettings(target) {
+    const next = target && typeof target === "object" ? target : {};
+    let keep = null;
+    try {
+      const primary = localStorage.getItem(this.KEYS.KEEP_DEFAULT_BG);
+      const legacy = localStorage.getItem(this.KEYS.KEEP_DEFAULT_WINDOW_BG);
+      if (primary === "1" || primary === "0") {
+        keep = primary === "1";
+      } else if (legacy === "1" || legacy === "0") {
+        keep = legacy === "1";
+      }
+    } catch (err) {
+      keep = false;
+    }
+    if (keep == null) {
+      keep = false;
+      try {
+        localStorage.setItem(this.KEYS.KEEP_DEFAULT_BG, "0");
+        localStorage.setItem(this.KEYS.KEEP_DEFAULT_WINDOW_BG, "0");
+      } catch (writeErr) {
+        /* private mode */
+      }
+    }
+    next.keepDefaultWindowBg = !!keep;
+    next.keepDefaultBg = !!keep;
+    try {
+      if (typeof window !== "undefined") {
+        window.gameSettings = window.gameSettings || next;
+        window.gameSettings.keepDefaultBg = !!keep;
+        window.gameSettings.keepDefaultWindowBg = !!keep;
+      }
+    } catch (gsErr) {
+      /* ignore */
+    }
+    return next;
   },
   get(key, fallback) {
     try {

@@ -7423,8 +7423,7 @@ body,
 
   .overlay-card .profile-frame,
   .overlay-card .profile-avatar-container,
-  .overlay:not(.is-result):not(.is-conquer) #profile-frame,
-  #profile-card {
+  .overlay:not(.is-result):not(.is-conquer) #profile-frame {
     width: 166px !important;
     height: 166px !important;
     max-width: 166px !important;
@@ -10249,4 +10248,119 @@ select,
   align-items: center !important;
   justify-content: center !important;
   box-sizing: border-box !important;
+}
+
+/* L4 idle profile card — board-relative max expansion (last cascade wins) */
+#overlay #profile-card.profile-card-host,
+#overlay.overlay.is-start #profile-card.profile-card-host,
+#overlay.overlay.is-pause #profile-card.profile-card-host,
+#overlay #profile-card.profile-card-host.is-active {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  width: 90% !important;
+  max-width: 92% !important;
+  min-width: 88% !important;
+  box-sizing: border-box !important;
+  margin: 0 auto !important;
+}
+
+#overlay.overlay.is-start #profile-card.profile-card-host > #start-overlay,
+#overlay.overlay.is-pause #profile-card.profile-card-host > #start-overlay,
+#overlay.overlay.is-start #start-overlay.overlay-card,
+#overlay.overlay.is-pause #start-overlay.overlay-card,
+#overlay #profile-card.profile-card-host > #start-overlay {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  padding: 32px 24px 28px !important;
+  gap: 16px !important;
+}
+
+#overlay.overlay.is-start #profile-frame,
+#overlay.overlay.is-pause #profile-frame,
+#overlay.overlay.is-start #profile-card #profile-frame,
+#overlay.overlay.is-pause #profile-card #profile-frame,
+#overlay #profile-card #profile-frame {
+  width: 204px !important;
+  height: 204px !important;
+  min-width: 190px !important;
+  min-height: 190px !important;
+  max-width: 220px !important;
+  max-height: 220px !important;
+  margin: 0 auto 8px auto !important;
+}
+
+#overlay.overlay.is-start #profile-frame .dad-neon-avatar,
+#overlay.overlay.is-start #profile-frame .profile-icon-svg,
+#overlay.overlay.is-pause #profile-frame .dad-neon-avatar,
+#overlay.overlay.is-pause #profile-frame .profile-icon-svg,
+#overlay #profile-card #profile-frame .dad-neon-avatar,
+#overlay #profile-card #profile-frame .profile-icon-svg {
+  width: 70% !important;
+  height: 70% !important;
+  max-width: 154px !important;
+  max-height: 154px !important;
+}
+
+#overlay.overlay.is-start #profile-frame .profile-image,
+#overlay.overlay.is-pause #profile-frame .profile-image,
+#overlay #profile-card #profile-frame .profile-image,
+#profile-frame .profile-image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+}
+
+#overlay.overlay.is-start #overlay-title,
+#overlay.overlay.is-pause #overlay-title {
+  font-size: 30px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  margin: 4px 0 10px !important;
+}
+
+#overlay.overlay.is-start #overlay-hint,
+#overlay.overlay.is-pause #overlay-hint {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 92% !important;
+  height: auto !important;
+  min-height: 52px !important;
+  padding: 12px 20px !important;
+  font-size: 18px !important;
+}
+
+body.diag-running.diag-measure-profile #overlay,
+body.hide-board-idle.diag-measure-profile #overlay,
+body.diag-running.diag-measure-profile #start-overlay,
+body.hide-board-idle.diag-measure-profile #start-overlay,
+body.diag-running.diag-measure-profile #profile-card.profile-card-host,
+body.hide-board-idle.diag-measure-profile #profile-card.profile-card-host,
+body.diag-running.diag-measure-profile #profile-frame,
+body.hide-board-idle.diag-measure-profile #profile-frame {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+body.diag-running.diag-measure-profile #profile-card.profile-card-host,
+body.hide-board-idle.diag-measure-profile #profile-card.profile-card-host {
+  width: 90% !important;
+  min-width: 88% !important;
+  max-width: 92% !important;
+}
+
+body.diag-running.diag-measure-profile #profile-frame,
+body.hide-board-idle.diag-measure-profile #profile-frame {
+  width: 204px !important;
+  height: 204px !important;
+}
+
+body.diag-running.diag-measure-profile #profile-frame .dad-neon-avatar,
+body.hide-board-idle.diag-measure-profile #profile-frame .dad-neon-avatar {
+  width: 70% !important;
+  height: 70% !important;
 }

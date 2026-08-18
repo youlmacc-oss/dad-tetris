@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.1-stable */
+/* Dad Tetris v1.1.4-ultimate */
 "use strict";
 
 export const BLOCK_SKIN_IDS = ["gemstone", "glass", "wire_glass", "mecha", "candy"];

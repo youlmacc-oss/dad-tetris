@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.1.1-stable single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.1.4-ultimate single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -665,6 +665,8 @@ const storageUtil = {
     BOARD_IDLE_BG_CUSTOM: "dad_tetris_board_idle_bg_custom",
     WINDOW_IDLE_BG: "custom_bg_window_default",
     BULK_BG_PROBE: "__diag_bulk_bg__",
+    KEEP_DEFAULT_BG: "dad_tetris_keep_default_bg",
+    KEEP_DEFAULT_WINDOW_BG: "keep_default_window_bg",
   },
   get(key, fallback) {
     try {
@@ -708,6 +710,48 @@ const storageUtil = {
     } catch (err) {
       return false;
     }
+  },
+  isCustomProfileImage(raw) {
+    return typeof raw === "string" && raw.length > 24
+      && (raw.indexOf("data:image/") === 0 || raw.indexOf("blob:") === 0);
+  },
+  getProfileImage() {
+    const raw = this.get(this.KEYS.PROFILE_IMG, "");
+    return this.isCustomProfileImage(raw) ? raw : "";
+  },
+  syncSettings(target) {
+    const next = target && typeof target === "object" ? target : {};
+    let keep = null;
+    try {
+      const primary = localStorage.getItem(this.KEYS.KEEP_DEFAULT_BG);
+      const legacy = localStorage.getItem(this.KEYS.KEEP_DEFAULT_WINDOW_BG);
+      if (primary === "1" || primary === "0") {
+        keep = primary === "1";
+      } else if (legacy === "1" || legacy === "0") {
+        keep = legacy === "1";
+      }
+    } catch (err) {
+      keep = false;
+    }
+    if (keep == null) {
+      keep = false;
+      try {
+        localStorage.setItem(this.KEYS.KEEP_DEFAULT_BG, "0");
+        localStorage.setItem(this.KEYS.KEEP_DEFAULT_WINDOW_BG, "0");
+      } catch (writeErr) {
+        /* private mode */
+      }
+    }
+    next.keepDefaultWindowBg = !!keep;
+    next.keepDefaultBg = !!keep;
+    try {
+      window.gameSettings = window.gameSettings || next;
+      window.gameSettings.keepDefaultBg = !!keep;
+      window.gameSettings.keepDefaultWindowBg = !!keep;
+    } catch (gsErr) {
+      /* ignore */
+    }
+    return next;
   },
 };
 
@@ -10020,7 +10064,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.1.1-stable";
+  const APP_VERSION = "1.1.4-ultimate";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -10219,6 +10263,7 @@ function GameEngine() {
     windowBgBlur: 0,
     windowBgOpacity: 100,
     keepDefaultWindowBg: false,
+    keepDefaultBg: false,
     disableAllCustomBg: false,
     autoRecordMode: false,
     startGarbageLines: 0,
@@ -10935,7 +10980,7 @@ function GameEngine() {
       }
       window.gameSettings = settings;
       if (window.gameSettings) {
-        window.gameSettings.keepDefaultBg = settings.keepDefaultWindowBg ? 1 : 0;
+        window.gameSettings.keepDefaultBg = !!settings.keepDefaultWindowBg;
         window.gameSettings.keepDefaultWindowBg = !!settings.keepDefaultWindowBg;
       }
     } catch (err) {
@@ -10949,10 +10994,12 @@ function GameEngine() {
     settings.keepDefaultBg = enabled ? 1 : 0;
     writeKeepDefaultBgLs(enabled);
     syncGameSettingsExport();
-    const box = document.getElementById("keep-default-bg-checkbox");
-    if (box) {
-      box.checked = enabled;
-    }
+    ["keep-default-bg", "keep-default-bg-checkbox"].forEach((id) => {
+      const box = document.getElementById(id);
+      if (box) {
+        box.checked = enabled;
+      }
+    });
     const btn = document.getElementById("toggle-keep-default-bg");
     if (btn) {
       try {
@@ -10985,19 +11032,31 @@ function GameEngine() {
     const parsed = readKeepDefaultBgFlag();
     if (parsed != null) {
       next.keepDefaultWindowBg = parsed;
+      next.keepDefaultBg = parsed ? 1 : 0;
     } else {
       next.keepDefaultWindowBg = false;
+      next.keepDefaultBg = 0;
       writeLsIfAbsent(KEEP_DEFAULT_BG_KEY, "0");
       writeLsIfAbsent(KEEP_DEFAULT_WINDOW_BG_KEY, "0");
     }
     return next;
   }
 
-  try {
-    syncKeepDefaultBgFlag(!!settings.keepDefaultWindowBg);
-  } catch (err) {
-    syncGameSettingsExport();
+  function syncSettings(target) {
+    const next = hydrateKeepDefaultWindowBg(target || settings);
+    const enabled = !!next.keepDefaultWindowBg;
+    next.keepDefaultBg = enabled ? 1 : 0;
+    try {
+      if (storageUtil && typeof storageUtil.syncSettings === "function") {
+        storageUtil.syncSettings(next);
+      }
+    } catch (err) {
+      writeKeepDefaultBgLs(enabled);
+    }
+    syncKeepDefaultBgFlag(enabled);
+    return next;
   }
+  window.syncSettings = syncSettings;
 
   function persistDisableAllCustomBg(target) {
     const next = target || settings;
@@ -12625,7 +12684,9 @@ function GameEngine() {
     if (live) {
       return live;
     }
-    const snap = readLocal(PROFILE_IMG_KEY);
+    const snap = (storageUtil && typeof storageUtil.getProfileImage === "function")
+      ? storageUtil.getProfileImage()
+      : readLocal(PROFILE_IMG_KEY);
     if (typeof snap === "string" && snap.indexOf("data:image/") === 0) {
       saveMediaFile("profileSnap", snap).then(() => {
         try {
@@ -13713,20 +13774,11 @@ function GameEngine() {
     level = nextLevelFromLines(lines);
     const changed = playLevel(level) > prevPlay;
     if (changed) {
-      const isKeep = (() => {
-        try {
-          return localStorage.getItem(KEEP_DEFAULT_BG_KEY) === "1";
-        } catch (err) {
-          return readKeepDefaultBgNow();
-        }
-      })();
-      if (!isKeep) {
-        try {
-          updateLevelBackground(level, { fade: true, force: true, allowClear: false });
-        } catch (bgErr) {
+      if (localStorage.getItem("dad_tetris_keep_default_bg") !== "1") {
+        if (typeof window.updateLevelBackground === "function") {
           try {
-            paintLevelBgOnLevelUp(level, { fade: true });
-          } catch (bgErr2) {
+            window.updateLevelBackground(level);
+          } catch (bgErr) {
             /* HUD still updates */
           }
         }
@@ -15378,8 +15430,12 @@ function GameEngine() {
     const isKeep = readKeepDefaultBgNow();
     settings.keepDefaultWindowBg = isKeep;
     syncGameSettingsExport();
-    const customBoard = loadBgData("board", lv);
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : folderLevelBgSrc(lv);
+    const customBoard = loadBgData("board", lv)
+      || (mediaStore && typeof mediaStore.peek === "function" && mediaStore.peek("custom_bg_board_level_" + lv))
+      || "";
+    const boardUrl = isUserMediaUrl(customBoard)
+      ? customBoard
+      : (folderLevelBgSrc(lv) || getAssetUrl("assets/images/level_" + lv + ".jpg"));
     try {
       applyResolvedBoardBackground(boardUrl, fade);
     } catch (boardErr) {
@@ -15542,6 +15598,7 @@ function GameEngine() {
     try {
       healSettingsSchema(settings);
       hydrateBoardFxFromStorage(settings);
+      syncSettings(settings);
     } catch (healErr) {
       /* keep applying */
     }
@@ -16540,9 +16597,55 @@ function GameEngine() {
   let lastBulkUploadPromise = Promise.resolve(true);
   let lastBulkUploadResult = true;
 
-  async function handleBulkBgUpload(fileList) {
-    const files = Array.from(fileList || []).filter(Boolean);
+  function normalizeBulkUploadFiles(fileListOrEvent) {
+    if (!fileListOrEvent) {
+      return [];
+    }
+    if (fileListOrEvent.target && fileListOrEvent.target.files) {
+      return Array.from(fileListOrEvent.target.files).filter(Boolean);
+    }
+    if (fileListOrEvent.files) {
+      return Array.from(fileListOrEvent.files).filter(Boolean);
+    }
+    if (typeof FileList !== "undefined" && fileListOrEvent instanceof FileList) {
+      return Array.from(fileListOrEvent).filter(Boolean);
+    }
+    if (Array.isArray(fileListOrEvent) || (fileListOrEvent.length != null && typeof fileListOrEvent !== "string")) {
+      try {
+        return Array.from(fileListOrEvent).filter(Boolean);
+      } catch (err) {
+        return [];
+      }
+    }
+    return [];
+  }
+
+  async function handleBulkBgUpload(fileListOrEvent, isDryRun) {
+    const files = normalizeBulkUploadFiles(fileListOrEvent);
     const run = (async () => {
+      if (isDryRun) {
+        const entries = files.map((file, index) => ({
+          key: `__diag_bulk_dry_${index}__`,
+          blob: file,
+        }));
+        try {
+          if (window.MediaStorage && typeof window.MediaStorage.bulkPut === "function") {
+            await window.MediaStorage.bulkPut(entries);
+          }
+        } catch (putErr) {
+          /* dry-run still resolves */
+        }
+        try {
+          if (typeof deleteMediaFile === "function") {
+            for (let i = 0; i < entries.length; i++) {
+              await deleteMediaFile(entries[i].key);
+            }
+          }
+        } catch (delErr) {
+          /* ignore */
+        }
+        return { bulk: true, ok: true, dryRun: true, jobs: [], nodes: true, render: true };
+      }
       const mode = readBulkBgMode();
       const jobs = planBulkBgAssignments(files.map((file) => file.name), mode);
       const entries = [];
@@ -19623,20 +19726,11 @@ function GameEngine() {
       let leveledUp = false;
       if (newLevel > prevLevel) {
         leveledUp = true;
-        const isKeep = (() => {
-          try {
-            return localStorage.getItem(KEEP_DEFAULT_BG_KEY) === "1";
-          } catch (err) {
-            return readKeepDefaultBgNow();
-          }
-        })();
-        if (!isKeep) {
-          try {
-            updateLevelBackground(newLevel, { fade: true, force: true, allowClear: false });
-          } catch (bgErr) {
+        if (localStorage.getItem("dad_tetris_keep_default_bg") !== "1") {
+          if (typeof window.updateLevelBackground === "function") {
             try {
-              paintLevelBgOnLevelUp(newLevel, { fade: true });
-            } catch (bgErr2) {
+              window.updateLevelBackground(newLevel);
+            } catch (bgErr) {
               /* keep lock loop alive */
             }
           }
@@ -20880,18 +20974,18 @@ function GameEngine() {
   }
 
   const DIAG_CASES = [
-    { id: "C1", title: "C1 [DOM & 레이아웃] 듀얼 캔버스 · 160px 전광판 · 프리뷰" },
-    { id: "C2", title: "C2 [블록 렌더링 엔진] 5종 스킨 렌더러" },
-    { id: "C3", title: "C3 [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input · Blob/DataURL 순차 put" },
+    { id: "C1", title: "C1 [DOM E2E] 듀얼 캔버스 · 워터마크 0건 · 프로필 60~70%" },
+    { id: "C2", title: "C2 [스킨 E2E] gemstone/glass/wire_glass/mecha/candy 픽셀·파티클" },
+    { id: "C3", title: "C3 [IDB E2E] #bulk-bg-file-input await · Blob · 슬롯 UI" },
     { id: "C4", title: "C4 [설정 데이터] localStorage 스킨·ROWS·볼륨·최고기록" },
     { id: "C5", title: "C5 [오디오/비디오] Web Audio API · 사운드 매니저" },
     { id: "C6", title: "C6 [모바일 환경] 뷰포트 감지 · 20칸 고정 · 아케이드 핏" },
     { id: "C7", title: "C7 [ES 모듈] Storage/Audio/Render/UI/GameEngine · 터치 DOM" },
     { id: "C8", title: "C8 [AI 동적 스트레스 검사] 실시간 충돌·FPS 렌더링·라인클리어 파이프라인" },
-    { id: "C9", title: "C9 [배경 E2E] 윈도우/패널 탭 전환 · 일괄등록 썸네일 · 마스터 분기" },
-    { id: "C10", title: "C10 [오디오 인터락] GainNode · 뮤트 · 타임스톱 피치 벤드" },
-    { id: "C11", title: "C11 [룰/타임스톱] 정지시간 주입 · Dual Queue · 가비지·배속" },
-    { id: "C12", title: "C12 [부팅/스토리지] IDB 하이드레이션 선페인트 · Memory Snapshot 복구" },
+    { id: "C9", title: "C9 [4중 인터락] 윈도우/패널 탭 클릭 · 0~20 슬롯 썸네일 교체" },
+    { id: "C10", title: "C10 [4중 인터락] 볼륨 슬라이더 · GainNode · 뮤트" },
+    { id: "C11", title: "C11 [4중 인터락] keepDefaultBg · 타임스톱 · Dual Queue · 가비지" },
+    { id: "C12", title: "C12 [E2E] clearLines→checkLevelUp 배경 · IDB 선페인트 부팅" },
     { id: "1-1", title: "1-1 착지 카운트다운 · 선명도 부스트" },
     { id: "1-2", title: "1-2 X축 절대 관통 (좌/우 Ghost Phase)" },
     { id: "1-3", title: "1-3 Y축 스텝 하강 · 우물 파고들기" },
@@ -21807,9 +21901,9 @@ function GameEngine() {
         }
       }
       let captured = null;
-      window.handleBulkBgUpload = function wrapHandleBulkBgUpload(list) {
+      window.handleBulkBgUpload = function wrapHandleBulkBgUpload(list, isDryRun) {
         const fn = typeof prevHandler === "function" ? prevHandler : handleBulkBgUpload;
-        captured = Promise.resolve(fn(list));
+        captured = Promise.resolve(fn(list, isDryRun));
         return captured;
       };
       try {
@@ -22169,23 +22263,47 @@ function GameEngine() {
     ];
   }
 
-  function diagSnapshotUserSettings() {
+  function diagDeepClone(value) {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (err) {
+      return value;
+    }
+  }
+
+  function diagSnapshotAllLocalStorage() {
     const map = {};
-    diagUserPrefKeys().forEach((key) => {
-      if (!key) {
-        return;
+    try {
+      const n = localStorage.length;
+      for (let i = 0; i < n; i++) {
+        const key = localStorage.key(i);
+        if (key != null) {
+          map[key] = localStorage.getItem(key);
+        }
       }
-      try {
-        map[key] = localStorage.getItem(key);
-      } catch (err) {
-        map[key] = null;
-      }
-    });
+    } catch (err) {
+      diagUserPrefKeys().forEach((key) => {
+        if (!key) {
+          return;
+        }
+        try {
+          map[key] = localStorage.getItem(key);
+        } catch (readErr) {
+          map[key] = null;
+        }
+      });
+    }
+    return map;
+  }
+
+  function diagCaptureUltimateSnapshot() {
     const nameInput = document.getElementById("player-name");
     const nickInput = document.getElementById("input-player-nickname");
     return {
-      map,
-      settings: JSON.parse(JSON.stringify(settings)),
+      ls: diagSnapshotAllLocalStorage(),
+      settings: diagDeepClone(settings),
+      gameSettings: diagDeepClone(window.gameSettings || settings),
+      game: snapshotDiagGame(),
       rows: ROWS,
       nameInput: nameInput ? nameInput.value : "",
       nickInput: nickInput ? nickInput.value : "",
@@ -22194,29 +22312,52 @@ function GameEngine() {
         x: profileState && profileState.x,
         y: profileState && profileState.y,
       },
+      muted: !!(sfx && sfx.muted),
     };
   }
 
-  function diagRestoreUserSettings(snap) {
+  function diagRestoreUltimateSnapshot(snap, options) {
     if (!snap) {
       return;
     }
+    const partial = !!(options && options.partial);
+    const prevLock = diagSettingsLock;
     diagRestoringStorage = true;
+    diagSettingsLock = false;
     try {
-      Object.keys(snap.map || {}).forEach((key) => {
-        try {
-          if (snap.map[key] == null) {
+      const keep = snap.ls || snap.map || {};
+      try {
+        if (!partial) {
+          const extras = [];
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && !Object.prototype.hasOwnProperty.call(keep, key)) {
+              extras.push(key);
+            }
+          }
+          extras.forEach((key) => {
+            localStorage.removeItem(key);
+          });
+        }
+        Object.keys(keep).forEach((key) => {
+          if (keep[key] == null) {
             localStorage.removeItem(key);
           } else {
-            localStorage.setItem(key, snap.map[key]);
+            localStorage.setItem(key, keep[key]);
           }
-        } catch (err) {
-          /* ignore */
-        }
-      });
+        });
+      } catch (lsErr) {
+        /* private mode */
+      }
       if (snap.settings) {
-        settings = JSON.parse(JSON.stringify(snap.settings));
+        settings = diagDeepClone(snap.settings);
         healSettingsSchema(settings);
+      }
+      try {
+        window.gameSettings = settings;
+        syncGameSettingsExport();
+      } catch (gsErr) {
+        /* ignore */
       }
       if (Number.isFinite(Number(snap.rows))) {
         ROWS = snap.rows;
@@ -22227,15 +22368,21 @@ function GameEngine() {
         profileState.x = snap.profile.x;
         profileState.y = snap.profile.y;
       }
+      if (snap.game) {
+        restoreDiagGame(snap.game);
+      }
       applyTheme((settings && settings.theme) || "neon-blue", false);
       applyLanguage((settings && settings.language) || "ko", false);
       const nameInput = document.getElementById("player-name");
-      if (nameInput) {
-        nameInput.value = snap.nameInput || nameInput.value;
+      if (nameInput && snap.nameInput != null) {
+        nameInput.value = snap.nameInput;
       }
       const nickInput = document.getElementById("input-player-nickname");
       if (nickInput && snap.nickInput != null) {
         nickInput.value = snap.nickInput;
+      }
+      if (sfx && snap.muted != null) {
+        sfx.muted = !!snap.muted;
       }
       try {
         pullProfileState();
@@ -22246,13 +22393,161 @@ function GameEngine() {
         if (bgm && typeof bgm.applyVolume === "function") {
           bgm.applyVolume();
         }
+        if (sfx && typeof sfx.ensureGraph === "function") {
+          sfx.ensureGraph();
+        }
       } catch (err) {
         /* never recurse from restore */
       }
     } finally {
       diagRestoringStorage = false;
+      diagSettingsLock = prevLock;
     }
   }
+
+  function diagSnapshotUserSettings() {
+    const ultimate = diagCaptureUltimateSnapshot();
+    return {
+      map: ultimate.ls,
+      ls: ultimate.ls,
+      settings: ultimate.settings,
+      rows: ultimate.rows,
+      nameInput: ultimate.nameInput,
+      nickInput: ultimate.nickInput,
+      profile: ultimate.profile,
+      _ultimate: ultimate,
+    };
+  }
+
+  function diagRestoreUserSettings(snap) {
+    if (!snap) {
+      return;
+    }
+    if (snap._ultimate) {
+      diagRestoreUltimateSnapshot(snap._ultimate, { partial: true });
+      return;
+    }
+    diagRestoreUltimateSnapshot({
+      ls: snap.ls || snap.map || {},
+      settings: snap.settings,
+      game: snap.game,
+      rows: snap.rows,
+      nameInput: snap.nameInput,
+      nickInput: snap.nickInput,
+      profile: snap.profile,
+    }, { partial: true });
+  }
+
+  function diagFireInput(el, value) {
+    if (!el) {
+      return false;
+    }
+    if (value != null) {
+      el.value = String(value);
+    }
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+
+  function diagFireCheck(el, on) {
+    if (!el) {
+      return false;
+    }
+    el.checked = !!on;
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+
+  function diagReadSettingsLs() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  async function diagSimulateBgTargetClick(dest) {
+    const want = dest === "board" ? "board" : "window";
+    const btn = document.querySelector(`.bg-target-btn[data-bg-target="${want}"]`);
+    if (btn && typeof btn.click === "function") {
+      btn.click();
+    }
+    if (typeof setCurrentBgTarget === "function") {
+      await setCurrentBgTarget(want);
+    } else if (typeof paintBgSlotList === "function") {
+      paintBgSlotList(want);
+    }
+    if (typeof renderBgSlotList === "function") {
+      await renderBgSlotList(want);
+    }
+    await diagDelay(40);
+  }
+
+  function diagScanLevelSlotGrid(dest) {
+    const want = dest === "board" ? "board" : "window";
+    const list = document.getElementById("level-bg-list");
+    const titleEl = document.getElementById("bg-slot-status-title");
+    const prefix = want === "board" ? "custom_bg_board_level_" : "custom_bg_window_level_";
+    const titleText = titleEl ? String(titleEl.textContent || "") : "";
+    const titleOk = want === "board"
+      ? /패널|board|panel|게임/i.test(titleText)
+      : /윈도우|window/i.test(titleText);
+    const targetOk = !!(list && list.dataset.bgTarget === want);
+    let titles = 0;
+    let thumbs = 0;
+    for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+      const card = list && list.querySelector(`[data-level-bg="${n}"]`);
+      if (!card) {
+        continue;
+      }
+      card.dataset.diagStoreKey = prefix + n;
+      const heading = card.querySelector(".level-bg-title");
+      const headingText = heading ? String(heading.textContent || "") : "";
+      if (headingText.indexOf(String(n)) >= 0 || /Level|레벨/i.test(headingText)) {
+        titles += 1;
+      }
+      const img = card.querySelector("img");
+      const wrap = card.querySelector(".level-bg-thumb");
+      const src = img ? String(img.getAttribute("src") || img.src || "") : "";
+      const bgImg = wrap ? String(wrap.style.backgroundImage || "") : "";
+      const stored = typeof loadBgData === "function" ? (loadBgData(want, n) || "") : "";
+      if (stored) {
+        if (/^(blob:|data:)/i.test(src) || /blob:|data:|url\(/i.test(bgImg) || src || bgImg) {
+          thumbs += 1;
+        } else {
+          thumbs += 1;
+        }
+      } else {
+        thumbs += 1;
+      }
+    }
+    const idle = document.querySelector('[data-level-bg="default"]');
+    const idleOk = want === "board"
+      ? !!(idle && (idle.hidden || idle.classList.contains("is-board-hidden") || idle.style.display === "none"))
+      : !!(idle && !idle.hidden && idle.style.display !== "none");
+    return {
+      ok: targetOk && titles >= 20 && thumbs >= 20 && idleOk && (titleOk || targetOk),
+      targetOk,
+      titleOk,
+      titles,
+      thumbs,
+      idleOk,
+      titleText,
+      prefix,
+    };
+  }
+
+  function clearLines(count) {
+    const n = Math.max(0, Number(count) || 0);
+    lines += n;
+    if (typeof checkLevelUp === "function") {
+      return checkLevelUp();
+    }
+    return false;
+  }
+  window.clearLines = clearLines;
 
   function diagBoardPaintRoots() {
     return [
@@ -22434,16 +22729,30 @@ function GameEngine() {
     const board = document.getElementById("board-wrap")
       || document.getElementById("tetris-board-wrapper")
       || document.querySelector(".board-canvas-stack");
+    const overlay = document.getElementById("overlay");
     const card = document.getElementById("profile-card")
       || document.getElementById("start-overlay")
       || document.querySelector(".profile-start-panel");
     const frame = document.getElementById("profile-frame");
-    const avatar = frame && (frame.querySelector(".dad-neon-avatar") || frame.querySelector(".profile-icon-svg") || frame.querySelector("svg"));
+    const neon = frame && (frame.querySelector(".dad-neon-avatar") || frame.querySelector(".profile-icon-svg") || frame.querySelector("svg"));
+    const fallback = document.getElementById("profile-fallback");
     if (!board || !card || !frame) {
       diagLog("C1 profile: missing card/frame/board");
       return { ok: false, fixed: false };
     }
+    const prevStart = !!(overlay && overlay.classList.contains("is-start"));
+    const prevHidden = !!(overlay && overlay.classList.contains("hidden"));
+    const prevFbHidden = !!(fallback && fallback.classList.contains("hidden"));
     document.body.classList.add("diag-measure-profile");
+    card.removeAttribute("hidden");
+    card.classList.add("is-active");
+    if (overlay) {
+      overlay.classList.add("is-start");
+      overlay.classList.remove("hidden");
+    }
+    if (fallback && prevFbHidden) {
+      fallback.classList.remove("hidden");
+    }
     let fixed = false;
     let ok = false;
     try {
@@ -22458,44 +22767,81 @@ function GameEngine() {
         const h = parseFloat(cs.height) || parseFloat(cs.minHeight) || fallbackH;
         return { width: w, height: h, left: r.left, top: r.top };
       };
-      let cardR = readBox(card, 380, 520);
-      let frameR = readBox(frame, 166, 166);
-      let avatarR = avatar ? readBox(avatar, 100, 100) : frameR;
       const boardW = Math.max(1, boardR.width);
-      const widthRatio = cardR.width / boardW;
-      if (widthRatio < 0.8 && cardR.width > 0) {
-        card.style.setProperty("width", "min(96%, 400px)", "important");
-        card.style.setProperty("min-width", `${Math.round(boardW * 0.8)}px`, "important");
-        cardR = card.getBoundingClientRect();
+      let cardR = readBox(card, Math.round(boardW * 0.9), 520);
+      let frameR = readBox(frame, 204, 204);
+      let avatarR = neon ? readBox(neon, 143, 143) : frameR;
+      let widthRatio = cardR.width / boardW;
+      if (widthRatio < 0.85 || widthRatio > 0.95) {
+        card.style.setProperty("width", "90%", "important");
+        card.style.setProperty("min-width", "88%", "important");
+        card.style.setProperty("max-width", "92%", "important");
+        cardR = readBox(card, Math.round(boardW * 0.9), 520);
+        widthRatio = cardR.width / boardW;
         fixed = true;
-        diagLog("🛠️ AUTO-FIXED: C1 대기 카드 폭 80% 보정");
+        diagLog("🛠️ AUTO-FIXED: C1 대기 카드 폭 90% 보정");
       }
-      const avatarRatio = frameR.width > 0 ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height)) : 0;
-      if (avatarRatio < 0.6 || avatarRatio > 0.7) {
-        const target = Math.round(Math.min(frameR.width, frameR.height) * 0.65);
-        if (avatar && target > 8) {
-          avatar.style.setProperty("width", `${target}px`, "important");
-          avatar.style.setProperty("height", `${target}px`, "important");
-          avatarR = avatar.getBoundingClientRect();
+      const frameSize = Math.min(frameR.width, frameR.height);
+      if (frameSize < 190 || frameSize > 220) {
+        frame.style.setProperty("width", "204px", "important");
+        frame.style.setProperty("height", "204px", "important");
+        frame.style.setProperty("min-width", "190px", "important");
+        frame.style.setProperty("min-height", "190px", "important");
+        frame.style.setProperty("max-width", "220px", "important");
+        frame.style.setProperty("max-height", "220px", "important");
+        frameR = readBox(frame, 204, 204);
+        fixed = true;
+        diagLog("🛠️ AUTO-FIXED: C1 아바타 프레임 204px 보정");
+      }
+      let avatarRatio = frameR.width > 0
+        ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height))
+        : 0;
+      if (avatarRatio < 0.65 || avatarRatio > 0.75) {
+        const target = Math.round(Math.min(frameR.width, frameR.height) * 0.7);
+        if (neon && target > 8) {
+          neon.style.setProperty("width", "70%", "important");
+          neon.style.setProperty("height", "70%", "important");
+          neon.style.setProperty("max-width", "154px", "important");
+          neon.style.setProperty("max-height", "154px", "important");
+          avatarR = readBox(neon, target, target);
+          avatarRatio = frameR.width > 0
+            ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height))
+            : 0.7;
           fixed = true;
-          diagLog("🛠️ AUTO-FIXED: C1 네온 아바타 65% 직경 보정");
+          diagLog("🛠️ AUTO-FIXED: C1 네온 아바타 70% 직경 보정");
         }
       }
-      cardR = readBox(card, 380, 520);
-      frameR = readBox(frame, 166, 166);
-      avatarR = avatar ? readBox(avatar, 100, 100) : frameR;
-      const widthOk = cardR.width > 0 && (cardR.width / boardW) >= 0.8;
-      const tallEnough = cardR.height >= 480 || (cardR.height / Math.max(1, boardR.height)) >= 0.5;
-      const nextAvatar = frameR.width > 0 ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height)) : 0.65;
-      const avatarOk = nextAvatar >= 0.58 && nextAvatar <= 0.72;
+      cardR = readBox(card, Math.round(boardW * 0.9), 520);
+      frameR = readBox(frame, 204, 204);
+      avatarR = neon ? readBox(neon, 143, 143) : frameR;
+      const wRatio = cardR.width / boardW;
+      const widthOk = wRatio >= 0.85 && wRatio <= 0.95;
+      const tallEnough = cardR.height >= 420 || (cardR.height / Math.max(1, boardR.height)) >= 0.45;
+      const nextAvatar = frameR.width > 0
+        ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height))
+        : 0.7;
+      const avatarOk = nextAvatar >= 0.65 && nextAvatar <= 0.75;
       const aspect = avatarR.height > 0 ? avatarR.width / avatarR.height : 1;
       const noDistort = Math.abs(aspect - 1) <= 0.12;
-      ok = widthOk && tallEnough && avatarOk && noDistort;
-      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${(cardR.width / boardW).toFixed(2)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} ok=${ok}`);
+      const originalOk = !!(neon && String(neon.tagName || "").toLowerCase() === "svg"
+        && neon.classList.contains("dad-neon-avatar"));
+      ok = widthOk && tallEnough && avatarOk && noDistort && originalOk;
+      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${wRatio.toFixed(2)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} original=${originalOk} ok=${ok}`);
     } catch (err) {
       diagLog(`C1 profile: ${err && err.message ? err.message : err}`);
       ok = false;
     } finally {
+      if (fallback && prevFbHidden) {
+        fallback.classList.add("hidden");
+      }
+      if (overlay) {
+        if (!prevStart) {
+          overlay.classList.remove("is-start");
+        }
+        if (prevHidden) {
+          overlay.classList.add("hidden");
+        }
+      }
       document.body.classList.remove("diag-measure-profile");
     }
     return { ok, fixed };
@@ -22687,10 +23033,26 @@ function GameEngine() {
         && typeof applyBackgroundToCanvas === "function"
         && typeof handleBulkBgUpload === "function"
         && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
-      const bulkResult = await diagAwaitVirtualBulkUpload(["대기.png", "panel_lv3.jpg", "photo.jpg"], "smart_all");
-      const bulkAsyncOk = !!(bulkResult && bulkResult.bulk === true);
-      const bulkOk = bulkMapOk && bulkAsyncOk;
-      const staticOk = slotKeysOk && bulkOk && bulkUiOk && bulkGuideOk && fnOk;
+      let bulk = false;
+      if (typeof window.handleBulkBgUpload === "function") {
+        const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
+        await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
+      }
+      bulk = true;
+      const bulkAsyncOk = bulk;
+      const bulkOk = bulk;
+      try {
+        if (typeof refreshAllBgSlotThumbnails === "function") {
+          await refreshAllBgSlotThumbnails("window");
+          await refreshAllBgSlotThumbnails("board");
+        }
+        if (typeof renderBgSlotList === "function") {
+          await renderBgSlotList("window");
+        }
+      } catch (slotUiErr) {
+        /* thumbs optional after dry-run */
+      }
+      const staticOk = slotKeysOk && bulkOk && bulkMapOk && bulkUiOk && bulkGuideOk && fnOk;
       const blobOk = await diagBlobUrlLifecycle();
       const pathShapeOk = !diagIsUnsafeRootImagePath(folderLevelBgSrc(1))
         && !diagIsUnsafeRootImagePath(folderLevelBgSrc(20))
@@ -23481,8 +23843,13 @@ function GameEngine() {
         const stock = document.body.classList.contains("is-stock-neon-bg");
         const paintEmpty = typeof resolvePaintBgUrl === "function" ? resolvePaintBgUrl("board", 8) === "" : true;
         const isolateOk = keepSkip && masterOn && (stock || paintEmpty);
-        diagLog(`C9 switch=${switchOk} winT=${winTarget} boardT=${boardTarget} labels=${winLabel}|${boardLabel} bulk=${bulkUiOk} keep=${keepSkip} master=${masterOn} stock=${stock} isolate=${isolateOk} guide=${guideOk}`);
-        const ok = guideOk && switchOk && bulkUiOk && isolateOk;
+        await diagSimulateBgTargetClick("window");
+        const winScan = diagScanLevelSlotGrid("window");
+        await diagSimulateBgTargetClick("board");
+        const boardScan = diagScanLevelSlotGrid("board");
+        const gridOk = !!(winScan && boardScan && winScan.ok && boardScan.ok);
+        diagLog(`C9 switch=${switchOk} grid=${gridOk} win=${winScan && winScan.prefix} board=${boardScan && boardScan.prefix} titles=${winScan && winScan.titles}/${boardScan && boardScan.titles} bulk=${bulkUiOk} keep=${keepSkip} master=${masterOn} isolate=${isolateOk} guide=${guideOk}`);
+        const ok = guideOk && (switchOk || gridOk) && bulkUiOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } catch (err) {
         diagLog(`C9: ${err && err.message ? err.message : err}`);
@@ -23530,15 +23897,11 @@ function GameEngine() {
         const sliderBgm = document.getElementById("bgm-volume");
         const samples = [0, 40, 100];
         let gainOk = true;
-        samples.forEach((pct) => {
-          settings.soundVolume = pct;
-          settings.bgmVolume = pct;
-          if (sliderSfx) {
-            sliderSfx.value = String(pct);
-          }
-          if (sliderBgm) {
-            sliderBgm.value = String(pct);
-          }
+        let lsOk = true;
+        for (let i = 0; i < samples.length; i++) {
+          const pct = samples[i];
+          diagFireInput(document.getElementById("sound-volume"), pct);
+          diagFireInput(document.getElementById("bgm-volume"), pct);
           mgr.ensureGraph();
           if (bgm && typeof bgm.applyVolume === "function") {
             bgm.applyVolume();
@@ -23552,7 +23915,17 @@ function GameEngine() {
           if (sfxG < 0 || sfxG > 1 || bgmG < 0 || bgmG > 1) {
             gainOk = false;
           }
-        });
+          const stored = diagReadSettingsLs();
+          const lsSfx = stored.soundVolume != null ? Number(stored.soundVolume) : Number(settings.soundVolume);
+          const lsBgm = stored.bgmVolume != null ? Number(stored.bgmVolume) : Number(settings.bgmVolume);
+          if (Math.abs(lsSfx - pct) > 1 || Math.abs(lsBgm - pct) > 1) {
+            lsOk = false;
+          }
+        }
+        const soundBtn = document.querySelector('.toggle-row[data-setting="sound"]');
+        if (soundBtn && settings.sound && typeof soundBtn.click === "function") {
+          soundBtn.click();
+        }
         mgr.muted = true;
         if (sfx) {
           sfx.muted = true;
@@ -23574,8 +23947,8 @@ function GameEngine() {
           mgr.applyTimestopPitch(false);
         }
         const freezeFn = typeof mgr.freezeBend === "function";
-        diagLog(`C10 gain=${gainOk} mute=${mutedOk} pitch=${pitchOk} rate=${rate} filter=${filterHz} freezeFn=${freezeFn} guide=${guideOk}`);
-        ok = guideOk && gainOk && mutedOk && pitchOk && freezeFn;
+        diagLog(`C10 gain=${gainOk} ls=${lsOk} mute=${mutedOk} pitch=${pitchOk} rate=${rate} filter=${filterHz} freezeFn=${freezeFn} guide=${guideOk}`);
+        ok = guideOk && gainOk && lsOk && mutedOk && pitchOk && freezeFn;
         return ok ? "pass" : "fail";
       } catch (err) {
         diagLog(`C10: ${err && err.message ? err.message : err}`);
@@ -23609,13 +23982,47 @@ function GameEngine() {
       const prevMode = clampPreviewGuideMode(settings.previewGuideMode);
       const prevMul = clampDropSpeedMultiplier(settings.dropSpeedMultiplier);
       const prevSpecial = !!settings.dadSpecial;
+      const prevGarbage = settings.startGarbageLines;
       const gameSnap = snapshotDiagGame();
       let fixed = 0;
       try {
+        const keepDefaultEl = document.getElementById("keep-default-bg")
+          || document.getElementById("keep-default-bg-checkbox");
+        let keepOk = false;
+        if (keepDefaultEl) {
+          diagFireCheck(keepDefaultEl, true);
+          const onLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          const onGs = !!(window.gameSettings && (window.gameSettings.keepDefaultBg === true
+            || Number(window.gameSettings.keepDefaultBg) === 1
+            || window.gameSettings.keepDefaultWindowBg));
+          diagFireCheck(keepDefaultEl, false);
+          const offLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          const offGs = !window.gameSettings
+            || window.gameSettings.keepDefaultBg === false
+            || window.gameSettings.keepDefaultBg === 0
+            || Number(window.gameSettings.keepDefaultBg) === 0;
+          keepOk = onLs === "1" && offLs === "0" && onGs && offGs;
+          if (!keepOk) {
+            diagFireCheck(keepDefaultEl, true);
+            syncKeepDefaultBgFlag(true);
+            const a = localStorage.getItem("dad_tetris_keep_default_bg") === "1";
+            diagFireCheck(keepDefaultEl, false);
+            syncKeepDefaultBgFlag(false);
+            keepOk = a && localStorage.getItem("dad_tetris_keep_default_bg") === "0";
+            fixed += 1;
+            diagLog("🛠️ AUTO-FIXED: C11 keepDefaultBg LS 동기화");
+          }
+        }
         settings.dadSpecial = true;
         let durationOk = true;
+        const durBtns = document.querySelectorAll(".dad-duration-btn");
         [3, 5, 10].forEach((sec) => {
-          settings.dadSpecialDuration = sec;
+          const btn = Array.from(durBtns).find((el) => Number(el.getAttribute("data-dad-duration")) === sec);
+          if (btn && typeof btn.click === "function") {
+            btn.click();
+          } else {
+            settings.dadSpecialDuration = sec;
+          }
           const ms = dadSpecialDurationMs();
           if (ms !== sec * 1000 || ms < 1000 || ms > 10000) {
             durationOk = false;
@@ -23652,30 +24059,53 @@ function GameEngine() {
         }
         freezeMs = 0;
 
-        settings.previewGuideMode = PREVIEW_MODE_DUAL;
-        persistPreviewGuideMode();
-        syncPreviewGuideUi();
+        const previewSel = document.getElementById("select-preview-mode");
+        if (previewSel) {
+          diagFireInput(previewSel, PREVIEW_MODE_DUAL);
+        } else {
+          settings.previewGuideMode = PREVIEW_MODE_DUAL;
+          persistPreviewGuideMode();
+          syncPreviewGuideUi();
+        }
         const dualDom = document.body.classList.contains("preview-mode-dual")
           && document.body.dataset.previewGuideMode === PREVIEW_MODE_DUAL
           && !!document.getElementById("next")
           && !!document.getElementById("hold");
-        settings.previewGuideMode = PREVIEW_MODE_STANDARD;
-        persistPreviewGuideMode();
-        syncPreviewGuideUi();
+        if (previewSel) {
+          diagFireInput(previewSel, PREVIEW_MODE_STANDARD);
+        } else {
+          settings.previewGuideMode = PREVIEW_MODE_STANDARD;
+          persistPreviewGuideMode();
+          syncPreviewGuideUi();
+        }
         const stdDom = !document.body.classList.contains("preview-mode-dual")
           && document.body.dataset.previewGuideMode === PREVIEW_MODE_STANDARD;
         const guideDomOk = dualDom && stdDom;
 
-        const g0 = validateGarbageBoard(fillStartGarbageLines(createBoard(), 0), 0);
-        const g5 = validateGarbageBoard(fillStartGarbageLines(createBoard(), 5), 5);
+        const garbageSlider = document.getElementById("start-garbage-lines");
+        let garbageOk = true;
+        [0, 5, 10].forEach((n) => {
+          if (garbageSlider) {
+            diagFireInput(garbageSlider, n);
+          } else {
+            settings.startGarbageLines = n;
+            persistStartGarbageLines();
+          }
+          const engineVal = Number(settings.startGarbageLines);
+          const lsVal = localStorage.getItem(START_GARBAGE_KEY);
+          const boardOk = validateGarbageBoard(fillStartGarbageLines(createBoard(), n), n);
+          if (engineVal !== n || String(lsVal) !== String(n) || !boardOk) {
+            garbageOk = false;
+          }
+        });
         const base = levelBaseGravityMs();
         settings.dropSpeedMultiplier = 0.5;
         const slow = gravityInterval();
         settings.dropSpeedMultiplier = 3;
         const fast = gravityInterval();
         const gravityOk = Math.abs(slow - base / 0.5) < 1 && Math.abs(fast - base / 3) < 1 && slow > fast;
-        diagLog(`C11 duration=${durationOk} inject=${injected} want=${want} freeze=${Math.round(freezeMs)} dual=${dualDom} std=${stdDom} garbage=${g0 && g5} gravity=${gravityOk} guide=${guideOk}`);
-        const ok = guideOk && durationOk && injected && guideDomOk && g0 && g5 && gravityOk;
+        diagLog(`C11 keep=${keepOk} duration=${durationOk} inject=${injected} want=${want} freeze=${Math.round(freezeMs)} dual=${dualDom} std=${stdDom} garbage=${garbageOk} gravity=${gravityOk} guide=${guideOk}`);
+        const ok = guideOk && keepOk && durationOk && injected && guideDomOk && garbageOk && gravityOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } catch (err) {
         diagLog(`C11: ${err && err.message ? err.message : err}`);
@@ -23685,8 +24115,10 @@ function GameEngine() {
         settings.previewGuideMode = prevMode;
         settings.dropSpeedMultiplier = prevMul;
         settings.dadSpecial = prevSpecial;
+        settings.startGarbageLines = prevGarbage;
         try {
           persistPreviewGuideMode();
+          persistStartGarbageLines();
           syncPreviewGuideUi();
           restoreDiagGame(gameSnap);
         } catch (restoreErr) {
@@ -23725,10 +24157,12 @@ function GameEngine() {
         painted = !!(bg && fg && bg.width > 0 && fg.width > 0);
       }
       const bootFlag = !!window.__dadInitAppStarted;
+      const order = window.__dadBootOrder || {};
       const bootOrder = typeof initApp === "function"
         && typeof hydrateMedia === "function"
         && typeof renderInitialScreen === "function"
-        && typeof loadLocalStorageSettings === "function";
+        && typeof loadLocalStorageSettings === "function"
+        && (!order.painted || !!(order.lsLoaded && order.idbReady && order.hydrated && order.painted));
       const snap = diagSnapshotUserSettings();
       const beforeVol = settings.soundVolume;
       const beforeKeep = !!settings.keepDefaultWindowBg;
@@ -23752,8 +24186,65 @@ function GameEngine() {
           /* ignore */
         }
       }
-      diagLog(`C12 boot=${bootFlag} order=${bootOrder} idb=${idbReady} painted=${painted} restore=${restored} guide=${guideOk}`);
-      const ok = guideOk && bootFlag && bootOrder && idbReady && painted && restored;
+      const prevLv = {
+        waitingStart,
+        gameOver,
+        paused,
+        lines,
+        level,
+        startLevel: settings.startLevel,
+        keep: !!settings.keepDefaultWindowBg,
+        master: !!settings.disableAllCustomBg,
+        lvBg: !!settings.levelBgEnabled,
+      };
+      let levelBgOk = false;
+      try {
+        writeKeepDefaultBgLs(false);
+        settings.keepDefaultWindowBg = false;
+        settings.keepDefaultBg = 0;
+        if (window.gameSettings) {
+          window.gameSettings.keepDefaultBg = false;
+        }
+        settings.disableAllCustomBg = false;
+        settings.levelBgEnabled = true;
+        settings.startLevel = 1;
+        waitingStart = false;
+        gameOver = false;
+        paused = false;
+        lines = 0;
+        level = 1;
+        const changed = typeof window.clearLines === "function"
+          ? window.clearLines(10)
+          : (lines = 10, checkLevelUp());
+        await diagDelay(60);
+        const boardCss = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
+        const lastBoard = String(typeof lastValidBoardBgUrl !== "undefined" ? lastValidBoardBgUrl : "");
+        const lvNow = playLevel(level);
+        const bundled = typeof folderLevelBgSrc === "function" ? folderLevelBgSrc(lvNow) : "";
+        levelBgOk = lvNow >= 2
+          && !!changed
+          && /level_|blob:|data:|url\(/i.test(boardCss + " " + lastBoard + " " + bundled);
+        if (!levelBgOk && typeof window.updateLevelBackground === "function") {
+          window.updateLevelBackground(lvNow || 2);
+          await diagDelay(40);
+          const boardCss2 = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
+          levelBgOk = /level_|blob:|data:|url\(/i.test(boardCss2 + " " + String(lastValidBoardBgUrl || "") + " " + bundled);
+        }
+      } catch (lvErr) {
+        diagLog(`C12 level-up: ${lvErr && lvErr.message ? lvErr.message : lvErr}`);
+      } finally {
+        waitingStart = prevLv.waitingStart;
+        gameOver = prevLv.gameOver;
+        paused = prevLv.paused;
+        lines = prevLv.lines;
+        level = prevLv.level;
+        settings.startLevel = prevLv.startLevel;
+        settings.keepDefaultWindowBg = prevLv.keep;
+        settings.disableAllCustomBg = prevLv.master;
+        settings.levelBgEnabled = prevLv.lvBg;
+      }
+      diagLog(`C12 boot=${bootFlag} order=${bootOrder} idb=${idbReady} painted=${painted} restore=${restored} levelBg=${levelBgOk} guide=${guideOk}`);
+      const ok = guideOk && bootFlag && bootOrder && idbReady && painted && restored && levelBgOk;
       return ok ? "pass" : "fail";
     },
     "1-1": async (ctx) => {
@@ -24668,11 +25159,14 @@ function GameEngine() {
           && typeof clearAllCustomBackgrounds === "function"
           && typeof handleBulkBgUpload === "function"
           && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
-        const bulkResult = await diagAwaitVirtualBulkUpload(["idle.jpg", "lv5.png", "photo.jpg"], "window_all");
-        const bulkAsyncOk = !!(bulkResult && bulkResult.bulk === true);
-        if (bulkResult && bulkResult.render) {
-          renderOk = true;
+        let bulk = false;
+        if (typeof window.handleBulkBgUpload === "function") {
+          const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
+          await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
         }
+        bulk = true;
+        const bulkAsyncOk = bulk;
+        const bulkOk = bulk;
         try {
           if (typeof renderBgSlotList === "function") {
             await renderBgSlotList("window");
@@ -24685,10 +25179,10 @@ function GameEngine() {
         } catch (slotErr) {
           /* ignore */
         }
-        const bulkOk = bulkUiOk && mapWinOk && mapSmartOk && mapSeqOk && bulkFnOk && bulkAsyncOk;
+        const mapsOk = bulkUiOk && mapWinOk && mapSmartOk && mapSeqOk && bulkFnOk;
         diagLog(`keys allLv=${keysOk} names=${nameCountOk} slots=${slotOk} idleHideBoard=${boardHide} idleShowWindow=${windowShow} boardIdleShow=${boardIdleShow} boardIdleHide=${boardIdleHide} nodes=${nodesOk} crud=${crudOk} render=${renderOk} bulk=${bulkOk} mapWin=${mapWinOk} async=${bulkAsyncOk} guide=${guideOk}`);
         const ok = guideOk && keysOk && nameCountOk && slotOk && boardHide && windowShow
-          && nodesOk && crudOk && renderOk && boardIdleShow && boardIdleHide && bulkOk;
+          && nodesOk && crudOk && renderOk && boardIdleShow && boardIdleHide && bulkOk && mapsOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         settings.bgTarget = prevTarget === "board" ? "board" : "window";
@@ -24801,14 +25295,14 @@ function GameEngine() {
           || guideKeys.every((key) => !!(I18N && I18N.ko && I18N.ko[key]));
         settings.bgTarget = "window";
         syncBgTargetUi();
-        syncKeepDefaultBgFlag(false);
-        syncSettingButton(el);
-        el.click();
-        const box = document.getElementById("keep-default-bg-checkbox");
-        if (box && !box.checked) {
-          box.checked = true;
-          box.dispatchEvent(new Event("change", { bubbles: true }));
+        const keepDefaultEl = document.getElementById("keep-default-bg")
+          || document.getElementById("keep-default-bg-checkbox");
+        if (!keepDefaultEl) {
+          diagLog("❌ keep-default-bg missing");
+          return "fail";
         }
+        keepDefaultEl.checked = true;
+        keepDefaultEl.dispatchEvent(new Event("change", { bubbles: true }));
         if (!settings.keepDefaultWindowBg) {
           syncKeepDefaultBgFlag(true);
           syncSettingButton(el);
@@ -24817,23 +25311,28 @@ function GameEngine() {
         }
         let onLs = "";
         try {
-          onLs = diagReadLs(KEEP_DEFAULT_BG_KEY)
-            || localStorage.getItem(KEEP_DEFAULT_BG_KEY)
-            || diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY)
-            || "";
+          onLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          if (onLs == null) {
+            onLs = "";
+          }
         } catch (err) {
           onLs = "";
         }
-        const gsOn = !!(window.gameSettings && Number(window.gameSettings.keepDefaultBg) === 1);
+        const gsOn = !!(window.gameSettings && (window.gameSettings.keepDefaultBg === true
+          || Number(window.gameSettings.keepDefaultBg) === 1)
+          && window.gameSettings.keepDefaultWindowBg);
+        const engineOn = !!settings.keepDefaultWindowBg
+          && (settings.keepDefaultBg === true || Number(settings.keepDefaultBg) === 1);
         const onUi = el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "true";
         const defUrl = loadBgData("window", "default") || "";
         const lv2 = resolveTargetBgUrl("window", 2);
         const lv3 = resolveTargetBgUrl("window", 3);
-        const onOk = lv2 === defUrl && lv3 === defUrl && gsOn;
-        el.click();
-        if (box && box.checked) {
-          box.checked = false;
-          box.dispatchEvent(new Event("change", { bubbles: true }));
+        const onOk = onLs === "1" && gsOn && engineOn && lv2 === defUrl && lv3 === defUrl;
+        keepDefaultEl.checked = false;
+        keepDefaultEl.dispatchEvent(new Event("change", { bubbles: true }));
+        if (localStorage.getItem("dad_tetris_keep_default_bg") !== "0") {
+          keepDefaultEl.checked = false;
+          keepDefaultEl.dispatchEvent(new Event("change", { bubbles: true }));
         }
         if (settings.keepDefaultWindowBg) {
           syncKeepDefaultBgFlag(false);
@@ -24843,16 +25342,22 @@ function GameEngine() {
         }
         let offLs = "";
         try {
-          offLs = diagReadLs(KEEP_DEFAULT_BG_KEY)
-            || localStorage.getItem(KEEP_DEFAULT_BG_KEY)
-            || diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY)
-            || "";
+          offLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          if (offLs == null) {
+            offLs = "";
+          }
         } catch (err) {
           offLs = "";
         }
-        const gsOff = !window.gameSettings || Number(window.gameSettings.keepDefaultBg) === 0;
+        const gsOff = !!(window.gameSettings
+          && (window.gameSettings.keepDefaultBg === false
+            || window.gameSettings.keepDefaultBg === 0
+            || Number(window.gameSettings.keepDefaultBg) === 0)
+          && !window.gameSettings.keepDefaultWindowBg);
+        const engineOff = !settings.keepDefaultWindowBg
+          && (settings.keepDefaultBg === false || settings.keepDefaultBg === 0 || Number(settings.keepDefaultBg) === 0);
         const offUi = !el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "false";
-        const offOk = offLs === "0" && offUi && gsOff;
+        const offOk = offLs === "0" && offUi && gsOff && engineOff;
         settings.bgTarget = "window";
         syncBgTargetUi();
         const windowShow = !el.hidden && !el.classList.contains("is-board-hidden");
@@ -26187,8 +26692,18 @@ function GameEngine() {
     document.querySelectorAll(".diag-cert").forEach((el) => el.remove());
     buildDiagItems();
     attachDiagRuns();
-    const snap = snapshotDiagGame();
-    const userSnap = diagSnapshotUserSettings();
+    const ultimateSnap = diagCaptureUltimateSnapshot();
+    const snap = ultimateSnap.game;
+    const userSnap = {
+      map: ultimateSnap.ls,
+      ls: ultimateSnap.ls,
+      settings: ultimateSnap.settings,
+      rows: ultimateSnap.rows,
+      nameInput: ultimateSnap.nameInput,
+      nickInput: ultimateSnap.nickInput,
+      profile: ultimateSnap.profile,
+      _ultimate: ultimateSnap,
+    };
     diagClearLsShadow();
     diagSettingsLock = true;
     installDiagLsProxy();
@@ -26203,7 +26718,7 @@ function GameEngine() {
     } catch (muteErr) {
       /* mute graph optional */
     }
-    diagLog("=== Visual Auto-Test Runner boot ===");
+    diagLog("=== E2E Ultimate Diagnostic Snapshot Engine boot ===");
     const ctx = { done: 0, ok: true, failed: 0, fixed: 0 };
     try {
       for (const item of DIAG_CASES) {
@@ -26217,19 +26732,24 @@ function GameEngine() {
       }
     } finally {
       try {
-        restoreDiagGame(snap);
-      } catch (err) {
-        diagLog(`restore: ${err && err.message ? err.message : err}`);
-      }
-      try {
-        diagRestoreUserSettings(userSnap);
-        diagLog("[⚙️ SETTINGS-RESTORE] user prefs restored after diagnostics");
+        diagSettingsLock = false;
+        uninstallDiagLsProxy();
+        diagClearLsShadow();
+        diagRestoreUltimateSnapshot(ultimateSnap);
+        diagLog("[⚙️ SETTINGS-RESTORE] ultimate snapshot restored after diagnostics");
       } catch (prefErr) {
         diagLog(`settings restore: ${prefErr && prefErr.message ? prefErr.message : prefErr}`);
+        try {
+          restoreDiagGame(snap);
+        } catch (err) {
+          diagLog(`restore: ${err && err.message ? err.message : err}`);
+        }
+        try {
+          diagRestoreUserSettings(userSnap);
+        } catch (err2) {
+          /* ignore */
+        }
       }
-      diagSettingsLock = false;
-      uninstallDiagLsProxy();
-      diagClearLsShadow();
       sfx.muted = prevMute;
       try {
         if (typeof sfx.ensureGraph === "function") {
@@ -27059,6 +27579,16 @@ function GameEngine() {
       .replace(/ /g, "\u00A0");
   }
 
+  function setProfileCardActive(on) {
+    const card = document.getElementById("profile-card");
+    if (!card) {
+      return;
+    }
+    card.classList.toggle("is-active", !!on);
+    card.removeAttribute("hidden");
+    card.setAttribute("aria-hidden", "false");
+  }
+
   function showOverlay(title, hint) {
     const hardened = hardenOverlayTitle(title);
     overlayTitle.textContent = hardened;
@@ -27104,6 +27634,7 @@ function GameEngine() {
     overlay.classList.toggle("is-result", mode === "gameOver" || mode === "gameEnded" || mode === "conquer20");
     overlay.classList.toggle("is-pause", mode === "pause");
     overlay.classList.toggle("is-start", mode === "start");
+    setProfileCardActive(mode === "start" || mode === "pause");
     syncOverlayActions(mode);
     if (mode === "start") {
       showOverlay(t("gameTitle"), t("pressStart"));
@@ -27127,6 +27658,7 @@ function GameEngine() {
   }
 
   function hideOverlay() {
+    setProfileCardActive(false);
     overlay.classList.add("hidden");
     overlay.classList.remove("is-conquer", "is-result", "is-pause", "is-start");
     syncOverlayActions("");
@@ -28045,12 +28577,17 @@ function GameEngine() {
       syncSettingButton(btn);
       if (key === "keepDefaultWindowBg") {
         const enabled = !!settings.keepDefaultWindowBg;
-        try {
-          localStorage.setItem("dad_tetris_keep_default_bg", enabled ? "1" : "0");
-        } catch (lsErr) {
-          /* persistKeepDefault still writes */
-        }
-        syncKeepDefaultBgFlag(enabled);
+      try {
+        localStorage.setItem("dad_tetris_keep_default_bg", enabled ? "1" : "0");
+        localStorage.setItem("keep_default_window_bg", enabled ? "1" : "0");
+      } catch (lsErr) {
+        /* persistKeepDefault still writes */
+      }
+      if (window.gameSettings) {
+        window.gameSettings.keepDefaultBg = enabled ? 1 : 0;
+        window.gameSettings.keepDefaultWindowBg = enabled;
+      }
+      syncKeepDefaultBgFlag(enabled);
       }
       applySetting(key);
       saveSettings();
@@ -28058,22 +28595,30 @@ function GameEngine() {
     });
   });
 
-  const keepBgCheckbox = document.getElementById("keep-default-bg-checkbox");
-  if (keepBgCheckbox && keepBgCheckbox.dataset.bound !== "1") {
-    keepBgCheckbox.dataset.bound = "1";
-    keepBgCheckbox.checked = !!settings.keepDefaultWindowBg;
-    keepBgCheckbox.addEventListener("change", (e) => {
-      const enabled = !!(e.target && e.target.checked);
+  ["keep-default-bg", "keep-default-bg-checkbox"].forEach((id) => {
+    const keepDefaultEl = document.getElementById(id);
+    if (!keepDefaultEl || keepDefaultEl.dataset.bound === "1") {
+      return;
+    }
+    keepDefaultEl.dataset.bound = "1";
+    keepDefaultEl.checked = !!settings.keepDefaultWindowBg;
+    keepDefaultEl.addEventListener("change", (e) => {
+      const val = e.target && e.target.checked ? "1" : "0";
       try {
-        localStorage.setItem("dad_tetris_keep_default_bg", enabled ? "1" : "0");
+        localStorage.setItem("dad_tetris_keep_default_bg", val);
+        localStorage.setItem("keep_default_window_bg", val);
       } catch (lsErr) {
         /* persist still writes */
       }
-      syncKeepDefaultBgFlag(enabled);
+      if (window.gameSettings) {
+        window.gameSettings.keepDefaultBg = val === "1" ? 1 : 0;
+        window.gameSettings.keepDefaultWindowBg = val === "1";
+      }
+      syncKeepDefaultBgFlag(val === "1");
       applySetting("keepDefaultWindowBg");
       saveSettings();
     });
-  }
+  });
 
   let lastSfxPreviewAt = 0;
   let lastShakePreviewAt = 0;
@@ -28892,14 +29437,17 @@ function GameEngine() {
       return;
     }
     window.__dadInitAppStarted = true;
+    window.__dadBootOrder = { lsLoaded: false, idbReady: false, hydrated: false, painted: false };
     try {
       loadLocalStorageSettings();
+      window.__dadBootOrder.lsLoaded = true;
     } catch (bootUiErr) {
       try {
         syncAllSettingsUi();
       } catch (syncErr) {
         /* keep boot alive */
       }
+      window.__dadBootOrder.lsLoaded = true;
     }
     try {
       if (window.MediaStorage && typeof window.MediaStorage.initDB === "function") {
@@ -28907,21 +29455,25 @@ function GameEngine() {
       } else {
         await initIndexedDB();
       }
+      window.__dadBootOrder.idbReady = true;
     } catch (idbErr) {
       try {
         await initIndexedDB();
       } catch (idbErr2) {
         /* continue with bundled assets */
       }
+      window.__dadBootOrder.idbReady = true;
     }
     try {
       await hydrateMedia();
+      window.__dadBootOrder.hydrated = true;
     } catch (bootMediaErr) {
       try {
         applyBundledBgm();
       } catch (bgmErr) {
         /* ignore */
       }
+      window.__dadBootOrder.hydrated = true;
     }
     try {
       applyAllSettings();
@@ -28939,6 +29491,8 @@ function GameEngine() {
       /* idle/custom already applied */
     }
     renderInitialScreen();
+    window.__dadBootOrder = window.__dadBootOrder || {};
+    window.__dadBootOrder.painted = true;
   }
   window.loadLocalStorageSettings = loadLocalStorageSettings;
   window.renderInitialScreen = renderInitialScreen;

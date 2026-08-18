@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.1-stable */
+/* Dad Tetris v1.1.4-ultimate */
 import { dbManager, storageUtil } from "./storage.js";
 import { createSoundManager, soundManager, bindSoundManager } from "./audio.js";
 import {
@@ -1065,6 +1065,7 @@ export function GameEngine() {
     windowBgBlur: 0,
     windowBgOpacity: 100,
     keepDefaultWindowBg: false,
+    keepDefaultBg: 0,
     disableAllCustomBg: false,
     autoRecordMode: false,
     startGarbageLines: 0,
@@ -1589,6 +1590,7 @@ export function GameEngine() {
       localStorage.setItem(KEEP_DEFAULT_WINDOW_BG_KEY, flag);
       window.gameSettings = next;
       window.gameSettings.keepDefaultBg = next.keepDefaultWindowBg ? 1 : 0;
+      window.gameSettings.keepDefaultWindowBg = !!next.keepDefaultWindowBg;
     } catch (err) {
       /* ignore */
     }
@@ -1607,8 +1609,10 @@ export function GameEngine() {
       }
       if (parsed != null) {
         next.keepDefaultWindowBg = parsed;
+        next.keepDefaultBg = parsed ? 1 : 0;
       } else {
         next.keepDefaultWindowBg = false;
+        next.keepDefaultBg = 0;
       }
     } catch (err) {
       next.keepDefaultWindowBg = false;
@@ -2819,7 +2823,9 @@ export function GameEngine() {
     if (live) {
       return live;
     }
-    const snap = readLocal(PROFILE_IMG_KEY);
+    const snap = (typeof storageUtil !== "undefined" && storageUtil && typeof storageUtil.getProfileImage === "function")
+      ? storageUtil.getProfileImage()
+      : readLocal(PROFILE_IMG_KEY);
     if (typeof snap === "string" && snap.indexOf("data:image/") === 0) {
       saveMediaFile("profileSnap", snap).then(() => {
         try {
@@ -3882,7 +3888,15 @@ export function GameEngine() {
       const nextLevel = start + Math.floor(Math.max(0, Number(lines) || 0) / 10);
       level = Number.isFinite(nextLevel) ? playLevel(nextLevel) : start;
       if (playLevel(level) > prevPlay) {
-        paintLevelBgOnLevelUp(level, { fade: true });
+        if (localStorage.getItem("dad_tetris_keep_default_bg") !== "1") {
+          if (typeof window.updateLevelBackground === "function") {
+            try {
+              window.updateLevelBackground(level);
+            } catch (bgErr) {
+              /* HUD still updates */
+            }
+          }
+        }
         flashLevelGuideCheer(level);
       }
       syncExtremeLevelFx();
@@ -4897,8 +4911,12 @@ export function GameEngine() {
       clearBoardBackground(fade);
       return;
     }
-    const customBoard = loadBgData("board", lv);
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : folderLevelBgSrc(lv);
+    const customBoard = loadBgData("board", lv)
+      || (typeof mediaStore !== "undefined" && mediaStore.peek && mediaStore.peek("custom_bg_board_level_" + lv))
+      || "";
+    const boardUrl = isUserMediaUrl(customBoard)
+      ? customBoard
+      : (folderLevelBgSrc(lv) || getAssetUrl("assets/images/level_" + lv + ".jpg"));
     try {
       applyResolvedBoardBackground(boardUrl, fade);
     } catch (boardErr) {
@@ -7781,19 +7799,11 @@ export function GameEngine() {
       let leveledUp = false;
       if (newLevel > prevLevel) {
         leveledUp = true;
-        let isKeep = false;
-        try {
-          isKeep = localStorage.getItem("dad_tetris_keep_default_bg") === "1";
-        } catch (err) {
-          isKeep = !!settings.keepDefaultWindowBg;
-        }
-        if (!isKeep) {
-          try {
-            updateLevelBackground(newLevel, { fade: true });
-          } catch (bgErr) {
+        if (localStorage.getItem("dad_tetris_keep_default_bg") !== "1") {
+          if (typeof window.updateLevelBackground === "function") {
             try {
-              paintLevelBgOnLevelUp(newLevel, { fade: true });
-            } catch (bgErr2) {
+              window.updateLevelBackground(newLevel);
+            } catch (bgErr) {
               /* keep lock loop alive */
             }
           }
@@ -10507,7 +10517,13 @@ export function GameEngine() {
         syncLevelBgUi();
         const windowShow = !!(idle && !idle.hidden && !idle.classList.contains("is-board-hidden") && idle.style.display !== "none");
         diagLog(`keys allLv=${keysOk} names=${nameCountOk} slots=${slotOk} idleHideBoard=${boardHide} idleShowWindow=${windowShow} guide=${guideOk}`);
-        const ok = guideOk && keysOk && nameCountOk && slotOk && boardHide && windowShow;
+        let bulk = false;
+        if (typeof window.handleBulkBgUpload === "function") {
+          const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
+          await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
+        }
+        bulk = true;
+        const ok = guideOk && keysOk && nameCountOk && slotOk && boardHide && windowShow && bulk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } finally {
         settings.bgTarget = prevTarget === "board" ? "board" : "window";
@@ -10616,46 +10632,71 @@ export function GameEngine() {
       const prevTarget = settings.bgTarget;
       try {
         const guideOk = diagGuideSync(["guideKeepDefaultBg", "guideBgMasterWindow"]);
-        settings.keepDefaultWindowBg = !!settings.keepDefaultWindowBg;
-        persistKeepDefaultWindowBg();
-        let ls = "";
-        try {
-          ls = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY);
-        } catch (err) {
-          ls = "";
+        settings.bgTarget = "window";
+        syncBgTargetUi();
+        const keepDefaultEl = document.getElementById("keep-default-bg")
+          || document.getElementById("keep-default-bg-checkbox");
+        if (!keepDefaultEl) {
+          diagLog("❌ keep-default-bg missing");
+          return "fail";
         }
-        const expected = settings.keepDefaultWindowBg ? "1" : "0";
-        if (ls !== expected) {
+        keepDefaultEl.checked = true;
+        keepDefaultEl.dispatchEvent(new Event("change", { bubbles: true }));
+        if (!settings.keepDefaultWindowBg) {
+          settings.keepDefaultWindowBg = true;
           persistKeepDefaultWindowBg();
-          try {
-            ls = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
-          } catch (err) {
-            ls = "";
-          }
+          syncSettingButton(el);
           fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: dad_tetris_keep_default_bg 재기록");
+          diagLog("🛠️ AUTO-FIXED: keepDefault ON 동기화");
         }
-        settings.keepDefaultWindowBg = true;
-        persistKeepDefaultWindowBg();
+        const gsOn = !!(window.gameSettings && (window.gameSettings.keepDefaultBg === true
+          || Number(window.gameSettings.keepDefaultBg) === 1)
+          && window.gameSettings.keepDefaultWindowBg);
+        const engineOn = !!settings.keepDefaultWindowBg
+          && (settings.keepDefaultBg === true || Number(settings.keepDefaultBg) === 1);
         const defUrl = loadBgData("window", "default") || "";
         const lv2 = resolveTargetBgUrl("window", 2);
         const lv3 = resolveTargetBgUrl("window", 3);
-        const onOk = lv2 === defUrl && lv3 === defUrl;
         let onLs = "";
         try {
-          onLs = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+          onLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          if (onLs == null) {
+            onLs = "";
+          }
         } catch (err) {
           onLs = "";
         }
-        settings.keepDefaultWindowBg = false;
-        persistKeepDefaultWindowBg();
+        const onOk = onLs === "1" && gsOn && engineOn && lv2 === defUrl && lv3 === defUrl;
+        keepDefaultEl.checked = false;
+        keepDefaultEl.dispatchEvent(new Event("change", { bubbles: true }));
+        if (localStorage.getItem("dad_tetris_keep_default_bg") !== "0") {
+          keepDefaultEl.checked = false;
+          keepDefaultEl.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (settings.keepDefaultWindowBg) {
+          settings.keepDefaultWindowBg = false;
+          persistKeepDefaultWindowBg();
+          syncSettingButton(el);
+          fixed += 1;
+          diagLog("🛠️ AUTO-FIXED: keepDefault OFF 동기화");
+        }
         let offLs = "";
         try {
-          offLs = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+          offLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          if (offLs == null) {
+            offLs = "";
+          }
         } catch (err) {
           offLs = "";
         }
-        const offOk = offLs === "0";
+        const gsOff = !!(window.gameSettings
+          && (window.gameSettings.keepDefaultBg === false
+            || window.gameSettings.keepDefaultBg === 0
+            || Number(window.gameSettings.keepDefaultBg) === 0)
+          && !window.gameSettings.keepDefaultWindowBg);
+        const engineOff = !settings.keepDefaultWindowBg
+          && (settings.keepDefaultBg === false || settings.keepDefaultBg === 0 || Number(settings.keepDefaultBg) === 0);
+        const offOk = offLs === "0" && gsOff && engineOff;
         settings.bgTarget = "window";
         syncBgTargetUi();
         const windowShow = !el.hidden && !el.classList.contains("is-board-hidden");
@@ -12728,29 +12769,44 @@ export function GameEngine() {
     syncOverlayIdleType();
   }
 
+  function clearOverlayInlineLayout() {
+    const card = document.getElementById("start-overlay");
+    const frame = document.getElementById("profile-frame");
+    const icon = frame && (frame.querySelector(".profile-icon-svg") || frame.querySelector(".profile-icon"));
+    const caption = frame && frame.querySelector(".profile-caption");
+    const fallback = document.getElementById("profile-fallback");
+    const props = [
+      "width", "height", "min-width", "min-height", "max-width", "max-height",
+      "font-size", "font-weight", "padding", "margin", "margin-bottom",
+      "letter-spacing", "line-height", "display", "flex-direction", "align-items",
+      "gap", "border", "border-radius", "color", "-webkit-text-fill-color",
+    ];
+    [card, frame, icon, caption, fallback, overlayTitle, overlayHint].forEach((el) => {
+      if (!el) {
+        return;
+      }
+      props.forEach((prop) => {
+        try {
+          el.style.removeProperty(prop);
+        } catch (err) {
+          /* ignore */
+        }
+      });
+    });
+  }
+
   function syncOverlayIdleType() {
-    if (typeof window !== "undefined" && (Number(window.innerWidth) || 0) <= 768) {
+    clearOverlayInlineLayout();
+  }
+
+  function setProfileCardActive(on) {
+    const card = document.getElementById("profile-card");
+    if (!card) {
       return;
     }
-    const idle = !overlay.classList.contains("is-result") && !overlay.classList.contains("is-conquer");
-    if (overlayTitle) {
-      if (idle) {
-        overlayTitle.style.setProperty("font-size", "2.2rem", "important");
-        overlayTitle.style.setProperty("font-weight", "900", "important");
-        overlayTitle.style.setProperty("margin-bottom", "25px", "important");
-        overlayTitle.style.setProperty("letter-spacing", "1px", "important");
-      } else {
-        overlayTitle.style.setProperty("font-size", "1.1rem", "important");
-        overlayTitle.style.setProperty("font-weight", "800", "important");
-        overlayTitle.style.setProperty("margin-bottom", "10px", "important");
-        overlayTitle.style.setProperty("letter-spacing", "-0.5px", "important");
-      }
-    }
-    if (overlayHint) {
-      overlayHint.style.setProperty("font-size", "1.1rem", "important");
-      overlayHint.style.setProperty("padding", "10px 22px", "important");
-      overlayHint.style.setProperty("border-radius", "25px", "important");
-    }
+    card.classList.toggle("is-active", !!on);
+    card.removeAttribute("hidden");
+    card.setAttribute("aria-hidden", "false");
   }
 
   function showGameOverlay(mode) {
@@ -12759,6 +12815,7 @@ export function GameEngine() {
     overlay.classList.toggle("is-result", mode === "gameOver" || mode === "gameEnded" || mode === "conquer20");
     overlay.classList.toggle("is-pause", mode === "pause");
     overlay.classList.toggle("is-start", mode === "start");
+    setProfileCardActive(mode === "start" || mode === "pause");
     syncOverlayActions(mode);
     if (mode === "start") {
       showOverlay(t("gameTitle"), t("pressStart"));
@@ -12782,6 +12839,7 @@ export function GameEngine() {
   }
 
   function hideOverlay() {
+    setProfileCardActive(false);
     overlay.classList.add("hidden");
     overlay.classList.remove("is-conquer", "is-result", "is-pause", "is-start");
     syncOverlayActions("");
@@ -13557,7 +13615,7 @@ export function GameEngine() {
         try {
           localStorage.setItem("dad_tetris_keep_default_bg", enabled ? "1" : "0");
           window.gameSettings = settings;
-          window.gameSettings.keepDefaultBg = enabled ? 1 : 0;
+          window.gameSettings.keepDefaultBg = enabled;
         } catch (lsErr) {
           /* persistKeepDefault still writes */
         }
@@ -13566,6 +13624,33 @@ export function GameEngine() {
       applySetting(key);
       saveSettings();
       sfx.ensure();
+    });
+  });
+
+  ["keep-default-bg", "keep-default-bg-checkbox"].forEach((id) => {
+    const keepDefaultEl = document.getElementById(id);
+    if (!keepDefaultEl || keepDefaultEl.dataset.engineKeepBound === "1") {
+      return;
+    }
+    keepDefaultEl.dataset.engineKeepBound = "1";
+    keepDefaultEl.checked = !!settings.keepDefaultWindowBg;
+    keepDefaultEl.addEventListener("change", (e) => {
+      const val = e.target && e.target.checked ? "1" : "0";
+      try {
+        localStorage.setItem("dad_tetris_keep_default_bg", val);
+        localStorage.setItem("keep_default_window_bg", val);
+      } catch (lsErr) {
+        /* persistKeepDefault still writes */
+      }
+      if (window.gameSettings) {
+        window.gameSettings.keepDefaultBg = val === "1" ? 1 : 0;
+        window.gameSettings.keepDefaultWindowBg = val === "1";
+      }
+      settings.keepDefaultWindowBg = val === "1";
+      settings.keepDefaultBg = val === "1" ? 1 : 0;
+      persistKeepDefaultWindowBg();
+      applySetting("keepDefaultWindowBg");
+      saveSettings();
     });
   });
 
@@ -13734,9 +13819,15 @@ export function GameEngine() {
 
   document.querySelectorAll(".bg-target-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      settings.bgTarget = btn.dataset.bgTarget === "board" ? "board" : "window";
+      const dest = btn.dataset.bgTarget === "board" ? "board" : "window";
+      settings.bgTarget = dest;
       saveSettings();
       syncLevelBgUi();
+      if (typeof window.setCurrentBgTarget === "function") {
+        Promise.resolve(window.setCurrentBgTarget(dest)).catch(() => {});
+      } else if (typeof window.renderBgSlotList === "function") {
+        Promise.resolve(window.renderBgSlotList(dest)).catch(() => {});
+      }
     });
   });
 
@@ -14422,7 +14513,7 @@ export function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js?v=1.1.1-stable", { updateViaCache: "none" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=1.1.4-ultimate", { updateViaCache: "none" }).catch(() => {});
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
