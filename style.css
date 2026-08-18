@@ -4862,6 +4862,15 @@ body.diag-running #profile-y {
   background: #071018;
 }
 
+.hall-sync-status {
+  margin: 0 0 10px;
+  padding: 0 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .hall-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;

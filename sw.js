@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.11-diag";
+const APP_VERSION = "1.3.12-rank";
 const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",
@@ -67,6 +67,11 @@ self.addEventListener("message", (event) => {
   }
 });
 
+function isLiveRankAsset(url) {
+  const path = url.pathname.toLowerCase();
+  return path.endsWith("/data/leaderboard.json") || path.endsWith("/leaderboard.json");
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") {
@@ -74,6 +79,22 @@ self.addEventListener("fetch", (event) => {
   }
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) {
+    return;
+  }
+  if (isLiveRankAsset(url)) {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(req, { cache: "no-store" });
+        if (fresh && fresh.ok) {
+          return fresh;
+        }
+      } catch (err) {
+        /* fall through */
+      }
+      return new Response("{\"v\":1,\"updatedAt\":\"\",\"records\":[]}", {
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    })());
     return;
   }
   event.respondWith((async () => {

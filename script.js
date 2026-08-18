@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.11-diag single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.3.12-rank single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -709,6 +709,7 @@ const storageUtil = {
     SOFTDROP: "dad_tetris_softdrop",
     RANK_DOMESTIC: "dad_tetris_rank_domestic",
     RANK_GLOBAL: "dad_tetris_rank_global",
+    RANK_SHARED: "dad_tetris_rank_shared",
     PLAYER_NAME: "dad_tetris_player_name",
     AUTO_RECORD: "auto_record_mode",
     START_GARBAGE: "start_garbage_lines",
@@ -724,7 +725,7 @@ const storageUtil = {
   SCORE_PROTECT_KEYS: [
     "dad_tetris_best_score", "bestScore", "dadTetrisBest",
     "dad_tetris_hall_of_fame", "dad_tetris_rankings", "dadTetrisHall",
-    "dad_tetris_rank_domestic", "dad_tetris_rank_global",
+    "dad_tetris_rank_domestic", "dad_tetris_rank_global", "dad_tetris_rank_shared",
   ],
   isProtectedScoreKey(key) {
     return (this.SCORE_PROTECT_KEYS || []).indexOf(String(key || "")) >= 0;
@@ -768,7 +769,7 @@ const storageUtil = {
     const bestKeys = ["dad_tetris_best_score", "bestScore", "dadTetrisBest"];
     const hallKeys = [
       "dad_tetris_hall_of_fame", "dad_tetris_rankings", "dadTetrisHall",
-      "dad_tetris_rank_domestic", "dad_tetris_rank_global",
+      "dad_tetris_rank_domestic", "dad_tetris_rank_global", "dad_tetris_rank_shared",
     ];
     let top = 0;
     bestKeys.forEach((key) => {
@@ -2984,7 +2985,7 @@ function GameEngine() {
       "skipSave": "저장하지 않기",
       "hallTitle": "🏆 명예의 전당",
       "hallEmpty": "아직 기록이 없습니다.\n한 판 플레이하고 이름을 남겨 주세요.",
-      "resetAll": "전체 기록 초기화",
+      "resetAll": "목록 새로고침",
       "close": "닫기",
       "delete": "삭제",
       "confirmDelete": "이 기록을 삭제할까요?",
@@ -2998,6 +2999,11 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ 랭킹 차트의 기록은 데이터 최적화 및 운영/관리 필요성에 의해 사전 예고 없이 초기화되거나 삭제될 수 있습니다.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *데이터 관리 정책에 따라 차트가 갱신될 수 있습니다.",
+      "rankSyncOnline": "🌐 온라인 랭킹 동기화됨 · 국내/글로벌 접속자 기록이 함께 표시됩니다",
+      "rankSyncing": "⏳ 온라인 랭킹을 불러오는 중...",
+      "rankSyncLocal": "💾 이 기기 기록 + 온라인 보드 대기",
+      "confirmDelete": "이 기기 목록에서만 숨길까요? 온라인 보드는 유지됩니다.",
+      "confirmReset": "목록을 새로고침할까요? 온라인 랭킹은 유지되고 이 기기의 숨김만 해제됩니다.",
       "celebrateGoal1": "🎉 {score}점 달성을 축하드립니다!",
       "celebrateGoal2": "🏆 {score}점 달성! 최고의 실력입니다!",
       "celebrateGameover": "👏 아버님, 수고하셨습니다!",
@@ -3159,7 +3165,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 한국어 · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "챕터 7 · 명예의 전당 & 소셜 랭킹 공유",
       "guideHallRankTitle": "🏆 명예의 전당 & 소셜 랭킹 공유",
-      "guideHallRankBody": "명예의 전당은 🇰🇷 국내 랭킹과 🌐 글로벌 랭킹 두 탭으로 나뉩니다. BEST 칸을 눌러 열고, 상단 탭으로 전환하세요. 국가는 브라우저 언어/로케일에서 자동 인식됩니다. 한국 기록은 국내+글로벌에 함께 오르고, 해외 기록은 글로벌에만 집계됩니다. AI 오토플레이가 한 프레임이라도 켜진 판은 등록되지 않습니다.",
+      "guideHallRankBody": "명예의 전당은 🇰🇷 국내 랭킹과 🌐 글로벌 랭킹 두 탭입니다. BEST 칸을 눌러 열고 상단 탭으로 전환하세요. 국가는 접속 위치(타임존·IP)로 판별합니다. 한국에서 접속한 기록은 국내+글로벌에 함께 오르고, 해외 접속은 글로벌에만 집계됩니다. 보드는 모든 접속자가 같은 온라인 랭킹을 보도록 동기화됩니다. AI 오토플레이가 한 프레임이라도 켜진 판은 등록되지 않습니다.",
       "guideHallRankPolicy": "⚠️ 공식 정책: 시스템 최적화, 데이터 정합성 유지, 치트 방지 등 운영 관리상 필요에 따라 랭킹 데이터는 언제든 초기화 또는 삭제될 수 있습니다.",
       "guideHallDualHow": "💡 국내 탭은 KR 기록만, 글로벌 탭은 모든 국가 기록을 보여 줍니다. 각 줄에 국기·국가코드, 순위, 닉네임, 점수, 레벨, 줄 수, 일시가 표시됩니다.",
       "guideHallNickname": "환경설정 [👤 플레이어 프로필 / 랭킹 설정]에서 게이머 닉네임을 지정합니다. 저장 키는 dad_tetris_player_name이며, 값이 없거나 빈칸으로 제출하면 무조건 ‘시스템’으로 등록됩니다. 자동 기록 모드도 이 닉네임을 사용합니다.",
@@ -3624,6 +3630,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Leaderboard records may be reset or deleted without prior notice for data optimization and operations.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Congrats on {score} points!",
       "celebrateGoal2": "🏆 {score} points! Amazing skill!",
       "celebrateGameover": "👏 Well played, Dad!",
@@ -3785,7 +3794,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -4250,6 +4259,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ डेटा अनुकूलन और संचालन आवश्यकता के कारण लीडरबोर्ड रिकॉर्ड बिना पूर्व सूचना के रीसेट या हटाए जा सकते हैं.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 {score} अंक की बधाई!",
       "celebrateGoal2": "🏆 {score} अंक! कमाल!",
       "celebrateGameover": "👏 बहुत बढ़िया, पापा!",
@@ -4411,7 +4423,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -4876,6 +4888,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ 出于数据优化与运营管理需要，排行榜记录可能在不另行通知的情况下被重置或删除。",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *排行榜可能依数据管理政策更新。",
+      "rankSyncOnline": "🌐 已同步在线排行 · 韩国/全球访客记录一并显示",
+      "rankSyncing": "⏳ 正在加载在线排行...",
+      "rankSyncLocal": "💾 仅本机记录 · 等待在线榜",
       "celebrateGoal1": "🎉 恭喜获得 {score} 积分！",
       "celebrateGoal2": "🏆 {score} 积分！惊人的技巧！",
       "celebrateGameover": "👏 爸爸，打得好！",
@@ -5037,7 +5052,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -5502,6 +5517,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Los registros del ranking pueden restablecerse o eliminarse sin aviso previo por optimización de datos y operación.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 ¡Felicitaciones por los puntos {score}!",
       "celebrateGoal2": "🏆 {score} puntos! ¡Habilidad asombrosa!",
       "celebrateGameover": "👏 ¡Bien jugado, papá!",
@@ -5663,7 +5681,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -6128,6 +6146,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ データ最適化および運営管理の必要により、ランキング記録は予告なく初期化または削除される場合があります。",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *データ管理方針に従いチャートが更新される場合があります。",
+      "rankSyncOnline": "🌐 オンラインランキング同期済み · 韓国/グローバル記録をまとめて表示",
+      "rankSyncing": "⏳ オンラインランキングを読み込み中...",
+      "rankSyncLocal": "💾 この端末の記録のみ · オンライン待機",
       "celebrateGoal1": "🎉 {score} ポイント獲得おめでとうございます!",
       "celebrateGoal2": "🏆 {score} ポイント!すごいスキル！",
       "celebrateGameover": "👏 よく遊んだよ、パパ！",
@@ -6289,7 +6310,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -6754,6 +6775,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Les records du classement peuvent être réinitialisés ou supprimés sans préavis pour l'optimisation des données et l'exploitation.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Félicitations pour les points {score} !",
       "celebrateGoal2": "🏆 {score} points ! Compétence incroyable !",
       "celebrateGameover": "👏 Bien joué, papa !",
@@ -6915,7 +6939,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -7380,6 +7404,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Rangliste-Einträge können ohne Vorankündigung aus Datenoptimierung und Betriebsgründen zurückgesetzt oder gelöscht werden.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Herzlichen Glückwunsch zu {score} Punkten!",
       "celebrateGoal2": "🏆 {score} Punkte! Erstaunliche Fähigkeit!",
       "celebrateGameover": "👏Gut gespielt, Papa!",
@@ -7541,7 +7568,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -8006,6 +8033,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Os registros do ranking podem ser redefinidos ou excluídos sem aviso prévio por otimização de dados e operação.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Parabéns pelos {score} pontos!",
       "celebrateGoal2": "🏆 {score} pontos! Habilidade incrível!",
       "celebrateGameover": "👏 Bem jogado, pai!",
@@ -8167,7 +8197,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -8632,6 +8662,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Записи рейтинга могут быть сброшены или удалены без предварительного уведомления для оптимизации данных и эксплуатации.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Поздравляем с {score} очками!",
       "celebrateGoal2": "🏆 {score} очков! Отличный результат!",
       "celebrateGameover": "👏 Отлично сыграно, папа!",
@@ -8793,7 +8826,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -9258,6 +9291,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Thành tích bảng xếp hạng có thể bị đặt lại hoặc xóa mà không báo trước vì tối ưu dữ liệu và vận hành.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Chúc mừng bạn đã nhận được {score} điểm!",
       "celebrateGoal2": "🏆 {score} điểm! Kỹ năng tuyệt vời!",
       "celebrateGameover": "👏 Chơi hay lắm bố ơi!",
@@ -9419,7 +9455,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -9884,6 +9920,9 @@ function GameEngine() {
       "rankCardGlobal": "🌐 DAD TETRIS GLOBAL LEADERBOARD",
       "rankingNoticeFull": "ℹ️ Rekor papan peringkat dapat direset atau dihapus tanpa pemberitahuan untuk optimasi data dan operasional.",
       "rankingShareWatermark": "[DAD TETRIS LEADERBOARD] *Charts may be updated under the data management policy.",
+      "rankSyncOnline": "🌐 Online ranking synced · Korea/Global visitor records are shown together",
+      "rankSyncing": "⏳ Loading online ranking...",
+      "rankSyncLocal": "💾 This device only · waiting for the online board",
       "celebrateGoal1": "🎉 Selamat atas {score} poin!",
       "celebrateGoal2": "🏆 {score} poin! Keterampilan luar biasa!",
       "celebrateGameover": "👏 Permainan yang bagus, Ayah!",
@@ -10045,7 +10084,7 @@ function GameEngine() {
       "guideLangList": "🇰🇷 Korean · 🇺🇸 English · 🇮🇳 हिन्दी · 🇨🇳 简体中文 · 🇪🇸 Español · 🇯🇵 日本語 · 🇫🇷 Français · 🇩🇪 Deutsch · 🇧🇷 Português · 🇷🇺 Русский · 🇻🇳 Tiếng Việt · 🇮🇩 Bahasa Indonesia",
       "guideHallRankBadge": "Ch.7 · Hall of Fame & social ranking share",
       "guideHallRankTitle": "🏆 Hall of Fame & social ranking share",
-      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is auto-detected from browser locale/language. Korean records go to both boards; overseas records go to Global only. Any AI autoplay frame blocks registration.",
+      "guideHallRankBody": "The Hall of Fame has 🇰🇷 Korea and 🌐 Global tabs. Open it from BEST, then switch tabs. Country is detected from connection location (timezone/IP), not UI language. Korean connections go to both boards; overseas connections go to Global only. The board syncs so every visitor sees the same online ranking. Any AI autoplay frame blocks registration.",
       "guideHallRankPolicy": "⚠️ Official policy: Ranking data may be reset or deleted at any time for system optimization, data integrity, and anti-cheat operations.",
       "guideHallDualHow": "💡 The Korea tab shows KR records only. The Global tab shows every country. Each row lists flag/code, rank, nickname, score, level, lines, and date.",
       "guideHallNickname": "Set your gamer nickname in Settings → Player profile / ranking. It is stored as dad_tetris_player_name. Empty values always save as 시스템. Auto-record uses the same nickname.",
@@ -10363,8 +10402,17 @@ function GameEngine() {
   const HALL_KEY = "dadTetrisHall";
   const RANK_DOMESTIC_KEY = "dad_tetris_rank_domestic";
   const RANK_GLOBAL_KEY = "dad_tetris_rank_global";
+  const RANK_SHARED_KEY = "dad_tetris_rank_shared";
+  const RANK_HIDDEN_KEY = "dad_tetris_rank_hidden";
+  const RANK_OUTBOX_KEY = "dad_tetris_rank_outbox";
+  const RANK_COUNTRY_KEY = "dad_tetris_country_code";
+  const RANK_MAX_STORE = 50;
+  const RANK_MAX_SHOW = 10;
+  const RANK_SCORE_CAP = 9999999;
+  const RANK_GITHUB_OWNER = "youlmacc-oss";
+  const RANK_GITHUB_REPO = "dad-tetris";
   const BEST_SCORE_ALIAS_KEYS = ["dad_tetris_best_score", "bestScore", BEST_KEY];
-  const HALL_ALIAS_KEYS = ["dad_tetris_hall_of_fame", "dad_tetris_rankings", HALL_KEY, RANK_DOMESTIC_KEY, RANK_GLOBAL_KEY];
+  const HALL_ALIAS_KEYS = ["dad_tetris_hall_of_fame", "dad_tetris_rankings", HALL_KEY, RANK_DOMESTIC_KEY, RANK_GLOBAL_KEY, RANK_SHARED_KEY];
   const SCORE_PROTECT_KEYS = BEST_SCORE_ALIAS_KEYS.concat(HALL_ALIAS_KEYS);
   let nativeLsSetItem = null;
   let nativeLsGetItem = null;
@@ -10391,7 +10439,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.11-diag";
+  const APP_VERSION = "1.3.12-rank";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -11013,6 +11061,8 @@ function GameEngine() {
   let autoplayEndOpen = false;
   let hallOpen = false;
   let hallTab = "domestic";
+  let rankSyncState = "local";
+  let rankPullBusy = false;
   let pendingScoreSave = null;
   let pendingAutoplayEnd = null;
   const SPACE_DOUBLE_MS = 250;
@@ -12852,23 +12902,97 @@ function GameEngine() {
     return "";
   }
 
-  function detectCountryCode() {
-    let fromNav = "";
+  function readCachedCountryCode() {
     try {
-      const navLang = (typeof navigator !== "undefined" && (navigator.language || (navigator.languages && navigator.languages[0]))) || "";
-      fromNav = parseCountryFromLocale(navLang);
+      const cached = String(sessionStorage.getItem(RANK_COUNTRY_KEY) || "").toUpperCase();
+      if (/^[A-Z]{2}$/.test(cached)) {
+        return cached;
+      }
     } catch (err) {
-      fromNav = "";
+      /* private mode */
     }
-    const lang = (settings && settings.language) || "";
-    const fromLang = ({
-      ko: "KR", en: "US", ja: "JP", "zh-CN": "CN", es: "ES", fr: "FR", de: "DE",
-      "pt-BR": "BR", ru: "RU", vi: "VN", id: "ID", hi: "IN",
-    })[lang] || "";
-    if (fromNav === "KR" || fromLang === "KR" || lang === "ko") {
-      return "KR";
+    return "";
+  }
+
+  function writeCachedCountryCode(code) {
+    const cc = String(code || "").toUpperCase();
+    if (!/^[A-Z]{2}$/.test(cc)) {
+      return;
     }
-    return fromNav || fromLang || "US";
+    try {
+      sessionStorage.setItem(RANK_COUNTRY_KEY, cc);
+    } catch (err) {
+      /* private mode */
+    }
+  }
+
+  function detectCountryFromTimezone() {
+    try {
+      const tz = String(Intl.DateTimeFormat().resolvedOptions().timeZone || "");
+      if (tz === "Asia/Seoul") {
+        return "KR";
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    return "";
+  }
+
+  function detectCountryFromNavigator() {
+    try {
+      const langs = [];
+      if (typeof navigator !== "undefined") {
+        if (navigator.languages && navigator.languages.length) {
+          langs.push.apply(langs, navigator.languages);
+        }
+        if (navigator.language) {
+          langs.push(navigator.language);
+        }
+      }
+      for (let i = 0; i < langs.length; i++) {
+        const cc = parseCountryFromLocale(langs[i]);
+        if (cc) {
+          return cc;
+        }
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    return "";
+  }
+
+  function detectCountryCode() {
+    return readCachedCountryCode() || detectCountryFromTimezone() || detectCountryFromNavigator() || "US";
+  }
+
+  async function probeCountryFromIp() {
+    const cached = readCachedCountryCode();
+    if (cached) {
+      return cached;
+    }
+    const urls = [
+      "https://get.geojs.io/v1/ip/country.json",
+      "https://ipwho.is/?fields=country_code,success",
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const res = await fetch(urls[i], { cache: "no-store", mode: "cors", credentials: "omit" });
+        if (!res.ok) {
+          continue;
+        }
+        const data = await res.json();
+        const cc = String((data && (data.country_code || data.country || data.countryCode)) || "").toUpperCase();
+        if (/^[A-Z]{2}$/.test(cc)) {
+          writeCachedCountryCode(cc);
+          return cc;
+        }
+      } catch (err) {
+        /* try next */
+      }
+    }
+    const fallback = detectCountryCode();
+    writeCachedCountryCode(fallback);
+    return fallback;
   }
 
   function isDomesticPlayer(code) {
@@ -12888,45 +13012,174 @@ function GameEngine() {
     return kind === "domestic" ? RANK_DOMESTIC_KEY : RANK_GLOBAL_KEY;
   }
 
-  function loadRankList(kind) {
+  function parseRankArray(raw) {
     try {
-      const raw = localStorage.getItem(rankStoreKey(kind));
-      if (!raw) {
-        return [];
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (Array.isArray(parsed)) {
+        return parsed;
       }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return [];
+      if (parsed && Array.isArray(parsed.records)) {
+        return parsed.records;
       }
-      return normalizeHall(parsed, kind);
+    } catch (err) {
+      /* ignore */
+    }
+    return [];
+  }
+
+  function hiddenRankIds() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(RANK_HIDDEN_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.map(String) : [];
     } catch (err) {
       return [];
     }
   }
 
-  function saveRankList(kind, records) {
-    const hall = normalizeHall(records, kind);
-    persistProtectedScoreKey(rankStoreKey(kind), JSON.stringify(hall));
-    if (kind === "global") {
-      persistProtectedScoreKey(HALL_KEY, JSON.stringify(hall));
+  function hideRankId(id) {
+    const next = hiddenRankIds().concat([String(id)]);
+    const uniq = next.filter((item, index) => next.indexOf(item) === index);
+    try {
+      localStorage.setItem(RANK_HIDDEN_KEY, JSON.stringify(uniq));
+    } catch (err) {
+      /* ignore */
     }
+  }
+
+  function loadOutbox() {
+    return parseRankArray(readScoreLsRaw(RANK_OUTBOX_KEY));
+  }
+
+  function saveOutbox(rows) {
+    try {
+      localStorage.setItem(RANK_OUTBOX_KEY, JSON.stringify(mergeRankRecords([rows])));
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function enqueueOutbox(row) {
+    saveOutbox(loadOutbox().concat([row]));
+  }
+
+  function clearOutboxIds(ids) {
+    const drop = {};
+    (ids || []).forEach((id) => {
+      drop[String(id)] = true;
+    });
+    saveOutbox(loadOutbox().filter((row) => !drop[String(row.id)]));
+  }
+
+  function rankFingerprint(row) {
+    return `${row.name}|${row.score}|${row.level}|${String(row.date).slice(0, 16)}|${row.countryCode}`;
+  }
+
+  function normalizeRankRow(row, index, kind) {
+    if (!row || !Number.isFinite(Number(row.score))) {
+      return null;
+    }
+    const score = Math.max(0, Math.min(RANK_SCORE_CAP, Math.round(Number(row.score))));
+    if (score <= 0) {
+      return null;
+    }
+    const countryCode = String(row.countryCode || (kind === "domestic" ? "KR" : detectCountryCode())).toUpperCase().slice(0, 2);
+    const name = String(row.name || row.playerName || t("dad")).trim().slice(0, 12) || t("dad");
+    return {
+      id: String(row.id || `${row.date || ""}-${score}-${index || 0}`),
+      name,
+      playerName: name,
+      score,
+      level: Math.max(1, Math.round(Number(row.level) || 1)),
+      lines: Math.max(0, Math.round(Number(row.lines) || 0)),
+      date: String(row.date || ""),
+      countryCode: /^[A-Z]{2}$/.test(countryCode) ? countryCode : (kind === "domestic" ? "KR" : "US"),
+    };
+  }
+
+  function mergeRankRecords(lists) {
+    const byId = new Map();
+    const byFp = new Map();
+    (lists || []).forEach((list) => {
+      (list || []).forEach((item, index) => {
+        const row = normalizeRankRow(item, index);
+        if (!row) {
+          return;
+        }
+        const fp = rankFingerprint(row);
+        const prevFp = byFp.get(fp);
+        if (prevFp && prevFp.id !== row.id) {
+          return;
+        }
+        const prev = byId.get(row.id);
+        if (!prev || row.score > prev.score || (row.score === prev.score && row.date > prev.date)) {
+          byId.set(row.id, row);
+          byFp.set(fp, row);
+        }
+      });
+    });
+    return Array.from(byId.values())
+      .sort((a, b) => b.score - a.score || b.level - a.level || String(b.date).localeCompare(String(a.date)))
+      .slice(0, RANK_MAX_STORE);
+  }
+
+  function loadRawRankKey(key) {
+    try {
+      return parseRankArray(readScoreLsRaw(key));
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function persistUnified(records) {
+    const all = mergeRankRecords([records]);
+    persistProtectedScoreKey(RANK_SHARED_KEY, JSON.stringify(all));
+    const domestic = all.filter((row) => isDomesticPlayer(row.countryCode));
+    persistProtectedScoreKey(RANK_DOMESTIC_KEY, JSON.stringify(normalizeHall(domestic, "domestic")));
+    persistProtectedScoreKey(RANK_GLOBAL_KEY, JSON.stringify(normalizeHall(all, "global")));
+    persistProtectedScoreKey(HALL_KEY, JSON.stringify(normalizeHall(all, "global")));
+    return all;
+  }
+
+  function loadUnifiedRecords() {
+    const shared = loadRawRankKey(RANK_SHARED_KEY);
+    if (shared.length) {
+      return mergeRankRecords([shared, loadOutbox()]);
+    }
+    return mergeRankRecords([
+      loadRawRankKey(RANK_GLOBAL_KEY),
+      loadRawRankKey(RANK_DOMESTIC_KEY),
+      loadRawRankKey(HALL_KEY),
+      loadOutbox(),
+    ]);
+  }
+
+  function loadRankList(kind) {
+    const hidden = {};
+    hiddenRankIds().forEach((id) => {
+      hidden[id] = true;
+    });
+    const unified = loadUnifiedRecords().filter((row) => !hidden[row.id]);
+    return normalizeHall(unified, kind);
+  }
+
+  function saveRankList(kind, records) {
+    const incoming = mergeRankRecords([records]).filter((row) => kind !== "domestic" || isDomesticPlayer(row.countryCode));
+    const unified = loadUnifiedRecords();
+    const next = kind === "domestic"
+      ? unified.filter((row) => !isDomesticPlayer(row.countryCode)).concat(incoming)
+      : incoming;
+    persistUnified(next);
     syncBestFromDualRanks();
     if (kind === hallTab) {
       renderHall();
     }
-    return hall;
+    return normalizeHall(incoming, kind);
   }
 
   function migrateLegacyHall() {
-    let domesticRaw = null;
-    let globalRaw = null;
-    try {
-      domesticRaw = localStorage.getItem(RANK_DOMESTIC_KEY);
-      globalRaw = localStorage.getItem(RANK_GLOBAL_KEY);
-    } catch (err) {
-      return;
-    }
-    if ((domesticRaw && domesticRaw !== "[]") || (globalRaw && globalRaw !== "[]")) {
+    const unified = loadUnifiedRecords();
+    if (unified.length) {
+      persistUnified(unified);
       return;
     }
     const legacy = loadHall();
@@ -12934,8 +13187,7 @@ function GameEngine() {
       ...row,
       countryCode: row.countryCode || "KR",
     }));
-    saveRankList("global", tagged);
-    saveRankList("domestic", tagged.filter((row) => isDomesticPlayer(row.countryCode)));
+    persistUnified(tagged);
   }
 
   function syncBestFromDualRanks() {
@@ -12961,20 +13213,9 @@ function GameEngine() {
   }
 
   function normalizeHall(records, kind) {
-    return records
-      .filter((row) => row && Number.isFinite(Number(row.score)))
-      .map((row, index) => ({
-        id: String(row.id || `${row.date || ""}-${row.score}-${index}`),
-        name: String(row.name || t("dad")).trim().slice(0, 12) || t("dad"),
-        score: Math.max(0, Math.round(Number(row.score))),
-        level: Math.max(1, Math.round(Number(row.level) || 1)),
-        lines: Math.max(0, Math.round(Number(row.lines) || 0)),
-        date: String(row.date || ""),
-        countryCode: String(row.countryCode || (kind === "domestic" ? "KR" : detectCountryCode())).toUpperCase(),
-      }))
+    return mergeRankRecords([records])
       .filter((row) => kind !== "domestic" || isDomesticPlayer(row.countryCode))
-      .sort((a, b) => b.score - a.score || b.level - a.level)
-      .slice(0, 10);
+      .slice(0, RANK_MAX_SHOW);
   }
 
   function saveHall(records) {
@@ -12999,13 +13240,225 @@ function GameEngine() {
     }
   }
 
+  function rankGetUrls() {
+    const bust = "t=" + Date.now();
+    const urls = [];
+    try {
+      urls.push(new URL("./data/leaderboard.json?" + bust, assetBaseHref()).href);
+    } catch (err) {
+      urls.push("./data/leaderboard.json?" + bust);
+    }
+    urls.push("https://" + RANK_GITHUB_OWNER + ".github.io/" + RANK_GITHUB_REPO + "/data/leaderboard.json?" + bust);
+    urls.push("https://raw.githubusercontent.com/" + RANK_GITHUB_OWNER + "/" + RANK_GITHUB_REPO + "/main/data/leaderboard.json?" + bust);
+    urls.push("https://cdn.jsdelivr.net/gh/" + RANK_GITHUB_OWNER + "/" + RANK_GITHUB_REPO + "@main/data/leaderboard.json?" + bust);
+    const seen = {};
+    return urls.filter((url) => {
+      if (seen[url]) {
+        return false;
+      }
+      seen[url] = true;
+      return true;
+    });
+  }
+
+  function rankWriteToken() {
+    try {
+      return String((window.__DAD_RANK_TOKEN || sessionStorage.getItem("dad_tetris_rank_token") || "")).trim();
+    } catch (err) {
+      return "";
+    }
+  }
+
+  async function fetchRankJson(url) {
+    const res = await fetch(url, { cache: "no-store", mode: "cors", credentials: "omit" });
+    if (!res.ok) {
+      throw new Error(String(res.status));
+    }
+    return parseRankArray(await res.json());
+  }
+
+  function setHallSyncStatus(state) {
+    rankSyncState = state || rankSyncState;
+    const el = document.getElementById("hall-sync-status");
+    if (!el) {
+      return;
+    }
+    const text = rankSyncState === "online"
+      ? t("rankSyncOnline")
+      : rankSyncState === "syncing"
+        ? t("rankSyncing")
+        : t("rankSyncLocal");
+    el.textContent = text;
+  }
+
+  async function pullSharedRanks() {
+    if (rankPullBusy) {
+      return loadUnifiedRecords();
+    }
+    rankPullBusy = true;
+    setHallSyncStatus("syncing");
+    let remote = [];
+    let online = false;
+    const urls = rankGetUrls();
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const rows = await fetchRankJson(urls[i]);
+        if (rows.length || i === 0) {
+          remote = rows;
+          online = true;
+          if (rows.length) {
+            break;
+          }
+        }
+      } catch (err) {
+        /* try next mirror */
+      }
+    }
+    const merged = persistUnified(mergeRankRecords([loadUnifiedRecords(), remote, loadOutbox()]));
+    if (online) {
+      const remoteIds = {};
+      remote.forEach((row) => {
+        remoteIds[String(row.id)] = true;
+      });
+      const fps = {};
+      remote.forEach((row) => {
+        const n = normalizeRankRow(row);
+        if (n) {
+          fps[rankFingerprint(n)] = true;
+        }
+      });
+      clearOutboxIds(loadOutbox().filter((row) => remoteIds[row.id] || fps[rankFingerprint(row)]).map((row) => row.id));
+      rankSyncState = "online";
+    } else {
+      rankSyncState = "local";
+    }
+    setHallSyncStatus(rankSyncState);
+    syncBestFromDualRanks();
+    rankPullBusy = false;
+    return merged;
+  }
+
+  function utf8ToBase64(text) {
+    try {
+      return btoa(unescape(encodeURIComponent(text)));
+    } catch (err) {
+      return btoa(text);
+    }
+  }
+
+  async function dispatchGithubRank(row) {
+    const token = rankWriteToken();
+    if (!token) {
+      return false;
+    }
+    const res = await fetch("https://api.github.com/repos/" + RANK_GITHUB_OWNER + "/" + RANK_GITHUB_REPO + "/dispatches", {
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: "Bearer " + token,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ event_type: "dad-rank", client_payload: { row } }),
+    });
+    return res.ok || res.status === 204;
+  }
+
+  async function putGithubLeaderboard(records) {
+    const token = rankWriteToken();
+    if (!token) {
+      return false;
+    }
+    const api = "https://api.github.com/repos/" + RANK_GITHUB_OWNER + "/" + RANK_GITHUB_REPO + "/contents/data/leaderboard.json";
+    const headers = {
+      Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + token,
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+    let sha = "";
+    try {
+      const cur = await fetch(api, { headers, cache: "no-store", mode: "cors", credentials: "omit" });
+      if (cur.ok) {
+        const json = await cur.json();
+        sha = json && json.sha ? json.sha : "";
+      }
+    } catch (err) {
+      /* create new file */
+    }
+    const payload = {
+      v: 1,
+      updatedAt: new Date().toISOString(),
+      records: mergeRankRecords([records]),
+    };
+    const body = {
+      message: "chore: sync shared ranking board",
+      content: utf8ToBase64(JSON.stringify(payload, null, 2) + "\n"),
+    };
+    if (sha) {
+      body.sha = sha;
+    }
+    const res = await fetch(api, {
+      method: "PUT",
+      mode: "cors",
+      credentials: "omit",
+      headers: Object.assign({ "Content-Type": "application/json" }, headers),
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  }
+
+  async function pushSharedRecord(row) {
+    enqueueOutbox(row);
+    persistUnified(mergeRankRecords([loadUnifiedRecords(), [row]]));
+    let pushed = false;
+    try {
+      pushed = await dispatchGithubRank(row);
+    } catch (err) {
+      pushed = false;
+    }
+    if (!pushed) {
+      try {
+        pushed = await putGithubLeaderboard(mergeRankRecords([loadUnifiedRecords(), loadOutbox()]));
+      } catch (err) {
+        pushed = false;
+      }
+    }
+    if (pushed) {
+      clearOutboxIds([row.id]);
+      rankSyncState = "online";
+    }
+    setHallSyncStatus(rankSyncState);
+    if (hallOpen) {
+      renderHall();
+    }
+    return pushed;
+  }
+
+  async function flushRankOutbox() {
+    const rows = loadOutbox();
+    if (!rows.length) {
+      await pullSharedRanks();
+      return;
+    }
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        await pushSharedRecord(rows[i]);
+      } catch (err) {
+        /* keep outbox */
+      }
+    }
+    await pullSharedRanks();
+  }
+
   function addHallRecord(name, playerScore, playerLevel, playerLines, options) {
     if (!isRankEligible()) {
       return loadRankList(hallTab);
     }
     const player = resolvePlayerNickname(name);
     const countryCode = detectCountryCode();
-    const row = {
+    const row = normalizeRankRow({
       id: `${Date.now()}-${playerScore}`,
       name: player,
       playerName: player,
@@ -13014,19 +13467,18 @@ function GameEngine() {
       lines: Math.max(0, Math.round(Number(playerLines != null ? playerLines : 0) || 0)),
       date: formatPlayDate(new Date()),
       countryCode,
-    };
-    const global = loadRankList("global");
-    global.push(row);
-    saveRankList("global", global);
-    if (isDomesticPlayer(countryCode)) {
-      const domestic = loadRankList("domestic");
-      domestic.push(row);
-      saveRankList("domestic", domestic);
+    });
+    if (!row) {
+      return loadRankList(hallTab);
     }
+    persistUnified(mergeRankRecords([loadUnifiedRecords(), [row]]));
+    enqueueOutbox(row);
     if (!(options && options.skipLastName)) {
       persistPlayerNickname(player);
     }
+    syncBestFromDualRanks();
     renderHall();
+    void pushSharedRecord(row);
     return loadRankList(hallTab);
   }
 
@@ -13046,6 +13498,7 @@ function GameEngine() {
       return;
     }
     syncHallTabsUi();
+    setHallSyncStatus(rankSyncState);
     const hall = loadRankList(hallTab);
     if (!hall.length) {
       list.innerHTML = `<p class="hall-empty">${escapeHtml(t("hallEmpty")).replace(/\n/g, "<br>")}</p>`;
@@ -13107,6 +13560,31 @@ function GameEngine() {
       /* ignore */
     }
     renderHall();
+    void (async () => {
+      try {
+        await probeCountryFromIp();
+        await flushRankOutbox();
+      } catch (err) {
+        /* keep local board */
+      }
+      if (!hallOpen) {
+        return;
+      }
+      renderHall();
+      try {
+        const top = (loadRankList(hallTab) || [])[0];
+        drawRankShareCard(top ? { ...top, board: hallTab } : {
+          name: lastPlayerName(),
+          score: best,
+          level,
+          lines,
+          countryCode: detectCountryCode(),
+          board: hallTab,
+        });
+      } catch (cardErr) {
+        /* ignore */
+      }
+    })();
     try {
       const top = (loadRankList(hallTab) || [])[0];
       drawRankShareCard(top ? { ...top, board: hallTab } : {
@@ -24498,7 +24976,9 @@ function GameEngine() {
       const dualFnOk = typeof detectCountryCode === "function"
         && typeof isRankEligible === "function"
         && typeof loadRankList === "function"
-        && typeof setHallTab === "function";
+        && typeof setHallTab === "function"
+        && typeof pullSharedRanks === "function"
+        && typeof probeCountryFromIp === "function";
       const dualStoreOk = keys && keys.RANK_DOMESTIC === RANK_DOMESTIC_KEY && keys.RANK_GLOBAL === RANK_GLOBAL_KEY;
       const nickOk = keys && keys.PLAYER_NAME === PLAYER_NAME_KEY
         && PLAYER_NAME_KEY === "dad_tetris_player_name"
@@ -30474,7 +30954,17 @@ function GameEngine() {
     if (!(await showIngameConfirm(t("confirmReset")))) {
       return;
     }
-    saveRankList(hallTab, []);
+    try {
+      localStorage.setItem(RANK_HIDDEN_KEY, "[]");
+    } catch (err) {
+      /* ignore */
+    }
+    try {
+      await pullSharedRanks();
+    } catch (pullErr) {
+      /* keep cache */
+    }
+    renderHall();
   });
   bindEl("hall-list", "click", async (e) => {
     const btn = e.target.closest("[data-hall-del]");
@@ -30485,7 +30975,8 @@ function GameEngine() {
       return;
     }
     const id = btn.dataset.hallDel;
-    saveRankList(hallTab, loadRankList(hallTab).filter((row) => row.id !== id));
+    hideRankId(id);
+    renderHall();
   });
   bindEl("tab-rank-domestic", "click", () => setHallTab("domestic"));
   bindEl("tab-rank-global", "click", () => setHallTab("global"));
@@ -30639,6 +31130,17 @@ function GameEngine() {
     }
     syncBestFromDualRanks();
     renderHall();
+    void probeCountryFromIp();
+    void pullSharedRanks();
+    try {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          void flushRankOutbox();
+        }
+      });
+    } catch (visErr) {
+      /* ignore */
+    }
     } catch (err) {
     try {
       restoreProfileFromStorage();
