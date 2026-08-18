@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.0-stable */
+/* Dad Tetris v1.1.1-stable */
 "use strict";
 
 const DB_NAME = "DadTetrisDB";

@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.0-stable */
+/* Dad Tetris v1.1.1-stable */
 import { dbManager, storageUtil } from "./storage.js";
 import { createSoundManager, soundManager, bindSoundManager } from "./audio.js";
 import {
@@ -1584,8 +1584,11 @@ export function GameEngine() {
     const next = target || settings;
     const flag = next.keepDefaultWindowBg ? "1" : "0";
     try {
+      next.keepDefaultBg = next.keepDefaultWindowBg ? 1 : 0;
       localStorage.setItem(KEEP_DEFAULT_BG_KEY, flag);
       localStorage.setItem(KEEP_DEFAULT_WINDOW_BG_KEY, flag);
+      window.gameSettings = next;
+      window.gameSettings.keepDefaultBg = next.keepDefaultWindowBg ? 1 : 0;
     } catch (err) {
       /* ignore */
     }
@@ -4888,12 +4891,37 @@ export function GameEngine() {
 
   function updateLevelBackground(level, options) {
     const fade = !(options && options.fade === false);
+    const lv = playLevel(level);
     if (isCustomBgMasterDisabled()) {
       clearCustomBackground(fade);
+      clearBoardBackground(fade);
       return;
     }
+    const customBoard = loadBgData("board", lv);
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : folderLevelBgSrc(lv);
+    try {
+      applyResolvedBoardBackground(boardUrl, fade);
+    } catch (boardErr) {
+      /* continue window */
+    }
+    let isKeep = false;
+    try {
+      isKeep = localStorage.getItem(KEEP_DEFAULT_BG_KEY) === "1";
+    } catch (err) {
+      isKeep = !!settings.keepDefaultWindowBg;
+    }
+    if (!isKeep) {
+      const customWin = loadBgData("window", lv);
+      if (isUserMediaUrl(customWin)) {
+        try {
+          applyResolvedBackground(customWin, fade);
+        } catch (winErr) {
+          /* board already painted */
+        }
+      }
+    }
     const seq = ++bgLoadSeq;
-    const url = resolveTargetBgUrl("window", level);
+    const url = resolveTargetBgUrl("window", lv);
     const idle = loadBgData("window", "default");
     if (isUserMediaUrl(url)) {
       probeBackgroundUrls(
@@ -4908,14 +4936,13 @@ export function GameEngine() {
         },
         () => bgLoadSeq
       );
-      return;
-    }
-    if (idle) {
+    } else if (!isKeep && idle) {
       applyResolvedBackground(idle, fade);
-      return;
     }
-    if (!lastValidBgUrl) {
-      clearCustomBackground(fade);
+    try {
+      updateBoardBackground(lv, options);
+    } catch (boardUpdErr) {
+      /* immediate board CSS already applied */
     }
   }
 
@@ -7754,14 +7781,21 @@ export function GameEngine() {
       let leveledUp = false;
       if (newLevel > prevLevel) {
         leveledUp = true;
+        let isKeep = false;
         try {
-          paintLevelBgOnLevelUp(newLevel, { fade: true });
-        } catch (bgErr) {
+          isKeep = localStorage.getItem("dad_tetris_keep_default_bg") === "1";
+        } catch (err) {
+          isKeep = !!settings.keepDefaultWindowBg;
+        }
+        if (!isKeep) {
           try {
             updateLevelBackground(newLevel, { fade: true });
-            updateBoardBackground(newLevel, { fade: true });
-          } catch (bgErr2) {
-            /* keep lock loop alive */
+          } catch (bgErr) {
+            try {
+              paintLevelBgOnLevelUp(newLevel, { fade: true });
+            } catch (bgErr2) {
+              /* keep lock loop alive */
+            }
           }
         }
       }
@@ -13518,6 +13552,17 @@ export function GameEngine() {
       }
       settings[key] = !settings[key];
       syncSettingButton(btn);
+      if (key === "keepDefaultWindowBg") {
+        const enabled = !!settings.keepDefaultWindowBg;
+        try {
+          localStorage.setItem("dad_tetris_keep_default_bg", enabled ? "1" : "0");
+          window.gameSettings = settings;
+          window.gameSettings.keepDefaultBg = enabled ? 1 : 0;
+        } catch (lsErr) {
+          /* persistKeepDefault still writes */
+        }
+        persistKeepDefaultWindowBg();
+      }
       applySetting(key);
       saveSettings();
       sfx.ensure();
@@ -14377,7 +14422,7 @@ export function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js?v=1.1.0-stable", { updateViaCache: "none" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=1.1.1-stable", { updateViaCache: "none" }).catch(() => {});
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
