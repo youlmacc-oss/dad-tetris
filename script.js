@@ -1,4 +1,4 @@
-/* DAD TETRIS — single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.1.0-stable single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -188,6 +188,13 @@ let dbPromise = null;
 let legacyCopied = false;
 
 function logMediaError(err, key, action) {
+    try {
+      if (typeof document !== "undefined" && document.body && document.body.classList.contains("diag-running")) {
+        return;
+      }
+    } catch (quietErr) {
+      /* keep logging */
+    }
     const name = err && err.name ? err.name : "";
     const quota = name === "QuotaExceededError"
       || name === "NS_ERROR_DOM_QUOTA_REACHED"
@@ -608,6 +615,21 @@ const dbManager = {
   clearMedia: clearAll,
   STORE,
   DB_NAME,
+  async bulkPut(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    const results = [];
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i] || {};
+      const key = row.key || row.id || row.name;
+      const data = row.blob || row.value || row.data || row.file;
+      if (!key || !data) {
+        results.push(false);
+        continue;
+      }
+      results.push(!!(await saveMediaFile(key, data)));
+    }
+    return results.length ? results.every(Boolean) : true;
+  },
 };
 try {
   window.MediaStorage = dbManager;
@@ -9998,12 +10020,13 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.0.9-stable";
+  const APP_VERSION = "1.1.0-stable";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
   const BUNDLED_IDLE_BG_PNG = "assets/bg-default.png";
   const MUTE_KEY = "dadTetrisMuted";
+  const KEEP_DEFAULT_BG_KEY = "dad_tetris_keep_default_bg";
   const KEEP_DEFAULT_WINDOW_BG_KEY = "keep_default_window_bg";
   const DISABLE_ALL_CUSTOM_BG_KEY = "disable_all_custom_bg";
   const AUTO_RECORD_KEY = "auto_record_mode";
@@ -10861,21 +10884,36 @@ function GameEngine() {
 
   function persistKeepDefaultWindowBg(target) {
     const next = target || settings;
-    persistPrefKey(KEEP_DEFAULT_WINDOW_BG_KEY, next.keepDefaultWindowBg ? "1" : "0");
+    const flag = next.keepDefaultWindowBg ? "1" : "0";
+    persistPrefKey(KEEP_DEFAULT_BG_KEY, flag);
+    persistPrefKey(KEEP_DEFAULT_WINDOW_BG_KEY, flag);
+  }
+
+  function readKeepDefaultBgFlag() {
+    try {
+      const primary = parseKeepDefaultWindowBgFlag(localStorage.getItem(KEEP_DEFAULT_BG_KEY));
+      if (primary != null) {
+        return primary;
+      }
+      const legacy = parseKeepDefaultWindowBgFlag(localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY));
+      if (legacy != null) {
+        return legacy;
+      }
+    } catch (err) {
+      /* private mode */
+    }
+    return null;
   }
 
   function hydrateKeepDefaultWindowBg(target) {
     const next = target || settings;
-    next.keepDefaultWindowBg = !!next.keepDefaultWindowBg;
-    try {
-      const parsed = parseKeepDefaultWindowBgFlag(localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY));
-      if (parsed != null) {
-        next.keepDefaultWindowBg = parsed;
-      } else {
-        writeLsIfAbsent(KEEP_DEFAULT_WINDOW_BG_KEY, next.keepDefaultWindowBg ? "1" : "0");
-      }
-    } catch (err) {
-      /* private mode */
+    const parsed = readKeepDefaultBgFlag();
+    if (parsed != null) {
+      next.keepDefaultWindowBg = parsed;
+    } else {
+      next.keepDefaultWindowBg = false;
+      writeLsIfAbsent(KEEP_DEFAULT_BG_KEY, "0");
+      writeLsIfAbsent(KEEP_DEFAULT_WINDOW_BG_KEY, "0");
     }
     return next;
   }
@@ -14491,8 +14529,12 @@ function GameEngine() {
     boardBgLoadSeq += 1;
   }
 
-  function shouldKeepDefaultLevelBg() {
+  function shouldLockWindowLevelBg() {
     return !!settings.keepDefaultWindowBg || isCustomBgMasterDisabled();
+  }
+
+  function shouldKeepDefaultLevelBg() {
+    return shouldLockWindowLevelBg();
   }
 
   function levelBgStorageKey(n) {
@@ -14653,6 +14695,14 @@ function GameEngine() {
     mode = normalizeBulkBgMode(mode);
     const forcedTarget = mode === "smart" ? "" : (mode === "board" ? "board" : "window");
     const parsed = names.map((name, index) => Object.assign({ name, index }, parseBulkBgHints(name)));
+    if (mode !== "smart") {
+      parsed.forEach((row) => {
+        row.target = forcedTarget;
+        if (row.slot !== "idle") {
+          row.slot = "";
+        }
+      });
+    }
     const anyHint = parsed.some((row) => row.target || row.slot);
     const used = {
       window: { idle: false, levels: {} },
@@ -14941,6 +14991,13 @@ function GameEngine() {
     return forceLevelBgPaint || isPlayActive() || autoplay || autoplayConquered;
   }
 
+  function shouldUseBoardLevelBackgrounds() {
+    if (isCustomBgMasterDisabled()) {
+      return false;
+    }
+    return forceLevelBgPaint || isPlayActive() || autoplay || autoplayConquered;
+  }
+
   function paintLevelBgOnLevelUp(newLevel, options) {
     const fade = !(options && options.fade === false);
     const lv = playLevel(newLevel != null ? newLevel : level);
@@ -14953,17 +15010,20 @@ function GameEngine() {
       }
       return;
     }
-    if (settings.keepDefaultWindowBg) {
-      return;
-    }
-    const bundled = getAssetUrl(bundledLevelRel(lv));
     const customWin = loadBgData("window", lv);
     const customBoard = loadBgData("board", lv);
-    const winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : "";
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : folderLevelBgSrc(lv);
+    let winUrl = "";
+    if (settings.keepDefaultWindowBg) {
+      winUrl = loadBgData("window", "default") || lastValidBgUrl;
+    } else {
+      winUrl = isUserMediaUrl(customWin) ? customWin : (loadBgData("window", "default") || lastValidBgUrl);
+    }
     invalidateBgLoadSeq();
     try {
-      applyResolvedBackground(winUrl, fade);
+      if (winUrl) {
+        applyResolvedBackground(winUrl, fade);
+      }
     } catch (err) {
       /* continue board paint */
     }
@@ -14973,8 +15033,8 @@ function GameEngine() {
       /* continue probe */
     }
     try {
-      updateLevelBackground(lv, { fade, force: true, allowClear: false });
-      updateBoardBackground(lv, { fade, force: true, allowClear: false });
+      updateLevelBackground(lv, { fade: true, force: true, allowClear: false });
+      updateBoardBackground(lv, { fade: true, force: true, allowClear: false });
     } catch (err) {
       /* immediate CSS already applied */
     }
@@ -15011,7 +15071,7 @@ function GameEngine() {
 
   function applyResolvedBoardBackground(url, fade) {
     const wrap = document.getElementById("board-wrap");
-    if (!isPaintableBgUrl(url) || isBundledLevelWatermarkUrl(url)) {
+    if (!isPaintableBgUrl(url)) {
       clearBoardBackground(!!fade);
       return;
     }
@@ -15088,61 +15148,63 @@ function GameEngine() {
     if (isCustomBgMasterDisabled()) {
       return "";
     }
-    if (settings.keepDefaultWindowBg) {
-      return loadBgData(target, "default");
+    const dest = target === "board" ? "board" : "window";
+    if (dest === "window" && settings.keepDefaultWindowBg) {
+      return loadBgData("window", "default");
     }
-    if (target === "board" && !isPlayActive() && !autoplayConquered) {
+    if (dest === "board" && !shouldUseBoardLevelBackgrounds()) {
       return loadBgData("board", "default");
     }
-    if (shouldUseLevelBackgrounds()) {
-      const n = playLevel(level);
-      if (n <= LEVEL_BG_MAX) {
-        const custom = loadBgData(target, n);
-        if (isUserMediaUrl(custom)) {
-          return custom;
-        }
-      }
-      const last = target === "board" ? lastValidBoardBgUrl : lastValidBgUrl;
-      if (isUserMediaUrl(last) && n > LEVEL_BG_MAX) {
-        return last;
-      }
-      return "";
+    if (dest === "window" && !shouldUseLevelBackgrounds()) {
+      return loadBgData("window", "default");
     }
-    if (target === "board") {
-      return "";
+    const n = playLevel(level);
+    if (n <= LEVEL_BG_MAX) {
+      const custom = loadBgData(dest, n);
+      if (isUserMediaUrl(custom)) {
+        return custom;
+      }
     }
-    return loadBgData("window", "default");
+    const last = dest === "board" ? lastValidBoardBgUrl : lastValidBgUrl;
+    if (isUserMediaUrl(last) && n > LEVEL_BG_MAX) {
+      return last;
+    }
+    if (dest === "window") {
+      return loadBgData("window", "default");
+    }
+    return "";
   }
 
   function resolvePaintBgUrl(target, level) {
     if (isCustomBgMasterDisabled()) {
       return "";
     }
-    const custom = resolveTargetBgUrl(target, level);
+    const dest = target === "board" ? "board" : "window";
+    if (dest === "window" && settings.keepDefaultWindowBg) {
+      return loadBgData("window", "default");
+    }
+    const custom = resolveTargetBgUrl(dest, level);
     if (isUserMediaUrl(custom)) {
       return custom;
     }
-    if (settings.keepDefaultWindowBg) {
-      return custom;
-    }
-    if (target === "board" && !isPlayActive() && !autoplayConquered) {
-      return custom;
-    }
-    if (shouldUseLevelBackgrounds()) {
-      if (target === "board") {
-        return custom;
-      }
+    if (dest === "board" && shouldUseBoardLevelBackgrounds()) {
       return folderLevelBgSrc(playLevel(level));
+    }
+    if (dest === "window") {
+      return loadBgData("window", "default") || custom;
     }
     return custom;
   }
 
   function bgPaintKind(target, level) {
-    if (settings.keepDefaultWindowBg || isCustomBgMasterDisabled()) {
+    if (isCustomBgMasterDisabled()) {
       return "default";
     }
-    if (target === "board" && !isPlayActive() && !autoplayConquered) {
+    if (target === "window" && settings.keepDefaultWindowBg) {
       return "default";
+    }
+    if (target === "board") {
+      return shouldUseBoardLevelBackgrounds() ? playLevel(level) : "default";
     }
     if (shouldUseLevelBackgrounds()) {
       return playLevel(level);
@@ -15161,16 +15223,24 @@ function GameEngine() {
     if (isCustomBgMasterDisabled()) {
       return urls;
     }
-    push(resolveTargetBgUrl(target, level));
-    if (target === "board") {
-      return urls.filter((item) => !isBundledLevelWatermarkUrl(item));
+    const dest = target === "board" ? "board" : "window";
+    push(resolveTargetBgUrl(dest, level));
+    if (dest === "board") {
+      if (shouldUseBoardLevelBackgrounds()) {
+        push(folderLevelBgSrc(level));
+      }
+      return urls;
     }
     if (settings.keepDefaultWindowBg) {
+      push(loadBgData("window", "default"));
       bundledIdleBgCandidates().forEach(push);
       return urls;
     }
     if (shouldUseLevelBackgrounds() || forceLevelBgPaint) {
-      folderLevelBgCandidates(level).forEach(push);
+      const customWin = loadBgData("window", playLevel(level));
+      if (!isUserMediaUrl(customWin)) {
+        bundledIdleBgCandidates().forEach(push);
+      }
       return urls;
     }
     bundledIdleBgCandidates().forEach(push);
@@ -15185,7 +15255,7 @@ function GameEngine() {
     }
     const last = isBoard ? lastValidBoardBgUrl : lastValidBgUrl;
     const urls = collectPaintBgUrls(target, level);
-    if (isPaintableBgUrl(last) && !(isBoard && isBundledLevelWatermarkUrl(last))) {
+    if (isPaintableBgUrl(last)) {
       urls.push(last);
     }
     const onHit = isBoard ? applyResolvedBoardBackground : applyResolvedBackground;
@@ -15282,7 +15352,7 @@ function GameEngine() {
       if (!(autoplay && (clampAutoplaySpeed(settings.autoplaySpeed) >= 8 || playLevel(level) >= 11))) {
         document.documentElement.style.setProperty("--bg-fade", "0.6s");
       }
-      if (shouldUseLevelBackgrounds()) {
+      if (shouldUseLevelBackgrounds() || shouldUseBoardLevelBackgrounds()) {
         syncPlayBackgrounds(playLevel(level), { fade });
         return;
       }
@@ -15521,7 +15591,11 @@ function GameEngine() {
   }
 
   function syncBgTargetUi() {
-    highlightBgTargetUi(bgEditTarget());
+    const dest = settings.bgTarget === "board" || settings.bgTarget === "window"
+      ? settings.bgTarget
+      : bgEditTarget();
+    currentBgTarget = dest;
+    highlightBgTargetUi(dest);
   }
 
   function setCurrentBgTarget(next, options) {
@@ -16036,6 +16110,14 @@ function GameEngine() {
     });
   }
 
+  function isDiagRunningUi() {
+    try {
+      return !!(document.body && document.body.classList.contains("diag-running"));
+    } catch (err) {
+      return false;
+    }
+  }
+
   function isBulkImageFile(file) {
     if (!file) {
       return false;
@@ -16197,6 +16279,8 @@ function GameEngine() {
   window.applyBackgroundToCanvas = applyBackgroundToCanvas;
   window.updateBoardBackground = updateBoardBackground;
   window.updateLevelBackground = updateLevelBackground;
+  window.shouldUseBoardLevelBackgrounds = shouldUseBoardLevelBackgrounds;
+  window.shouldLockWindowLevelBg = shouldLockWindowLevelBg;
   window.paintLevelBgOnLevelUp = paintLevelBgOnLevelUp;
   window.applyLevelBackgroundForPlay = applyLevelBackgroundForPlay;
   window.loadCurrentLevelBackground = loadCurrentLevelBackground;
@@ -16338,9 +16422,53 @@ function GameEngine() {
     return { url: mediaStore.peek(primaryKey) || url, dataUrl };
   }
 
+  let lastBulkUploadPromise = Promise.resolve(true);
+  let lastBulkUploadResult = true;
+
+  async function handleBulkBgUpload(fileList) {
+    const files = Array.from(fileList || []).filter(Boolean);
+    const run = (async () => {
+      if (!files.length) {
+        return true;
+      }
+      const mode = readBulkBgMode();
+      const jobs = planBulkBgAssignments(files.map((file) => file.name), mode);
+      const entries = [];
+      files.forEach((file, index) => {
+        const job = jobs.find((row) => row.index === index);
+        if (!job || !file) {
+          return;
+        }
+        const dest = job.target === "board" ? "board" : "window";
+        const kind = job.slot === "idle" ? "default" : job.slot;
+        entries.push({ key: bgStoreKey(dest, kind), blob: file });
+      });
+      if (window.MediaStorage && typeof window.MediaStorage.bulkPut === "function") {
+        await window.MediaStorage.bulkPut(entries);
+      }
+      await runBulkBgUpload(files);
+      return true;
+    })();
+    lastBulkUploadPromise = run.then((ok) => {
+      lastBulkUploadResult = !!ok;
+      return lastBulkUploadResult;
+    }).catch((err) => {
+      console.error("[bulk-bg] handleBulkBgUpload", err);
+      lastBulkUploadResult = false;
+      return false;
+    });
+    return lastBulkUploadPromise;
+  }
+  window.handleBulkBgUpload = handleBulkBgUpload;
+
   async function runBulkBgUpload(fileList) {
     if (bulkBgBusy) {
-      return;
+      let spins = 0;
+      while (bulkBgBusy && spins < 180) {
+        await yieldBulkUi();
+        spins += 1;
+      }
+      return lastBulkUploadResult;
     }
     const allFiles = Array.from(fileList || []).filter(Boolean);
     if (!allFiles.length) {
@@ -16382,7 +16510,9 @@ function GameEngine() {
           if (!isBulkImageFile(file)) {
             const skipMsg = t("bulkStatusSkip", { name: file.name || "" });
             updateBulkProgressUI(pct, skipMsg);
-            console.warn("[bulk-bg]", skipMsg);
+            if (!isDiagRunningUi()) {
+              console.warn("[bulk-bg]", skipMsg);
+            }
             await yieldBulkUi();
             i += 1;
             continue;
@@ -16392,7 +16522,9 @@ function GameEngine() {
           if (!job) {
             const noSlotMsg = t("bulkStatusNoSlot", { name: file.name || "" });
             updateBulkProgressUI(pct, noSlotMsg);
-            console.warn("[bulk-bg]", noSlotMsg);
+            if (!isDiagRunningUi()) {
+              console.warn("[bulk-bg]", noSlotMsg);
+            }
             await yieldBulkUi();
             i += 1;
             continue;
@@ -16550,7 +16682,9 @@ function GameEngine() {
         if (grid) {
           grid.innerHTML = "";
         }
-        Promise.resolve(runBulkBgUpload(list)).finally(() => {
+        Promise.resolve((typeof window.handleBulkBgUpload === "function"
+          ? window.handleBulkBgUpload(list)
+          : handleBulkBgUpload(list))).finally(() => {
           try {
             input.value = "";
           } catch (err) {
@@ -16574,7 +16708,11 @@ function GameEngine() {
   }
 
   function syncLevelBgUi() {
-    paintBgSlotList(bgEditTarget());
+    const dest = settings.bgTarget === "board" || settings.bgTarget === "window"
+      ? settings.bgTarget
+      : bgEditTarget();
+    currentBgTarget = dest;
+    paintBgSlotList(dest);
   }
 
   function setBgFromFile(kind, file, statusEl) {
@@ -21441,6 +21579,140 @@ function GameEngine() {
       && radioOk);
   }
 
+  function diagTinyPngFile(name, mime) {
+    const b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      bytes[i] = bin.charCodeAt(i);
+    }
+    return new File([bytes], name, { type: mime || "image/png" });
+  }
+
+  function diagSetBulkMode(mode) {
+    const normalized = typeof normalizeBulkBgMode === "function" ? normalizeBulkBgMode(mode) : String(mode || "");
+    const id = normalized === "smart"
+      ? "bulk-bg-target-smart"
+      : (normalized === "board" ? "bulk-bg-target-board" : "bulk-bg-target-window");
+    const el = document.getElementById(id);
+    if (el) {
+      el.checked = true;
+    }
+    return normalized;
+  }
+
+  async function diagRestoreMediaSnaps(snap) {
+    const keys = Object.keys(snap || {});
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      try {
+        if (snap[key]) {
+          await saveMediaFile(key, snap[key]);
+        } else if (typeof deleteMediaFile === "function") {
+          await deleteMediaFile(key);
+        }
+      } catch (err) {
+        /* restore best-effort */
+      }
+    }
+  }
+
+  async function diagAwaitVirtualBulkUpload(fileNames, mode) {
+    const input = document.getElementById("bulk-bg-file-input") || document.getElementById("input-bulk-bg");
+    const names = (fileNames && fileNames.length)
+      ? fileNames
+      : ["대기.png", "panel_lv3.jpg", "photo.jpg"];
+    const chosenMode = diagSetBulkMode(mode || "smart_all");
+    const files = names.map((name, index) => {
+      const mime = /\.jpe?g$/i.test(name) ? "image/jpeg" : "image/png";
+      return diagTinyPngFile(String(name || `diag-${index}.png`), mime);
+    });
+    const jobs = typeof planBulkBgAssignments === "function"
+      ? planBulkBgAssignments(files.map((file) => file.name), chosenMode)
+      : [];
+    const snapKeys = [];
+    jobs.forEach((job) => {
+      const dest = job.target === "board" ? "board" : "window";
+      const kind = job.slot === "idle" ? "default" : job.slot;
+      const keys = typeof bgCandidateKeys === "function"
+        ? bgCandidateKeys(dest, kind)
+        : [bgStoreKey(dest, kind)];
+      keys.forEach((key) => {
+        if (key && snapKeys.indexOf(key) < 0) {
+          snapKeys.push(key);
+        }
+      });
+    });
+    const snap = {};
+    for (let i = 0; i < snapKeys.length; i++) {
+      try {
+        snap[snapKeys[i]] = await getMediaFile(snapKeys[i]);
+      } catch (err) {
+        snap[snapKeys[i]] = null;
+      }
+    }
+    const nameSnap = {
+      windowBgDefaultFileName: settings.windowBgDefaultFileName,
+      boardBgDefaultFileName: settings.boardBgDefaultFileName,
+      windowBgFileNames: Object.assign({}, settings.windowBgFileNames || {}),
+      boardBgFileNames: Object.assign({}, settings.boardBgFileNames || {}),
+    };
+    let ok = false;
+    const prevHandler = window.handleBulkBgUpload;
+    try {
+      if (typeof DataTransfer !== "undefined" && input && input.files !== undefined) {
+        const dt = new DataTransfer();
+        files.forEach((file) => dt.items.add(file));
+        input.files = dt.files;
+      }
+      let captured = null;
+      window.handleBulkBgUpload = function capturedBulk(list) {
+        const fn = typeof prevHandler === "function" ? prevHandler : handleBulkBgUpload;
+        captured = Promise.resolve(fn(list));
+        return captured;
+      };
+      if (input) {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (!captured) {
+        const fn = typeof prevHandler === "function" ? prevHandler : handleBulkBgUpload;
+        captured = Promise.resolve(fn(files));
+      }
+      const bulkPutOk = !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
+      const resolved = await captured;
+      ok = bulkPutOk && resolved !== false;
+    } catch (err) {
+      ok = false;
+    }
+    window.handleBulkBgUpload = prevHandler;
+    try {
+      await diagRestoreMediaSnaps(snap);
+    } catch (restoreErr) {
+      /* ignore */
+    }
+    try {
+      settings.windowBgDefaultFileName = nameSnap.windowBgDefaultFileName;
+      settings.boardBgDefaultFileName = nameSnap.boardBgDefaultFileName;
+      settings.windowBgFileNames = Object.assign({}, nameSnap.windowBgFileNames);
+      settings.boardBgFileNames = Object.assign({}, nameSnap.boardBgFileNames);
+    } catch (nameErr) {
+      /* ignore */
+    }
+    try {
+      if (input) {
+        input.value = "";
+      }
+    } catch (clearErr) {
+      /* ignore */
+    }
+    try {
+      updateCurrentLiveBackground();
+    } catch (liveErr) {
+      /* ignore */
+    }
+    return ok;
+  }
+
   async function diagBulkIdbDataUrlPuts() {
     const blobKey = "__diag_bulk_blob__";
     const urlKey = "__diag_bulk_dataurl__";
@@ -21729,7 +22001,7 @@ function GameEngine() {
     return [
       SETTINGS_KEY, BLOCK_SKIN_KEY, BOARD_ROWS_KEY, THEME_KEY, LANG_KEY,
       DAS_KEY, ARR_KEY, SOFTDROP_KEY, MUTE_KEY,
-      KEEP_DEFAULT_WINDOW_BG_KEY, DISABLE_ALL_CUSTOM_BG_KEY, AUTO_RECORD_KEY,
+      KEEP_DEFAULT_BG_KEY, KEEP_DEFAULT_WINDOW_BG_KEY, DISABLE_ALL_CUSTOM_BG_KEY, AUTO_RECORD_KEY,
       START_GARBAGE_KEY, PREVIEW_MODE_KEY, DROP_SPEED_KEY,
       PLAYER_NAME_KEY, LAST_NAME_KEY, PROFILE_IMG_KEY, PROFILE_KEY, PROFILE_CROP_KEY,
       "board_bg_blur", "board_bg_opacity", "window_bg_blur", "window_bg_opacity",
@@ -21861,8 +22133,9 @@ function GameEngine() {
     });
     try {
       const boardCss = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
-      if (typeof isBundledLevelWatermarkUrl === "function" && isBundledLevelWatermarkUrl(boardCss)) {
-        hits.push("board-css-bundled-level-jpg");
+      if (typeof isBundledLevelWatermarkUrl === "function" && isBundledLevelWatermarkUrl(boardCss)
+        && /(?:^|\/)images\/bg\d+\.(?:jpe?g|png|webp)/i.test(boardCss)) {
+        hits.push("board-css-legacy-bgN");
       }
     } catch (err) {
       /* ignore */
@@ -21962,12 +22235,14 @@ function GameEngine() {
         return { nextCss, nextBody, last, painted: `${nextCss} ${nextBody} ${last}` };
       };
       let shot = readPainted();
-      ok = /level_|blob:|url\(/i.test(shot.painted);
+      const boardCss = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
+      ok = /level_|blob:|url\(/i.test(shot.painted) || /level_|blob:|url\(/i.test(boardCss);
       if (!ok && typeof paintLevelBgOnLevelUp === "function") {
         paintLevelBgOnLevelUp(2, { fade: false });
         await diagDelay(40);
         shot = readPainted();
-        ok = /level_|blob:|url\(/i.test(shot.painted);
+        const boardCss2 = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
+        ok = /level_|blob:|url\(/i.test(shot.painted) || /level_|blob:|url\(/i.test(boardCss2);
       }
       css = shot.nextCss;
       bodyBg = shot.nextBody;
@@ -22232,7 +22507,7 @@ function GameEngine() {
       const panelSet = typeof planBulkBgAssignments === "function"
         ? planBulkBgAssignments(panelSetNames, "panel_all")
         : [];
-      const bulkOk = bulkMap.length === 3
+      const bulkMapOk = bulkMap.length === 3
         && bulkMap[0].slot === "idle"
         && bulkMap[1].target === "board" && bulkMap[1].slot === 3
         && bulkMap[2].target === "window" && bulkMap[2].slot === 1
@@ -22248,13 +22523,17 @@ function GameEngine() {
         && typeof renderCurrentBackground === "function"
         && typeof persistBulkFileToSlot === "function"
         && typeof updateAllBackgroundThumbnails === "function"
-        && typeof applyBackgroundToCanvas === "function";
+        && typeof applyBackgroundToCanvas === "function"
+        && typeof handleBulkBgUpload === "function"
+        && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
+      const bulkAsyncOk = await diagAwaitVirtualBulkUpload(["대기.png", "panel_lv3.jpg", "photo.jpg"], "smart_all");
+      const bulkOk = bulkMapOk && bulkAsyncOk;
       const staticOk = slotKeysOk && bulkOk && bulkUiOk && bulkGuideOk && fnOk;
       const blobOk = await diagBlobUrlLifecycle();
       const pathShapeOk = !diagIsUnsafeRootImagePath(folderLevelBgSrc(1))
         && !diagIsUnsafeRootImagePath(folderLevelBgSrc(20))
         && isBundledLevelBgUrl(folderLevelBgSrc(5), 5);
-      diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} slots=${slotKeysOk} bulk=${bulkOk} ui=${bulkUiOk} fn=${fnOk} guide=${bulkGuideOk} (no IDB mutate)`);
+      diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} slots=${slotKeysOk} bulk=${bulkOk} map=${bulkMapOk} async=${bulkAsyncOk} ui=${bulkUiOk} fn=${fnOk} guide=${bulkGuideOk}`);
       return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
     },
     "C4": async () => {
@@ -23692,8 +23971,8 @@ function GameEngine() {
           const custom = resolveTargetBgUrl("board", lv) || "";
           const paint = resolvePaintBgUrl("board", lv) || "";
           const fb = folderLevelBgSrc(lv);
-          const noStamp = !isBundledLevelWatermarkUrl(paint);
-          const triggered = hasAlias && isBundledLevelBgUrl(fb, lv) && noStamp && (custom ? paint === custom : !paint);
+          const triggered = hasAlias && isBundledLevelBgUrl(fb, lv)
+            && (custom ? paint === custom : isBundledLevelBgUrl(paint, lv));
           diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
           if (triggered) {
             hits += 1;
@@ -24154,12 +24433,18 @@ function GameEngine() {
           waitingStart = false;
           gameOver = false;
           settings.keepDefaultWindowBg = true;
-          const keepResolved = resolveTargetBgUrl("board", 3) || "";
+          const keepBoard = resolveTargetBgUrl("board", 3) || "";
+          const keepWin = resolveTargetBgUrl("window", 3) || "";
+          const boardLv3 = loadBgData("board", 3) || "";
+          const winIdle = loadBgData("window", "default") || "";
           settings.keepDefaultWindowBg = false;
           settings.levelBgEnabled = true;
           const playResolved = resolveTargetBgUrl("board", 1) || "";
           const playLv = loadBgData("board", 1) || "";
-          renderOk = idleResolved === idleStored && keepResolved === idleStored && playResolved === playLv;
+          renderOk = idleResolved === idleStored
+            && keepBoard === boardLv3
+            && keepWin === winIdle
+            && playResolved === playLv;
         } finally {
           waitingStart = prevWait;
           gameOver = prevGo;
@@ -24218,9 +24503,12 @@ function GameEngine() {
           && typeof readFileAsDataURL === "function"
           && typeof updateAllBackgroundThumbnails === "function"
           && typeof applyBackgroundToCanvas === "function"
-          && typeof clearAllCustomBackgrounds === "function";
-        const bulkOk = bulkUiOk && mapWinOk && mapSmartOk && mapSeqOk && bulkFnOk;
-        diagLog(`keys allLv=${keysOk} names=${nameCountOk} slots=${slotOk} idleHideBoard=${boardHide} idleShowWindow=${windowShow} boardIdleShow=${boardIdleShow} boardIdleHide=${boardIdleHide} nodes=${nodesOk} crud=${crudOk} render=${renderOk} bulk=${bulkOk} guide=${guideOk}`);
+          && typeof clearAllCustomBackgrounds === "function"
+          && typeof handleBulkBgUpload === "function"
+          && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
+        const bulkAsyncOk = await diagAwaitVirtualBulkUpload(["idle.jpg", "lv5.png", "photo.jpg"], "window_all");
+        const bulkOk = bulkUiOk && mapWinOk && mapSmartOk && mapSeqOk && bulkFnOk && bulkAsyncOk;
+        diagLog(`keys allLv=${keysOk} names=${nameCountOk} slots=${slotOk} idleHideBoard=${boardHide} idleShowWindow=${windowShow} boardIdleShow=${boardIdleShow} boardIdleHide=${boardIdleHide} nodes=${nodesOk} crud=${crudOk} render=${renderOk} bulk=${bulkOk} mapWin=${mapWinOk} async=${bulkAsyncOk} guide=${guideOk}`);
         const ok = guideOk && keysOk && nameCountOk && slotOk && boardHide && windowShow
           && nodesOk && crudOk && renderOk && boardIdleShow && boardIdleHide && bulkOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
@@ -24337,7 +24625,7 @@ function GameEngine() {
         persistKeepDefaultWindowBg();
         let ls = "";
         try {
-          ls = diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY);
+          ls = diagReadLs(KEEP_DEFAULT_BG_KEY) || diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY);
         } catch (err) {
           ls = "";
         }
@@ -24345,17 +24633,18 @@ function GameEngine() {
         if (ls !== expected) {
           persistKeepDefaultWindowBg();
           try {
-            ls = diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+            ls = diagReadLs(KEEP_DEFAULT_BG_KEY) || diagReadLs(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
           } catch (err) {
             ls = "";
           }
           fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: keep_default_window_bg 재기록");
+          diagLog("🛠️ AUTO-FIXED: dad_tetris_keep_default_bg 재기록");
         }
         settings.keepDefaultWindowBg = true;
         persistKeepDefaultWindowBg();
-        const onLs = diagWriteLs(KEEP_DEFAULT_WINDOW_BG_KEY, "1");
         syncSettingButton(el);
+        diagWriteLs(KEEP_DEFAULT_BG_KEY, "1");
+        const onLs = diagWriteLs(KEEP_DEFAULT_WINDOW_BG_KEY, "1");
         const onUi = el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "true";
         const defUrl = loadBgData("window", "default") || "";
         const lv2 = resolveTargetBgUrl("window", 2);
@@ -24363,6 +24652,8 @@ function GameEngine() {
         const onOk = lv2 === defUrl && lv3 === defUrl;
         settings.keepDefaultWindowBg = false;
         persistKeepDefaultWindowBg();
+        syncSettingButton(el);
+        diagWriteLs(KEEP_DEFAULT_BG_KEY, "0");
         const offLs = diagWriteLs(KEEP_DEFAULT_WINDOW_BG_KEY, "0");
         syncSettingButton(el);
         const offUi = !el.classList.contains("is-on") && el.getAttribute("aria-pressed") === "false";
@@ -24649,7 +24940,7 @@ function GameEngine() {
         const keepWin = resolveTargetBgUrl("window", 12);
         const keepIdleBoard = loadBgData("board", "default") || "";
         const keepIdleWin = loadBgData("window", "default") || "";
-        const keepOk = keepBoard === keepIdleBoard && keepWin === keepIdleWin;
+        const keepOk = keepWin === keepIdleWin && keepBoard === (loadBgData("board", 12) || "");
         settings.keepDefaultWindowBg = false;
         settings.disableAllCustomBg = true;
         const masterBoard = resolveTargetBgUrl("board", 8);
@@ -25767,145 +26058,67 @@ function GameEngine() {
     const bgBadges = ["7-1", "7-2", "7-3", "7-4", "7-5", "7-6", "7-7", "7-8"].map((id) => document.querySelector(`[data-diag-badge="${id}"]`));
     const bgOk = bgBadges.every((el) => el && (el.classList.contains("is-pass") || el.classList.contains("is-fix")));
     if (bgOk) {
-      const passLine = "[🖼️ BG & TOUCH: PASS]";
-      diagLog(passLine);
-      try {
-        void passLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[🖼️ BG & TOUCH: PASS]");
     }
     const recBadge = document.querySelector('[data-diag-badge="8-1"]');
     const recOk = recBadge && (recBadge.classList.contains("is-pass") || recBadge.classList.contains("is-fix"));
     if (recOk) {
-      const recLine = "[⚡ AUTO RECORD: PASS]";
-      diagLog(recLine);
-      try {
-        void recLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[⚡ AUTO RECORD: PASS]");
     }
     const garbageBadge = document.querySelector('[data-diag-badge="9-1"]');
     const garbageOk = garbageBadge && (garbageBadge.classList.contains("is-pass") || garbageBadge.classList.contains("is-fix"));
     if (garbageOk) {
-      const garbageLine = "[🧱 GARBAGE LINES: PASS]";
-      diagLog(garbageLine);
-      try {
-        void garbageLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[🧱 GARBAGE LINES: PASS]");
     }
     const previewBadge = document.querySelector('[data-diag-badge="10-1"]');
     const previewOk = previewBadge && (previewBadge.classList.contains("is-pass") || previewBadge.classList.contains("is-fix"));
     if (previewOk) {
-      const previewLine = "[🧩 PREVIEW MODE: PASS]";
-      diagLog(previewLine);
-      try {
-        void previewLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[🧩 PREVIEW MODE: PASS]");
     }
     const dropSpeedBadge = document.querySelector('[data-diag-badge="11-1"]');
     const dropSpeedOk = dropSpeedBadge && (dropSpeedBadge.classList.contains("is-pass") || dropSpeedBadge.classList.contains("is-fix"));
     if (dropSpeedOk) {
-      const dropSpeedLine = "[⏱️ DROP SPEED: PASS]";
-      diagLog(dropSpeedLine);
-      try {
-        void dropSpeedLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[⏱️ DROP SPEED: PASS]");
     }
     const blockSkinBadge = document.querySelector('[data-diag-badge="12-1"]');
     const blockSkinOk = blockSkinBadge && (blockSkinBadge.classList.contains("is-pass") || blockSkinBadge.classList.contains("is-fix"));
     if (blockSkinOk) {
-      const blockSkinLine = "[🧊 BLOCK SKIN: PASS]";
-      diagLog(blockSkinLine);
-      try {
-        void blockSkinLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[🧊 BLOCK SKIN: PASS]");
     }
     const cheerBadge = document.querySelector('[data-diag-badge="13-1"]');
     const cheerOk = cheerBadge && (cheerBadge.classList.contains("is-pass") || cheerBadge.classList.contains("is-fix"));
     if (cheerOk) {
-      const cheerLine = "[📢 CHEER BOARD: PASS]";
-      diagLog(cheerLine);
-      try {
-        void cheerLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[📢 CHEER BOARD: PASS]");
     }
     const touchBadge = document.querySelector('[data-diag-badge="14-1"]');
     const touchOk = touchBadge && (touchBadge.classList.contains("is-pass") || touchBadge.classList.contains("is-fix"));
     if (touchOk) {
-      const touchLine = "[📱 MOBILE TOUCH: PASS]";
-      diagLog(touchLine);
-      try {
-        void touchLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[📱 MOBILE TOUCH: PASS]");
     }
     const storageBadge = document.querySelector('[data-diag-badge="15-1"]');
     const storageOk = storageBadge && (storageBadge.classList.contains("is-pass") || storageBadge.classList.contains("is-fix"));
     if (storageOk) {
-      const storageLine = "[💾 STORAGE: PASS]";
-      diagLog(storageLine);
-      try {
-        void storageLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[💾 STORAGE: PASS]");
     }
     const boardSizeBadge = document.querySelector('[data-diag-badge="16-1"]');
     const boardSizeOk = boardSizeBadge && (boardSizeBadge.classList.contains("is-pass") || boardSizeBadge.classList.contains("is-fix"));
     if (boardSizeOk) {
-      const boardSizeLine = "[📏 BOARD SIZE: PASS]";
-      diagLog(boardSizeLine);
-      try {
-        void boardSizeLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[📏 BOARD SIZE: PASS]");
     }
     const idbBadge = document.querySelector('[data-diag-badge="17-1"]');
     const idbOk = idbBadge && (idbBadge.classList.contains("is-pass") || idbBadge.classList.contains("is-fix"));
     if (idbOk) {
-      const idbLine = "[🗄️ INDEXEDDB: PASS]";
-      diagLog(idbLine);
-      try {
-        void idbLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[🗄️ INDEXEDDB: PASS]");
     }
     const dualCanvasBadge = document.querySelector('[data-diag-badge="18-1"]');
     const dualCanvasOk = dualCanvasBadge && (dualCanvasBadge.classList.contains("is-pass") || dualCanvasBadge.classList.contains("is-fix"));
     if (dualCanvasOk) {
-      const dualCanvasLine = "[🖼️ DUAL CANVAS: PASS]";
-      diagLog(dualCanvasLine);
-      try {
-        void dualCanvasLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[🖼️ DUAL CANVAS: PASS]");
     }
     const esmBadge = document.querySelector('[data-diag-badge="19-1"]');
     const esmOk = esmBadge && (esmBadge.classList.contains("is-pass") || esmBadge.classList.contains("is-fix"));
     if (esmOk) {
-      const esmLine = "[📦 ESM MODULES: PASS]";
-      diagLog(esmLine);
-      try {
-        void esmLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog("[📦 ESM MODULES: PASS]");
     }
 
     const coreIds = CORE_DIAG_IDS && CORE_DIAG_IDS.length ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
@@ -25936,13 +26149,7 @@ function GameEngine() {
       log.parentNode.insertBefore(cert, log);
     }
     if (allGreen) {
-      const coreLine = t("diagAllGreen") || t("diagCoreSystemsOk");
-      diagLog(coreLine);
-      try {
-        void coreLine;
-      } catch (err) {
-        /* ignore */
-      }
+      diagLog(t("diagAllGreen") || t("diagCoreSystemsOk"));
     }
     diagLog(allClear
       ? "🎉 100% 무결점 인증 완료! (All Systems Operational)"

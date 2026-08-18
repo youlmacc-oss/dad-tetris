@@ -1,3 +1,4 @@
+/* Dad Tetris v1.1.0-stable */
 "use strict";
 
 import { dbManager, storageUtil } from "./storage.js";

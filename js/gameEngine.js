@@ -1,3 +1,4 @@
+/* Dad Tetris v1.1.0-stable */
 import { dbManager, storageUtil } from "./storage.js";
 import { createSoundManager, soundManager, bindSoundManager } from "./audio.js";
 import {
@@ -889,6 +890,7 @@ export function GameEngine() {
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
   const MUTE_KEY = "dadTetrisMuted";
+  const KEEP_DEFAULT_BG_KEY = "dad_tetris_keep_default_bg";
   const KEEP_DEFAULT_WINDOW_BG_KEY = "keep_default_window_bg";
   const DISABLE_ALL_CUSTOM_BG_KEY = "disable_all_custom_bg";
   const AUTO_RECORD_KEY = "auto_record_mode";
@@ -1580,8 +1582,10 @@ export function GameEngine() {
 
   function persistKeepDefaultWindowBg(target) {
     const next = target || settings;
+    const flag = next.keepDefaultWindowBg ? "1" : "0";
     try {
-      localStorage.setItem(KEEP_DEFAULT_WINDOW_BG_KEY, next.keepDefaultWindowBg ? "1" : "0");
+      localStorage.setItem(KEEP_DEFAULT_BG_KEY, flag);
+      localStorage.setItem(KEEP_DEFAULT_WINDOW_BG_KEY, flag);
     } catch (err) {
       /* ignore */
     }
@@ -1589,14 +1593,22 @@ export function GameEngine() {
 
   function hydrateKeepDefaultWindowBg(target) {
     const next = target || settings;
-    next.keepDefaultWindowBg = !!next.keepDefaultWindowBg;
     try {
-      const parsed = parseKeepDefaultWindowBgFlag(localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY));
+      let parsed = null;
+      const primary = localStorage.getItem(KEEP_DEFAULT_BG_KEY);
+      const legacy = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY);
+      if (primary != null && primary !== "") {
+        parsed = parseKeepDefaultWindowBgFlag(primary);
+      } else if (legacy != null && legacy !== "") {
+        parsed = parseKeepDefaultWindowBgFlag(legacy);
+      }
       if (parsed != null) {
         next.keepDefaultWindowBg = parsed;
+      } else {
+        next.keepDefaultWindowBg = false;
       }
     } catch (err) {
-      /* private mode */
+      next.keepDefaultWindowBg = false;
     }
     persistKeepDefaultWindowBg(next);
     return next;
@@ -4692,6 +4704,13 @@ export function GameEngine() {
     return isPlayActive() || autoplay || autoplayConquered;
   }
 
+  function shouldUseBoardLevelBackgrounds() {
+    if (isCustomBgMasterDisabled()) {
+      return false;
+    }
+    return isPlayActive() || autoplay || autoplayConquered;
+  }
+
   function nextLevelFromLines(lineCount) {
     const start = clampStartLevel(settings.startLevel);
     const n = start + Math.floor(Math.max(0, Number(lineCount) || 0) / 10);
@@ -4709,16 +4728,19 @@ export function GameEngine() {
       }
       return;
     }
-    if (settings.keepDefaultWindowBg) {
-      return;
-    }
-    const bundled = folderLevelBgSrc(lv);
     const customWin = loadBgData("window", lv);
     const customBoard = loadBgData("board", lv);
-    const winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : "";
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : folderLevelBgSrc(lv);
+    let winUrl = "";
+    if (settings.keepDefaultWindowBg) {
+      winUrl = loadBgData("window", "default");
+    } else {
+      winUrl = isUserMediaUrl(customWin) ? customWin : loadBgData("window", "default");
+    }
     try {
-      applyResolvedBackground(winUrl, fade);
+      if (winUrl) {
+        applyResolvedBackground(winUrl, fade);
+      }
     } catch (err) {
       /* continue board paint */
     }
@@ -4728,8 +4750,8 @@ export function GameEngine() {
       /* continue probe */
     }
     try {
-      updateLevelBackground(lv, { fade });
-      updateBoardBackground(lv, { fade });
+      updateLevelBackground(lv, { fade: true });
+      updateBoardBackground(lv, { fade: true });
     } catch (err) {
       /* immediate CSS already applied */
     }
@@ -4763,7 +4785,7 @@ export function GameEngine() {
   function applyResolvedBoardBackground(url, fade) {
     const wrap = document.getElementById("board-wrap");
     const abs = isUserMediaUrl(url) ? url : getAssetUrl(url);
-    if (!abs || /(?:^|\/)assets\/images\/level_\d+\./i.test(String(abs).replace(/\\/g, "/")) || /(?:^|\/)images\/bg\d+\./i.test(String(abs).replace(/\\/g, "/"))) {
+    if (!abs) {
       clearBoardBackground(!!fade);
       return;
     }
@@ -4834,25 +4856,32 @@ export function GameEngine() {
     if (isCustomBgMasterDisabled()) {
       return "";
     }
-    if (target === "window" && settings.keepDefaultWindowBg) {
+    const dest = target === "board" ? "board" : "window";
+    if (dest === "window" && settings.keepDefaultWindowBg) {
       return loadBgData("window", "default");
     }
-    if (shouldUseLevelBackgrounds()) {
+    if (dest === "board" && !shouldUseBoardLevelBackgrounds()) {
+      return loadBgData("board", "default");
+    }
+    if (shouldUseLevelBackgrounds() || (dest === "board" && shouldUseBoardLevelBackgrounds())) {
       const n = playLevel(level);
       if (n <= LEVEL_BG_MAX) {
-        const custom = loadBgData(target, n);
+        const custom = loadBgData(dest, n);
         if (isUserMediaUrl(custom)) {
           return custom;
         }
       }
-      const last = target === "board" ? lastValidBoardBgUrl : lastValidBgUrl;
+      const last = dest === "board" ? lastValidBoardBgUrl : lastValidBgUrl;
       if (isUserMediaUrl(last) && n > LEVEL_BG_MAX) {
         return last;
       }
+      if (dest === "window") {
+        return loadBgData("window", "default");
+      }
       return "";
     }
-    if (target === "board") {
-      return "";
+    if (dest === "board") {
+      return loadBgData("board", "default");
     }
     return loadBgData("window", "default");
   }
@@ -4863,29 +4892,26 @@ export function GameEngine() {
       clearCustomBackground(fade);
       return;
     }
-    if (settings.keepDefaultWindowBg) {
-      return;
-    }
     const seq = ++bgLoadSeq;
     const url = resolveTargetBgUrl("window", level);
-    const bundled = folderLevelBgSrc(level);
+    const idle = loadBgData("window", "default");
     if (isUserMediaUrl(url)) {
       probeBackgroundUrls(
-        [url, bundled, lastValidBgUrl],
+        [url, idle, lastValidBgUrl],
         fade,
         seq,
         applyResolvedBackground,
         () => {
-          if (bundled) {
-            applyResolvedBackground(bundled, fade);
+          if (idle) {
+            applyResolvedBackground(idle, fade);
           }
         },
         () => bgLoadSeq
       );
       return;
     }
-    if (bundled) {
-      applyResolvedBackground(bundled, fade);
+    if (idle) {
+      applyResolvedBackground(idle, fade);
       return;
     }
     if (!lastValidBgUrl) {
@@ -4899,25 +4925,31 @@ export function GameEngine() {
       clearBoardBackground(fade);
       return;
     }
-    if (settings.keepDefaultWindowBg) {
-      return;
-    }
     const seq = ++boardBgLoadSeq;
     const url = resolveTargetBgUrl("board", level);
+    const bundled = folderLevelBgSrc(level);
     if (isUserMediaUrl(url)) {
       probeBackgroundUrls(
-        [url, lastValidBoardBgUrl],
+        [url, bundled, lastValidBoardBgUrl],
         fade,
         seq,
         applyResolvedBoardBackground,
         () => {
-          clearBoardBackground(fade);
+          if (shouldUseBoardLevelBackgrounds() && bundled) {
+            applyResolvedBoardBackground(bundled, fade);
+          } else {
+            clearBoardBackground(fade);
+          }
         },
         () => boardBgLoadSeq
       );
       return;
     }
-    if (!lastValidBoardBgUrl || /level_\d+\./i.test(String(lastValidBoardBgUrl))) {
+    if (shouldUseBoardLevelBackgrounds() && bundled) {
+      applyResolvedBoardBackground(bundled, fade);
+      return;
+    }
+    if (!lastValidBoardBgUrl) {
       clearBoardBackground(fade);
     }
   }
@@ -4939,7 +4971,7 @@ export function GameEngine() {
       if (!(autoplay && (clampAutoplaySpeed(settings.autoplaySpeed) >= 8 || playLevel(level) >= 11))) {
         document.documentElement.style.setProperty("--bg-fade", "0.6s");
       }
-      if (shouldUseLevelBackgrounds()) {
+      if (shouldUseLevelBackgrounds() || shouldUseBoardLevelBackgrounds()) {
         updateLevelBackground(playLevel(level), { fade });
         updateBoardBackground(playLevel(level), { fade });
         return;
@@ -10554,7 +10586,7 @@ export function GameEngine() {
         persistKeepDefaultWindowBg();
         let ls = "";
         try {
-          ls = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY);
+          ls = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY);
         } catch (err) {
           ls = "";
         }
@@ -10562,12 +10594,12 @@ export function GameEngine() {
         if (ls !== expected) {
           persistKeepDefaultWindowBg();
           try {
-            ls = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+            ls = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
           } catch (err) {
             ls = "";
           }
           fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: keep_default_window_bg 재기록");
+          diagLog("🛠️ AUTO-FIXED: dad_tetris_keep_default_bg 재기록");
         }
         settings.keepDefaultWindowBg = true;
         persistKeepDefaultWindowBg();
@@ -10577,7 +10609,7 @@ export function GameEngine() {
         const onOk = lv2 === defUrl && lv3 === defUrl;
         let onLs = "";
         try {
-          onLs = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+          onLs = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
         } catch (err) {
           onLs = "";
         }
@@ -10585,7 +10617,7 @@ export function GameEngine() {
         persistKeepDefaultWindowBg();
         let offLs = "";
         try {
-          offLs = localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
+          offLs = localStorage.getItem(KEEP_DEFAULT_BG_KEY) || localStorage.getItem(KEEP_DEFAULT_WINDOW_BG_KEY) || "";
         } catch (err) {
           offLs = "";
         }
@@ -14345,7 +14377,7 @@ export function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js?v=1.0.9-stable", { updateViaCache: "none" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=1.1.0-stable", { updateViaCache: "none" }).catch(() => {});
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();

@@ -1,3 +1,4 @@
+/* Dad Tetris v1.1.0-stable */
 "use strict";
 
 const DB_NAME = "DadTetrisDB";
@@ -10,6 +11,13 @@ let dbPromise = null;
 let legacyCopied = false;
 
 function logMediaError(err, key, action) {
+    try {
+      if (typeof document !== "undefined" && document.body && document.body.classList.contains("diag-running")) {
+        return;
+      }
+    } catch (quietErr) {
+      /* keep logging */
+    }
     const name = err && err.name ? err.name : "";
     const quota = name === "QuotaExceededError"
       || name === "NS_ERROR_DOM_QUOTA_REACHED"
