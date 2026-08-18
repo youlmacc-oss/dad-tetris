@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.13-rank single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.3.14-circle single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -10439,7 +10439,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.13-rank";
+  const APP_VERSION = "1.3.14-circle";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -24273,12 +24273,31 @@ function GameEngine() {
         card.style.setProperty("min-height", "0", "important");
         card.style.setProperty("max-height", "none", "important");
         frame.style.setProperty("width", "min(300px, 82%)", "important");
-        frame.style.setProperty("height", "min(300px, 82%)", "important");
         frame.style.setProperty("min-width", "0", "important");
-        frame.style.setProperty("min-height", "0", "important");
         frame.style.setProperty("max-width", "300px", "important");
         frame.style.setProperty("max-height", "300px", "important");
         frame.style.setProperty("box-sizing", "border-box", "important");
+        const mobileCircle = document.body.classList.contains("is-mobile-arcade")
+          || document.body.classList.contains("is-mobile-pad")
+          || (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 768px)").matches);
+        if (mobileCircle) {
+          frame.style.setProperty("height", "auto", "important");
+          frame.style.setProperty("min-height", "unset", "important");
+          frame.style.setProperty("aspect-ratio", "1 / 1", "important");
+          frame.style.setProperty("flex", "0 0 auto", "important");
+          frame.style.setProperty("align-self", "center", "important");
+          const circleW = frame.getBoundingClientRect().width;
+          if (circleW >= 8) {
+            const size = Math.round(Math.min(300, circleW));
+            frame.style.setProperty("width", size + "px", "important");
+            frame.style.setProperty("height", size + "px", "important");
+            frame.style.setProperty("min-width", size + "px", "important");
+            frame.style.setProperty("min-height", size + "px", "important");
+          }
+        } else {
+          frame.style.setProperty("height", "min(300px, 82%)", "important");
+          frame.style.setProperty("min-height", "0", "important");
+        }
         if (neon) {
           neon.style.setProperty("width", "70%", "important");
           neon.style.setProperty("height", "70%", "important");
@@ -29272,16 +29291,37 @@ function GameEngine() {
       return;
     }
     if (frame) {
+      const mobileCircle = !isResult && (
+        document.body.classList.contains("is-mobile-arcade")
+        || document.body.classList.contains("is-mobile-pad")
+        || (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 768px)").matches)
+      );
       frame.style.setProperty("width", "min(300px, 82%)", "important");
-      frame.style.setProperty("height", "min(300px, 82%)", "important");
       frame.style.setProperty("min-width", "0", "important");
-      frame.style.setProperty("min-height", "0", "important");
       frame.style.setProperty("max-width", "300px", "important");
       frame.style.setProperty("max-height", "300px", "important");
       frame.style.setProperty("box-sizing", "border-box", "important");
       frame.style.setProperty("border-radius", "50%", "important");
       frame.style.setProperty("margin", "0 auto 14px auto", "important");
       frame.style.setProperty("transform", "none", "important");
+      if (mobileCircle) {
+        frame.style.setProperty("height", "auto", "important");
+        frame.style.setProperty("min-height", "unset", "important");
+        frame.style.setProperty("aspect-ratio", "1 / 1", "important");
+        frame.style.setProperty("flex", "0 0 auto", "important");
+        frame.style.setProperty("align-self", "center", "important");
+        const circleW = frame.getBoundingClientRect().width;
+        if (circleW >= 8) {
+          const size = Math.round(Math.min(300, circleW));
+          frame.style.setProperty("width", size + "px", "important");
+          frame.style.setProperty("height", size + "px", "important");
+          frame.style.setProperty("min-width", size + "px", "important");
+          frame.style.setProperty("min-height", size + "px", "important");
+        }
+      } else {
+        frame.style.setProperty("height", "min(300px, 82%)", "important");
+        frame.style.setProperty("min-height", "0", "important");
+      }
     }
     if (neon) {
       neon.style.setProperty("width", "70%", "important");

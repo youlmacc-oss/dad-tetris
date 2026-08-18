@@ -10703,3 +10703,24 @@ body.hide-board-idle.diag-measure-profile #profile-frame .dad-neon-avatar {
   max-width: none !important;
 }
 
+/* Smartphone idle: keep card layout, force the photo window to a true circle */
+@media screen and (max-width: 768px) {
+  #overlay.overlay.is-start #profile-card #profile-frame,
+  #overlay.overlay.is-pause #profile-card #profile-frame,
+  body.is-mobile-arcade #overlay.is-start #profile-card #profile-frame,
+  body.is-mobile-arcade #overlay.is-pause #profile-card #profile-frame,
+  body.is-mobile-pad #overlay.is-start #profile-card #profile-frame,
+  body.is-mobile-pad #overlay.is-pause #profile-card #profile-frame {
+    width: min(300px, 82%) !important;
+    height: auto !important;
+    min-height: unset !important;
+    max-width: 300px !important;
+    max-height: 300px !important;
+    aspect-ratio: 1 / 1 !important;
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    border-radius: 50% !important;
+  }
+}
+
+
