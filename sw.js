@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.4-ultimate";
+const APP_VERSION = "1.2.0-master";
 const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",
@@ -53,7 +53,9 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
+    await Promise.all(keys
+      .filter((key) => key.indexOf("dad-tetris-v") === 0 && key !== CACHE_NAME)
+      .map((key) => caches.delete(key)));
     await self.clients.claim();
   })());
 });

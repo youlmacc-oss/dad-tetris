@@ -1,4 +1,4 @@
-/* Dad Tetris v1.1.4-ultimate */
+/* Dad Tetris v1.2.0-master */
 import { dbManager, storageUtil } from "./storage.js";
 import { createSoundManager, soundManager, bindSoundManager } from "./audio.js";
 import {
@@ -5351,7 +5351,9 @@ export function GameEngine() {
       syncBgUi();
       syncLevelBgUi();
       syncMasterBgUi();
-      applyCurrentBackground({ fade: true });
+      if (!diagRunning) {
+        applyCurrentBackground({ fade: true });
+      }
     }
     if (key === "autoRecordMode") {
       persistAutoRecordMode();
@@ -8925,6 +8927,12 @@ export function GameEngine() {
 
   function diagCaseBudgetMs(id) {
     const s = String(id || "");
+    if (s === "C3" || s === "7-1") {
+      return 12000;
+    }
+    if (s === "7-4") {
+      return 4000;
+    }
     if (/^[1-7]-/.test(s)) {
       return 500;
     }
@@ -14513,7 +14521,7 @@ export function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js?v=1.1.4-ultimate", { updateViaCache: "none" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=1.2.0-master", { updateViaCache: "none" }).catch(() => {});
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();

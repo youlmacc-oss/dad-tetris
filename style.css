@@ -10264,6 +10264,7 @@ select,
   min-width: 88% !important;
   box-sizing: border-box !important;
   margin: 0 auto !important;
+  padding: 20px 16px !important;
 }
 
 #overlay.overlay.is-start #profile-card.profile-card-host > #start-overlay,

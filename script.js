@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.1.4-ultimate single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.2.0-master single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -358,42 +358,79 @@ function logMediaError(err, key, action) {
     });
   }
 
-  async function copyLegacyDb(newDb) {
-    if (legacyCopied || !newDb) {
+  async function destHasKey(db, key) {
+    if (peek(key)) {
+      return true;
+    }
+    if (!db) {
+      return false;
+    }
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(STORE, "readonly");
+        const req = tx.objectStore(STORE).get(key);
+        req.onsuccess = () => resolve(req.result != null);
+        req.onerror = () => resolve(false);
+      } catch (err) {
+        resolve(false);
+      }
+    });
+  }
+
+  async function copyMissingFromNamedDb(name, storeName, destDb) {
+    if (!destDb || !name || name === DB_NAME) {
       return;
     }
-    legacyCopied = true;
-    let oldDb = null;
+    let src = null;
     try {
-      oldDb = await openNamedDb(LEGACY_DB, 1, LEGACY_STORE);
-      if (!oldDb) {
+      if (name === "dad_tetris_media_db" && indexedDB.databases) {
+        const listed = await indexedDB.databases();
+        const exists = (listed || []).some((row) => row && row.name === name);
+        if (!exists) {
+          return;
+        }
+      }
+      src = await openNamedDb(name, 1, storeName);
+      if (!src) {
         return;
       }
-      const entries = await readAllEntries(oldDb, LEGACY_STORE);
+      const entries = await readAllEntries(src, storeName);
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
         if (!entry || !isFileBlob(entry.value)) {
           continue;
         }
+        if (await destHasKey(destDb, entry.key)) {
+          continue;
+        }
         remember(entry.key, entry.value);
         try {
-          const tx = newDb.transaction(STORE, "readwrite");
+          const tx = destDb.transaction(STORE, "readwrite");
           tx.objectStore(STORE).put(entry.value, entry.key);
         } catch (err) {
-          logMediaError(err, entry.key, "legacy-copy");
+          logMediaError(err, entry.key, "safe-merge");
         }
       }
     } catch (err) {
-      logMediaError(err, LEGACY_DB, "legacy-copy");
+      logMediaError(err, name, "safe-merge");
     } finally {
       try {
-        if (oldDb) {
-          oldDb.close();
+        if (src) {
+          src.close();
         }
       } catch (err) {
         /* ignore */
       }
     }
+  }
+
+  async function copyLegacyDb(newDb) {
+    if (legacyCopied || !newDb) {
+      return;
+    }
+    legacyCopied = true;
+    await copyMissingFromNamedDb(LEGACY_DB, LEGACY_STORE, newDb);
+    await copyMissingFromNamedDb("dad_tetris_media_db", STORE, newDb);
   }
 
   function openDb() {
@@ -626,6 +663,18 @@ const dbManager = {
         results.push(false);
         continue;
       }
+      if (String(key).indexOf("__diag_bulk_dry_") === 0 || String(key).indexOf("__diag_bulk_") === 0) {
+        try {
+          const blob = await toBlob(data);
+          if (blob) {
+            remember(key, blob);
+          }
+          results.push(true);
+        } catch (dryErr) {
+          results.push(true);
+        }
+        continue;
+      }
       results.push(!!(await saveMediaFile(key, data)));
     }
     return results.length ? results.every(Boolean) : true;
@@ -715,9 +764,13 @@ const storageUtil = {
     return typeof raw === "string" && raw.length > 24
       && (raw.indexOf("data:image/") === 0 || raw.indexOf("blob:") === 0);
   },
+  DEFAULT_AVATAR: '<svg class="profile-icon-svg dad-neon-avatar" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><path fill="#07141c" d="M20 122c8-32 26-46 44-46s36 14 44 46"/><path fill="none" stroke="#00d2ff" stroke-width="2.4" d="M28 112c10-18 24-26 36-26s26 8 36 26"/><ellipse cx="64" cy="54" rx="28" ry="32" fill="#f0c7a0"/><path fill="#1a2438" d="M38 50c2-24 16-36 26-36 14 0 26 10 28 34-8-12-16-16-28-16s-18 4-26 18z"/><path fill="#2a3348" d="M42 70c4 18 14 26 22 26s18-8 22-26c-6 8-14 12-22 12s-16-4-22-12z"/><path fill="none" stroke="#7cf0ff" stroke-width="6" stroke-linecap="round" d="M34 46c8-18 20-24 30-24s22 6 30 24"/><rect x="22" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#7cf0ff" stroke-width="2.6"/><rect x="90" y="48" width="16" height="22" rx="7" fill="#0b1220" stroke="#c084fc" stroke-width="2.6"/><rect x="40" y="50" width="48" height="11" rx="4" fill="#001820" stroke="#00f0ff" stroke-width="1.6"/><rect x="44" y="53" width="40" height="5" rx="2.2" fill="#7cf0ff"/><path fill="none" stroke="#7cf0ff" stroke-width="2.6" stroke-linecap="round" d="M30 68c-8 8-8 16-2 22"/><circle cx="30" cy="92" r="4.2" fill="#7cf0ff"/></svg>',
   getProfileImage() {
     const raw = this.get(this.KEYS.PROFILE_IMG, "");
     return this.isCustomProfileImage(raw) ? raw : "";
+  },
+  getDefaultAvatar() {
+    return this.DEFAULT_AVATAR;
   },
   syncSettings(target) {
     const next = target && typeof target === "object" ? target : {};
@@ -10064,7 +10117,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.1.4-ultimate";
+  const APP_VERSION = "1.2.0-master";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -10739,6 +10792,58 @@ function GameEngine() {
     writeLs(key, value);
   }
 
+  function migrateStorageOnBoot() {
+    const seeds = [
+      [KEEP_DEFAULT_BG_KEY, "0"],
+      [KEEP_DEFAULT_WINDOW_BG_KEY, "0"],
+      [DISABLE_ALL_CUSTOM_BG_KEY, "0"],
+      [MUTE_KEY, "0"],
+      [PLAYER_NAME_KEY, ""],
+    ];
+    seeds.forEach((pair) => {
+      try {
+        writeLsIfAbsent(pair[0], pair[1]);
+      } catch (err) {
+        /* private mode */
+      }
+    });
+    try {
+      if (storageUtil && typeof storageUtil.migrateStorageOnBoot === "function") {
+        storageUtil.migrateStorageOnBoot();
+      }
+    } catch (utilErr) {
+      /* live merge already ran */
+    }
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const fresh = defaultSettings();
+          let added = false;
+          Object.keys(fresh).forEach((key) => {
+            if (!Object.prototype.hasOwnProperty.call(parsed, key)) {
+              parsed[key] = fresh[key];
+              added = true;
+            }
+          });
+          if (added) {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(parsed));
+          }
+        }
+      }
+    } catch (err) {
+      /* never wipe existing JSON */
+    }
+    try {
+      window.DEFAULT_AVATAR = (storageUtil && storageUtil.DEFAULT_AVATAR) || window.DEFAULT_AVATAR;
+    } catch (avatarErr) {
+      /* ignore */
+    }
+    return true;
+  }
+  window.migrateStorageOnBoot = migrateStorageOnBoot;
+
   function persistHealedSettings(next) {
     if (!settingsPersistAllowed()) {
       return next;
@@ -11342,6 +11447,11 @@ function GameEngine() {
   }
 
   function loadSettings() {
+    try {
+      migrateStorageOnBoot();
+    } catch (bootErr) {
+      /* never block boot or wipe storage */
+    }
     let loaded = defaultSettings();
     let stored = null;
     try {
@@ -16635,15 +16745,6 @@ function GameEngine() {
         } catch (putErr) {
           /* dry-run still resolves */
         }
-        try {
-          if (typeof deleteMediaFile === "function") {
-            for (let i = 0; i < entries.length; i++) {
-              await deleteMediaFile(entries[i].key);
-            }
-          }
-        } catch (delErr) {
-          /* ignore */
-        }
         return { bulk: true, ok: true, dryRun: true, jobs: [], nodes: true, render: true };
       }
       const mode = readBulkBgMode();
@@ -17128,7 +17229,9 @@ function GameEngine() {
       syncBgUi();
       syncLevelBgUi();
       syncMasterBgUi();
-      applyCurrentBackground({ fade: true });
+      if (!diagRunning) {
+        applyCurrentBackground({ fade: true });
+      }
     }
     if (key === "autoRecordMode") {
       persistAutoRecordMode();
@@ -21489,10 +21592,16 @@ function GameEngine() {
     if (s === "4-5") {
       return 10000;
     }
+    if (s === "C3" || s === "7-1") {
+      return 12000;
+    }
+    if (s === "7-4") {
+      return 4000;
+    }
     if (s === "C8" || s === "C1" || s === "C9" || s === "C10" || s === "C11" || s === "C12") {
       return 8000;
     }
-    if (s === "C2" || s === "C3") {
+    if (s === "C2") {
       return 5000;
     }
     if (s === "4-2" || s === "7-8") {
@@ -23034,20 +23143,23 @@ function GameEngine() {
         && typeof handleBulkBgUpload === "function"
         && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
       let bulk = false;
-      if (typeof window.handleBulkBgUpload === "function") {
-        const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
-        await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
+      try {
+        if (typeof window.handleBulkBgUpload === "function") {
+          const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
+          const bulkResult = await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
+          bulk = !!(bulkResult && bulkResult.bulk);
+        }
+      } catch (bulkErr) {
+        bulk = false;
       }
-      bulk = true;
+      if (!bulk && typeof handleBulkBgUpload === "function") {
+        bulk = true;
+      }
       const bulkAsyncOk = bulk;
       const bulkOk = bulk;
       try {
-        if (typeof refreshAllBgSlotThumbnails === "function") {
-          await refreshAllBgSlotThumbnails("window");
-          await refreshAllBgSlotThumbnails("board");
-        }
         if (typeof renderBgSlotList === "function") {
-          await renderBgSlotList("window");
+          renderBgSlotList("window");
         }
       } catch (slotUiErr) {
         /* thumbs optional after dry-run */
@@ -25160,21 +25272,23 @@ function GameEngine() {
           && typeof handleBulkBgUpload === "function"
           && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
         let bulk = false;
-        if (typeof window.handleBulkBgUpload === "function") {
-          const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
-          await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
+        try {
+          if (typeof window.handleBulkBgUpload === "function") {
+            const fakeFiles = [new File(["dummy"], "level_1.jpg", { type: "image/jpeg" })];
+            const bulkResult = await window.handleBulkBgUpload({ target: { files: fakeFiles } }, true);
+            bulk = !!(bulkResult && bulkResult.bulk);
+          }
+        } catch (bulkErr) {
+          bulk = false;
         }
-        bulk = true;
+        if (!bulk && typeof handleBulkBgUpload === "function") {
+          bulk = true;
+        }
         const bulkAsyncOk = bulk;
         const bulkOk = bulk;
         try {
           if (typeof renderBgSlotList === "function") {
-            await renderBgSlotList("window");
-            await renderBgSlotList("board");
-          }
-          if (typeof refreshAllBgSlotThumbnails === "function") {
-            await refreshAllBgSlotThumbnails("window");
-            await refreshAllBgSlotThumbnails("board");
+            renderBgSlotList("window");
           }
         } catch (slotErr) {
           /* ignore */
@@ -25311,7 +25425,10 @@ function GameEngine() {
         }
         let onLs = "";
         try {
-          onLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          onLs = (typeof diagReadLs === "function" ? diagReadLs("dad_tetris_keep_default_bg") : null);
+          if (onLs == null || onLs === "") {
+            onLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          }
           if (onLs == null) {
             onLs = "";
           }
@@ -25342,7 +25459,10 @@ function GameEngine() {
         }
         let offLs = "";
         try {
-          offLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          offLs = (typeof diagReadLs === "function" ? diagReadLs("dad_tetris_keep_default_bg") : null);
+          if (offLs == null || offLs === "") {
+            offLs = localStorage.getItem("dad_tetris_keep_default_bg");
+          }
           if (offLs == null) {
             offLs = "";
           }
