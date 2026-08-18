@@ -1,9 +1,9 @@
-/* Dad Tetris v1.2.0-master */
+/* Dad Tetris v1.3.4-vol-c10 */
 "use strict";
 
 import { dbManager, storageUtil } from "./storage.js";
 import { soundManager } from "./audio.js";
-import { renderEngine, drawBlock, renderStaticBackground, renderGhostPreview, renderSkinPreview } from "./render.js";
+import { renderEngine, drawBlock, renderStaticBackground, renderGhostPreview, renderSkinPreview, applyForcedProfileCardLayout, purgeBoardWatermarks } from "./render.js";
 
 let host = null;
 let cheerKind = "idle";
@@ -82,6 +82,86 @@ export function bindBgTargetTabs() {
   });
 }
 
+export function bindVolumeSliders() {
+  const SETTINGS_KEY = "dadTetrisSettings";
+  const clampPct = (val) => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, Math.round(n)));
+  };
+  const mergeSettingsVol = (kind, n) => {
+    try {
+      let obj = {};
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        obj = raw ? JSON.parse(raw) : {};
+      } catch (parseErr) {
+        obj = {};
+      }
+      if (!obj || typeof obj !== "object") {
+        obj = {};
+      }
+      if (kind === "bgm") {
+        obj.bgmVolume = n;
+      } else {
+        obj.soundVolume = n;
+      }
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj));
+    } catch (err) {
+      /* private mode / diag shadow */
+    }
+    try {
+      if (window.gameSettings) {
+        if (kind === "bgm") {
+          window.gameSettings.bgmVolume = n;
+        } else {
+          window.gameSettings.soundVolume = n;
+        }
+      }
+    } catch (err) {
+      /* ignore */
+    }
+  };
+
+  const bgmSlider = document.getElementById("bgm-volume");
+  if (bgmSlider && bgmSlider.dataset.uiVolSyncBound !== "1") {
+    bgmSlider.dataset.uiVolSyncBound = "1";
+    const syncBgm = (val) => {
+      const n = clampPct(val);
+      try {
+        localStorage.setItem("dad_tetris_bgm_vol", String(n));
+        localStorage.setItem("bgmVolume", String(n));
+      } catch (err) { /* private mode / diag shadow */ }
+      mergeSettingsVol("bgm", n);
+      if (window.soundManager && typeof window.soundManager.setBgmVolume === "function") {
+        window.soundManager.setBgmVolume(n / 100);
+      }
+    };
+    bgmSlider.addEventListener("input", (e) => syncBgm(e.target.value));
+    bgmSlider.addEventListener("change", (e) => syncBgm(e.target.value));
+  }
+
+  const sfxSlider = document.getElementById("sfx-volume") || document.getElementById("sound-volume");
+  if (sfxSlider && sfxSlider.dataset.uiVolSyncBound !== "1") {
+    sfxSlider.dataset.uiVolSyncBound = "1";
+    const syncSfx = (val) => {
+      const n = clampPct(val);
+      try {
+        localStorage.setItem("dad_tetris_sfx_vol", String(n));
+        localStorage.setItem("sfxVolume", String(n));
+      } catch (err) { /* private mode / diag shadow */ }
+      mergeSettingsVol("sfx", n);
+      if (window.soundManager && typeof window.soundManager.setSfxVolume === "function") {
+        window.soundManager.setSfxVolume(n / 100);
+      }
+    };
+    sfxSlider.addEventListener("input", (e) => syncSfx(e.target.value));
+    sfxSlider.addEventListener("change", (e) => syncSfx(e.target.value));
+  }
+}
+
 export function bindUiController(nextHost) {
   host = nextHost || host;
   if (host && typeof host.runVisualAutoTest === "function") {
@@ -91,6 +171,7 @@ export function bindUiController(nextHost) {
   bindKeepDefaultBgToggle();
   bindBgTargetTabs();
   bindPlayerNicknameField();
+  bindVolumeSliders();
   return uiController;
 }
 
@@ -698,6 +779,8 @@ export const uiController = {
   applyMobileArcadeLayout,
   initMobileResize,
   mobileTouchElementsOk,
+  applyForcedProfileCardLayout,
+  purgeBoardWatermarks,
   verifyModules() {
     const storageOk = !!(dbManager && storageUtil && typeof dbManager.saveMediaFile === "function" && typeof storageUtil.get === "function");
     const audioOk = !!(soundManager && typeof soundManager.play === "function" && typeof soundManager.ensure === "function");

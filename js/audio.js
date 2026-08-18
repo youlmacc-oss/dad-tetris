@@ -1,4 +1,4 @@
-/* Dad Tetris v1.2.0-master */
+/* Dad Tetris v1.3.4-vol-c10 */
 "use strict";
 
 let host = null;
@@ -101,6 +101,40 @@ export const soundManager = {
     }
     if (this.bgmGain) {
       this.bgmGain.gain.value = bgmV;
+    }
+  },
+  setSfxVolume(v) {
+    const n = Number(v);
+    const unit = Number.isFinite(n) ? Math.max(0, Math.min(1, n > 1 ? n / 100 : n)) : 0;
+    if (host && host.settings) {
+      host.settings.soundVolume = Math.round(unit * 100);
+    }
+    this.ensureGraph();
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = this.muted ? 0 : unit;
+    }
+    if (typeof this.applyMasterGains === "function" && !this.muted) {
+      this.applyMasterGains();
+      if (this.sfxGain && !this.muted) {
+        this.sfxGain.gain.value = unit;
+      }
+    }
+  },
+  setBgmVolume(v) {
+    const n = Number(v);
+    const unit = Number.isFinite(n) ? Math.max(0, Math.min(1, n > 1 ? n / 100 : n)) : 0;
+    if (host && host.settings) {
+      host.settings.bgmVolume = Math.round(unit * 100);
+    }
+    this.ensureGraph();
+    if (this.bgmGain) {
+      this.bgmGain.gain.value = this.muted ? 0 : unit;
+    }
+    if (typeof this.applyMasterGains === "function" && !this.muted) {
+      this.applyMasterGains();
+      if (this.bgmGain && !this.muted) {
+        this.bgmGain.gain.value = unit;
+      }
     }
   },
   applyTimestopPitch(active) {

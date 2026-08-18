@@ -1,4 +1,4 @@
-/* Dad Tetris v1.2.0-master */
+/* Dad Tetris v1.3.4-vol-c10 */
 "use strict";
 
 const DB_NAME = "DadTetrisDB";
@@ -504,6 +504,10 @@ export const storageUtil = {
   KEYS: {
     BEST: "dadTetrisBest",
     HALL: "dadTetrisHall",
+    BEST_SCORE: "dad_tetris_best_score",
+    BEST_SCORE_ALIAS: "bestScore",
+    HALL_OF_FAME: "dad_tetris_hall_of_fame",
+    RANKINGS: "dad_tetris_rankings",
     LAST_NAME: "dadTetrisLastName",
     SETTINGS: "dadTetrisSettings",
     PROFILE: "dadTetrisProfile",
@@ -531,6 +535,118 @@ export const storageUtil = {
     KEEP_DEFAULT_BG: "dad_tetris_keep_default_bg",
     KEEP_DEFAULT_WINDOW_BG: "keep_default_window_bg",
   },
+  SCORE_PROTECT_KEYS: [
+    "dad_tetris_best_score", "bestScore", "dadTetrisBest",
+    "dad_tetris_hall_of_fame", "dad_tetris_rankings", "dadTetrisHall",
+    "dad_tetris_rank_domestic", "dad_tetris_rank_global",
+  ],
+  isProtectedScoreKey(key) {
+    return (this.SCORE_PROTECT_KEYS || []).indexOf(String(key || "")) >= 0;
+  },
+  isBestScoreKey(key) {
+    return ["dad_tetris_best_score", "bestScore", "dadTetrisBest"].indexOf(String(key || "")) >= 0;
+  },
+  persistProtectedScoreKey(key, value) {
+    const incoming = value == null ? "" : String(value);
+    let cur = null;
+    try {
+      cur = localStorage.getItem(key);
+    } catch (err) {
+      cur = null;
+    }
+    if (this.isBestScoreKey(key)) {
+      const next = Number(incoming);
+      const prev = Number(cur);
+      if (cur != null && cur !== "" && Number.isFinite(prev) && prev > 0) {
+        if (!Number.isFinite(next) || next < prev) {
+          return false;
+        }
+      }
+      if ((!Number.isFinite(next) || next <= 0) && cur != null && cur !== "") {
+        return false;
+      }
+    }
+    if (this.isProtectedScoreKey(key) && !this.isBestScoreKey(key)) {
+      if (cur && (incoming === "" || incoming === "[]" || incoming === "null")) {
+        return false;
+      }
+    }
+    try {
+      localStorage.setItem(key, incoming);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  },
+  preserveBestScoresOnBoot() {
+    const bestKeys = ["dad_tetris_best_score", "bestScore", "dadTetrisBest"];
+    const hallKeys = [
+      "dad_tetris_hall_of_fame", "dad_tetris_rankings", "dadTetrisHall",
+      "dad_tetris_rank_domestic", "dad_tetris_rank_global",
+    ];
+    let top = 0;
+    bestKeys.forEach((key) => {
+      try {
+        const n = Number(localStorage.getItem(key));
+        if (Number.isFinite(n) && n > top) {
+          top = n;
+        }
+      } catch (err) {
+        /* ignore */
+      }
+    });
+    hallKeys.forEach((key) => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        const rows = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.records) ? parsed.records : []);
+        rows.forEach((row) => {
+          const n = Number(row && row.score);
+          if (Number.isFinite(n) && n > top) {
+            top = n;
+          }
+        });
+      } catch (err) {
+        /* keep scanning */
+      }
+    });
+    if (top > 0) {
+      bestKeys.forEach((key) => {
+        this.persistProtectedScoreKey(key, String(top));
+      });
+    }
+    hallKeys.forEach((dest) => {
+      let destRaw = null;
+      try {
+        destRaw = localStorage.getItem(dest);
+      } catch (err) {
+        destRaw = null;
+      }
+      if (destRaw && destRaw !== "[]") {
+        return;
+      }
+      for (let i = 0; i < hallKeys.length; i++) {
+        const src = hallKeys[i];
+        if (src === dest) {
+          continue;
+        }
+        let srcRaw = null;
+        try {
+          srcRaw = localStorage.getItem(src);
+        } catch (err) {
+          srcRaw = null;
+        }
+        if (srcRaw && srcRaw !== "[]") {
+          this.persistProtectedScoreKey(dest, srcRaw);
+          break;
+        }
+      }
+    });
+    return top;
+  },
   isCustomProfileImage(raw) {
     return typeof raw === "string" && raw.length > 24
       && (raw.indexOf("data:image/") === 0 || raw.indexOf("blob:") === 0);
@@ -544,9 +660,10 @@ export const storageUtil = {
     return this.DEFAULT_AVATAR;
   },
   migrateStorageOnBoot() {
+    this.preserveBestScoresOnBoot();
     const keys = this.KEYS || {};
     const seedIfAbsent = (key, value) => {
-      if (!key) {
+      if (!key || this.isProtectedScoreKey(key)) {
         return;
       }
       try {
@@ -628,6 +745,9 @@ export const storageUtil = {
     }
   },
   set(key, value) {
+    if (this.isProtectedScoreKey(key)) {
+      return this.persistProtectedScoreKey(key, value);
+    }
     try {
       localStorage.setItem(key, value);
       return true;
@@ -636,6 +756,9 @@ export const storageUtil = {
     }
   },
   remove(key) {
+    if (this.isProtectedScoreKey(key)) {
+      return false;
+    }
     try {
       localStorage.removeItem(key);
       return true;
@@ -655,6 +778,9 @@ export const storageUtil = {
     }
   },
   setJson(key, value) {
+    if (this.isProtectedScoreKey(key)) {
+      return this.persistProtectedScoreKey(key, JSON.stringify(value));
+    }
     try {
       localStorage.setItem(key, JSON.stringify(value));
       return true;

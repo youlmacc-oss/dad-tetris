@@ -1,4 +1,4 @@
-/* Dad Tetris v1.2.0-master */
+/* Dad Tetris v1.3.4-vol-c10 */
 "use strict";
 
 export const BLOCK_SKIN_IDS = ["gemstone", "glass", "wire_glass", "mecha", "candy"];
@@ -351,6 +351,115 @@ export function drawNeonWell(targetCtx, focusOn) {
   targetCtx.fillRect(0, 0, w, h);
 }
 
+export function purgeBoardWatermarks() {
+  const roots = [
+    document.getElementById("board-wrap"),
+    document.getElementById("tetris-board-wrapper"),
+    document.querySelector(".board-canvas-stack"),
+    document.getElementById("board-bg"),
+  ].filter(Boolean);
+  const sel = ".watermark, .board-watermark, .bg-watermark, .board-level-watermark, .level-watermark, [class*='watermark'], [data-level-watermark]";
+  roots.forEach((root) => {
+    try {
+      root.querySelectorAll(sel).forEach((node) => {
+        node.remove();
+      });
+    } catch (err) {
+      /* ignore */
+    }
+  });
+}
+
+export function applyForcedProfileCardLayout() {
+  const overlay = document.getElementById("overlay");
+  const hostCard = document.getElementById("profile-card");
+  const panel = document.getElementById("start-overlay");
+  const frame = document.getElementById("profile-frame");
+  const neon = frame && (frame.querySelector(".dad-neon-avatar") || frame.querySelector(".profile-icon-svg"));
+  const img = document.getElementById("profile-image");
+  const isResult = !!(overlay && (overlay.classList.contains("is-result") || overlay.classList.contains("is-conquer")));
+  const sizeProps = ["width", "height", "min-width", "min-height", "max-width", "max-height", "transform", "padding"];
+  const clearInline = (el) => {
+    if (!el) {
+      return;
+    }
+    sizeProps.forEach((prop) => {
+      try {
+        el.style.removeProperty(prop);
+      } catch (err) {
+        /* ignore */
+      }
+    });
+  };
+  if (isResult) {
+    return;
+  }
+  clearInline(hostCard);
+  clearInline(panel);
+  clearInline(frame);
+  if (hostCard) {
+    hostCard.style.setProperty("width", "90%", "important");
+    hostCard.style.setProperty("max-width", "92%", "important");
+    hostCard.style.setProperty("min-width", "88%", "important");
+    hostCard.style.setProperty("padding", "24px 16px", "important");
+    hostCard.style.setProperty("box-sizing", "border-box", "important");
+    hostCard.style.setProperty("display", "flex", "important");
+    hostCard.style.setProperty("flex-direction", "column", "important");
+    hostCard.style.setProperty("align-items", "center", "important");
+    hostCard.style.setProperty("justify-content", "center", "important");
+    hostCard.style.setProperty("transform", "none", "important");
+  }
+  if (panel) {
+    panel.style.setProperty("width", "100%", "important");
+    panel.style.setProperty("max-width", "none", "important");
+    panel.style.setProperty("min-width", "0", "important");
+    panel.style.setProperty("transform", "none", "important");
+  }
+  if (frame) {
+    frame.style.setProperty("width", "220px", "important");
+    frame.style.setProperty("height", "220px", "important");
+    frame.style.setProperty("min-width", "220px", "important");
+    frame.style.setProperty("min-height", "220px", "important");
+    frame.style.setProperty("max-width", "220px", "important");
+    frame.style.setProperty("max-height", "220px", "important");
+    frame.style.setProperty("box-sizing", "border-box", "important");
+    frame.style.setProperty("border-radius", "50%", "important");
+    frame.style.setProperty("margin", "0 auto 18px auto", "important");
+    frame.style.setProperty("transform", "none", "important");
+  }
+  if (neon) {
+    neon.style.setProperty("width", "70%", "important");
+    neon.style.setProperty("height", "70%", "important");
+    neon.style.setProperty("max-width", "154px", "important");
+    neon.style.setProperty("max-height", "154px", "important");
+  }
+  if (img) {
+    img.style.setProperty("width", "100%", "important");
+    img.style.setProperty("height", "100%", "important");
+    img.style.setProperty("object-fit", "cover", "important");
+    img.style.setProperty("border-radius", "50%", "important");
+  }
+  const title = document.getElementById("overlay-title");
+  if (title && !isResult) {
+    title.textContent = "";
+    title.setAttribute("aria-hidden", "true");
+    const overlayEl = document.getElementById("overlay");
+    const card = document.getElementById("profile-card");
+    if (overlayEl && card && card.contains(title)) {
+      overlayEl.appendChild(title);
+    }
+  }
+  const nick = document.getElementById("profile-nickname");
+  if (nick && !isResult) {
+    try {
+      const raw = localStorage.getItem("dad_tetris_player_name") || localStorage.getItem("dadTetrisLastName") || "";
+      nick.textContent = String(raw || "").trim() || "시스템";
+    } catch (err) {
+      nick.textContent = nick.textContent || "시스템";
+    }
+  }
+}
+
 export function renderStaticBackground() {
   const bgCtx = host.bgCtx;
   const bgCanvas = host.bgCanvas;
@@ -359,6 +468,7 @@ export function renderStaticBackground() {
     host.staticBgDirty = false;
     return;
   }
+  purgeBoardWatermarks();
   const w = bgCanvas.width;
   const h = bgCanvas.height;
   const cellSize = host.cellSize;
@@ -842,6 +952,8 @@ export const renderEngine = {
   mobileBoardCapPx,
   resizeCanvasToViewport,
   clearMobileCanvasLayout,
+  applyForcedProfileCardLayout,
+  purgeBoardWatermarks,
 };
 
 export { drawBlock, fillBlock, renderSkinPreview, renderGhostPreview };

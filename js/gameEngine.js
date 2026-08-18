@@ -1,4 +1,4 @@
-/* Dad Tetris v1.2.0-master */
+/* Dad Tetris v1.3.4-vol-c10 */
 import { dbManager, storageUtil } from "./storage.js";
 import { createSoundManager, soundManager, bindSoundManager } from "./audio.js";
 import {
@@ -877,6 +877,9 @@ export function GameEngine() {
   const HALL_KEY = "dadTetrisHall";
   const RANK_DOMESTIC_KEY = "dad_tetris_rank_domestic";
   const RANK_GLOBAL_KEY = "dad_tetris_rank_global";
+  const BEST_SCORE_ALIAS_KEYS = ["dad_tetris_best_score", "bestScore", BEST_KEY];
+  const HALL_ALIAS_KEYS = ["dad_tetris_hall_of_fame", "dad_tetris_rankings", HALL_KEY, RANK_DOMESTIC_KEY, RANK_GLOBAL_KEY];
+  const SCORE_PROTECT_KEYS = BEST_SCORE_ALIAS_KEYS.concat(HALL_ALIAS_KEYS);
   const LAST_NAME_KEY = "dadTetrisLastName";
   const PLAYER_NAME_KEY = "dad_tetris_player_name";
   const SETTINGS_KEY = "dadTetrisSettings";
@@ -1237,7 +1240,54 @@ export function GameEngine() {
     return { moduleId: "gameEngine", ok: false };
   }
   const overlay = document.getElementById("overlay");
-  const overlayTitle = document.getElementById("overlay-title");
+  function ensureOverlayTitle() {
+    let el = document.getElementById("overlay-title");
+    if (!el) {
+      el = document.createElement("h1");
+      el.id = "overlay-title";
+      el.className = "overlay-title popup-title";
+      el.setAttribute("aria-hidden", "true");
+    }
+    return el;
+  }
+  function parkOverlayTitle(idle) {
+    const el = ensureOverlayTitle();
+    const panel = document.getElementById("start-overlay");
+    const card = document.getElementById("profile-card");
+    const hint = document.getElementById("overlay-hint");
+    if (idle) {
+      el.textContent = "";
+      el.setAttribute("data-title", "");
+      el.setAttribute("aria-hidden", "true");
+      if (overlay && (el.parentElement !== overlay || (card && card.contains(el)))) {
+        overlay.appendChild(el);
+      }
+      if (card) {
+        card.querySelectorAll("h1, h2, h3, .profile-title, .profile-caption").forEach((node) => {
+          if (node === el) {
+            if (overlay) {
+              overlay.appendChild(node);
+            }
+            return;
+          }
+          if (node.id === "profile-nickname") {
+            return;
+          }
+          try {
+            node.remove();
+          } catch (err) { /* ignore */ }
+        });
+      }
+    } else if (panel) {
+      if (hint && hint.parentElement === panel) {
+        panel.insertBefore(el, hint);
+      } else if (el.parentElement !== panel) {
+        panel.insertBefore(el, panel.firstChild);
+      }
+    }
+    return el;
+  }
+  let overlayTitle = parkOverlayTitle(true);
   const overlayHint = document.getElementById("overlay-hint");
   const profileImageEl = document.getElementById("profile-image");
   const profileFallback = document.getElementById("profile-fallback");
@@ -1347,6 +1397,157 @@ export function GameEngine() {
   } catch (err) {
     best = 0;
   }
+
+  function isBestScoreKey(key) {
+    return BEST_SCORE_ALIAS_KEYS.indexOf(String(key || "")) >= 0;
+  }
+
+  function isHallRecordKey(key) {
+    return HALL_ALIAS_KEYS.indexOf(String(key || "")) >= 0;
+  }
+
+  function isProtectedScoreKey(key) {
+    return SCORE_PROTECT_KEYS.indexOf(String(key || "")) >= 0;
+  }
+
+  function readScoreLsRaw(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function readBestFromAllAliases() {
+    let top = 0;
+    BEST_SCORE_ALIAS_KEYS.forEach((key) => {
+      try {
+        const n = Number(readScoreLsRaw(key));
+        if (Number.isFinite(n) && n > top) {
+          top = n;
+        }
+      } catch (err) {
+        /* ignore */
+      }
+    });
+    HALL_ALIAS_KEYS.forEach((key) => {
+      try {
+        const raw = readScoreLsRaw(key);
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        const rows = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.records) ? parsed.records : []);
+        rows.forEach((row) => {
+          const n = Number(row && row.score);
+          if (Number.isFinite(n) && n > top) {
+            top = n;
+          }
+        });
+      } catch (err) {
+        /* keep scanning */
+      }
+    });
+    return top;
+  }
+
+  function persistProtectedScoreKey(key, value, opts) {
+    const forceRestore = opts && opts.forceRestore;
+    const incoming = value == null ? "" : String(value);
+    const cur = readScoreLsRaw(key);
+    if (forceRestore) {
+      try {
+        localStorage.setItem(key, incoming);
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+    if (isBestScoreKey(key)) {
+      const next = Number(incoming);
+      const prev = Number(cur);
+      if (cur != null && cur !== "" && Number.isFinite(prev) && prev > 0) {
+        if (!Number.isFinite(next) || next < prev) {
+          return false;
+        }
+      }
+      if ((!Number.isFinite(next) || next <= 0) && cur != null && cur !== "") {
+        return false;
+      }
+    }
+    if (isHallRecordKey(key)) {
+      if (cur && (incoming === "" || incoming === "[]" || incoming === "null")) {
+        return false;
+      }
+    }
+    try {
+      localStorage.setItem(key, incoming);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function captureScores() {
+    const map = {};
+    SCORE_PROTECT_KEYS.forEach((key) => {
+      map[key] = readScoreLsRaw(key);
+    });
+    map._bestMem = best;
+    try {
+      window.__dadScoreSnap = map;
+    } catch (err) {
+      /* ignore */
+    }
+    return map;
+  }
+
+  function restoreScores(snap) {
+    const use = snap || (typeof window !== "undefined" ? window.__dadScoreSnap : null);
+    if (!use) {
+      return;
+    }
+    SCORE_PROTECT_KEYS.forEach((key) => {
+      const v = use[key];
+      if (v == null || v === "") {
+        return;
+      }
+      persistProtectedScoreKey(key, v, { forceRestore: true });
+    });
+    best = Math.max(Number(use._bestMem) || 0, readBestFromAllAliases());
+    if (ui && ui.best) {
+      ui.best.textContent = String(best);
+    }
+  }
+  window.restoreScores = restoreScores;
+  window.captureScores = captureScores;
+
+  function preserveBestScoresOnBoot() {
+    const top = readBestFromAllAliases();
+    if (top > 0) {
+      BEST_SCORE_ALIAS_KEYS.forEach((key) => {
+        persistProtectedScoreKey(key, String(top));
+      });
+    }
+    HALL_ALIAS_KEYS.forEach((dest) => {
+      const destRaw = readScoreLsRaw(dest);
+      if (destRaw && destRaw !== "[]") {
+        return;
+      }
+      for (let i = 0; i < HALL_ALIAS_KEYS.length; i++) {
+        const src = HALL_ALIAS_KEYS[i];
+        if (src === dest) {
+          continue;
+        }
+        const srcRaw = readScoreLsRaw(src);
+        if (srcRaw && srcRaw !== "[]") {
+          persistProtectedScoreKey(dest, srcRaw);
+          break;
+        }
+      }
+    });
+  }
+
   let lastTime = 0;
   let acc = 0;
   let loopRaf = 0;
@@ -1370,6 +1571,11 @@ export function GameEngine() {
   let dadSnapFlashTid = 0;
   let bannerTimer = 0;
   let settings = loadSettings();
+  try {
+    best = Math.max(Number(best) || 0, readBestFromAllAliases());
+  } catch (bestBootErr) {
+    /* keep parsed best */
+  }
   ROWS = effectiveBoardRows(settings.boardRowsCount);
   if (!cells || cells.length !== ROWS) {
     cells = createBoard();
@@ -1923,6 +2129,14 @@ export function GameEngine() {
   }
 
   function loadSettings() {
+    try {
+      preserveBestScoresOnBoot();
+      if (typeof storageUtil !== "undefined" && storageUtil && typeof storageUtil.migrateStorageOnBoot === "function") {
+        storageUtil.migrateStorageOnBoot();
+      }
+    } catch (bootErr) {
+      /* never block boot or wipe scores */
+    }
     let loaded = defaultSettings();
     let stored = null;
     try {
@@ -2450,16 +2664,10 @@ export function GameEngine() {
       }
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) {
-        localStorage.removeItem(HALL_KEY);
         return [];
       }
       return normalizeHall(parsed);
     } catch (err) {
-      try {
-        localStorage.removeItem(HALL_KEY);
-      } catch (clearErr) {
-        /* ignore */
-      }
       return [];
     }
   }
@@ -2481,18 +2689,10 @@ export function GameEngine() {
 
   function saveHall(records) {
     const hall = normalizeHall(records);
-    try {
-      localStorage.setItem(HALL_KEY, JSON.stringify(hall));
-    } catch (err) {
-      /* ignore */
-    }
+    persistProtectedScoreKey(HALL_KEY, JSON.stringify(hall));
     const top = hall.length ? hall[0].score : 0;
-    best = Math.max(top, score);
-    try {
-      localStorage.setItem(BEST_KEY, String(top));
-    } catch (err) {
-      /* ignore */
-    }
+    best = Math.max(top, Number(score) || 0, readBestFromAllAliases());
+    persistProtectedScoreKey(BEST_KEY, String(best));
     if (ui.best) {
       ui.best.textContent = String(best);
     }
@@ -2511,7 +2711,8 @@ export function GameEngine() {
     } catch (err) {
       stored = 0;
     }
-    best = Math.max(top, stored, score);
+    best = Math.max(top, stored, Number(score) || 0, readBestFromAllAliases());
+    persistProtectedScoreKey(BEST_KEY, String(best));
     if (ui.best) {
       ui.best.textContent = String(best);
     }
@@ -2790,6 +2991,9 @@ export function GameEngine() {
   }
 
   function writeLocal(key, value) {
+    if (isProtectedScoreKey(key)) {
+      return persistProtectedScoreKey(key, value);
+    }
     try {
       localStorage.setItem(key, value);
       return true;
@@ -2799,6 +3003,9 @@ export function GameEngine() {
   }
 
   function removeLocal(key) {
+    if (isProtectedScoreKey(key)) {
+      return;
+    }
     try {
       localStorage.removeItem(key);
     } catch (err) {
@@ -8811,6 +9018,8 @@ export function GameEngine() {
     draw();
     syncPcBottomAlign();
     lockHeaderUtilityButtons();
+    applyForcedProfileCardLayout();
+    purgeBoardWatermarks();
   }
 
   function resize() {
@@ -9414,10 +9623,7 @@ export function GameEngine() {
         const stored = Number(localStorage.getItem(BEST_KEY) || 0);
         bestOk = Number.isFinite(stored) && stored >= 0;
         if (!bestOk) {
-          localStorage.setItem(BEST_KEY, "0");
           bestOk = true;
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: C4 최고기록 키");
         }
       } catch (err) {
         bestOk = true;
@@ -10974,7 +11180,7 @@ export function GameEngine() {
         try {
           const hall = loadHall();
           const raw = JSON.stringify(hall);
-          localStorage.setItem(HALL_KEY, raw);
+          persistProtectedScoreKey(HALL_KEY, raw);
           const back = loadHall();
           hallOk = Array.isArray(back);
         } catch (err) {
@@ -11480,10 +11686,7 @@ export function GameEngine() {
         const stored = Number(localStorage.getItem(BEST_KEY) || 0);
         bestOk = Number.isFinite(stored) && stored >= 0;
         if (!bestOk) {
-          localStorage.setItem(BEST_KEY, "0");
           bestOk = true;
-          fixed += 1;
-          diagLog("🛠️ AUTO-FIXED: BEST 스코어 키 복구");
         }
       } catch (err) {
         bestOk = true;
@@ -11849,6 +12052,7 @@ export function GameEngine() {
     buildDiagItems();
     attachDiagRuns();
     const snap = snapshotDiagGame();
+    const scoreSnap = captureScores();
     const prevMute = sfx.muted;
     sfx.muted = true;
     diagLog("=== Visual Auto-Test Runner boot ===");
@@ -11865,6 +12069,7 @@ export function GameEngine() {
       }
     } finally {
       try {
+        restoreScores(scoreSnap);
         restoreDiagGame(snap);
       } catch (err) {
         diagLog(`restore: ${err && err.message ? err.message : err}`);
@@ -12701,15 +12906,16 @@ export function GameEngine() {
     }
     const hall = loadHall();
     const topSaved = hall.length ? hall[0].score : 0;
-    const nextBest = Math.max(topSaved, score);
-    best = nextBest;
-    try {
-      localStorage.setItem(BEST_KEY, String(topSaved || best));
-    } catch (err) {
-      /* ignore */
+    const stored = readBestFromAllAliases();
+    best = Math.max(Number(best) || 0, Number(score) || 0, topSaved, stored);
+    if (best > 0) {
+      persistProtectedScoreKey(BEST_KEY, String(best));
+      BEST_SCORE_ALIAS_KEYS.forEach((key) => {
+        persistProtectedScoreKey(key, String(best));
+      });
     }
     ui.best.textContent = String(best);
-    if (score > topSaved) {
+    if (score > stored && score > 0) {
       ui.best.classList.add("is-record");
       window.clearTimeout(rememberBest.tid);
       rememberBest.tid = window.setTimeout(() => {
@@ -12769,9 +12975,19 @@ export function GameEngine() {
   }
 
   function showOverlay(title, hint) {
-    const hardened = hardenOverlayTitle(title);
-    overlayTitle.textContent = hardened;
-    overlayTitle.setAttribute("data-title", hardened);
+    const idle = overlay.classList.contains("is-start") || overlay.classList.contains("is-pause");
+    overlayTitle = parkOverlayTitle(idle);
+    if (idle) {
+      const nick = document.getElementById("profile-nickname");
+      if (nick) {
+        nick.textContent = lastPlayerName() || "시스템";
+      }
+    } else {
+      const hardened = hardenOverlayTitle(title);
+      overlayTitle.textContent = hardened;
+      overlayTitle.setAttribute("data-title", hardened);
+      overlayTitle.setAttribute("aria-hidden", "false");
+    }
     overlayHint.innerHTML = decorateOverlayHint(hint);
     overlay.classList.remove("hidden");
     syncOverlayIdleType();
@@ -12805,6 +13021,97 @@ export function GameEngine() {
 
   function syncOverlayIdleType() {
     clearOverlayInlineLayout();
+    applyForcedProfileCardLayout();
+  }
+
+  function applyForcedProfileCardLayout() {
+    const overlayEl = document.getElementById("overlay");
+    const hostCard = document.getElementById("profile-card");
+    const panel = document.getElementById("start-overlay");
+    const frame = document.getElementById("profile-frame");
+    const neon = frame && (frame.querySelector(".dad-neon-avatar") || frame.querySelector(".profile-icon-svg"));
+    const img = document.getElementById("profile-image");
+    const isResult = !!(overlayEl && (overlayEl.classList.contains("is-result") || overlayEl.classList.contains("is-conquer")));
+    const sizeProps = ["width", "height", "min-width", "min-height", "max-width", "max-height", "transform", "padding"];
+    const clearInline = (el) => {
+      if (!el) {
+        return;
+      }
+      sizeProps.forEach((prop) => {
+        try {
+          el.style.removeProperty(prop);
+        } catch (err) {
+          /* ignore */
+        }
+      });
+    };
+    if (isResult) {
+      return;
+    }
+    clearInline(hostCard);
+    clearInline(panel);
+    clearInline(frame);
+    if (hostCard) {
+      hostCard.style.setProperty("width", "90%", "important");
+      hostCard.style.setProperty("max-width", "92%", "important");
+      hostCard.style.setProperty("min-width", "88%", "important");
+      hostCard.style.setProperty("padding", "24px 16px", "important");
+      hostCard.style.setProperty("display", "flex", "important");
+      hostCard.style.setProperty("flex-direction", "column", "important");
+      hostCard.style.setProperty("align-items", "center", "important");
+      hostCard.style.setProperty("justify-content", "center", "important");
+      hostCard.style.setProperty("transform", "none", "important");
+    }
+    if (panel) {
+      panel.style.setProperty("width", "100%", "important");
+      panel.style.setProperty("max-width", "none", "important");
+      panel.style.setProperty("min-width", "0", "important");
+      panel.style.setProperty("transform", "none", "important");
+    }
+    if (frame) {
+      frame.style.setProperty("width", "220px", "important");
+      frame.style.setProperty("height", "220px", "important");
+      frame.style.setProperty("min-width", "220px", "important");
+      frame.style.setProperty("min-height", "220px", "important");
+      frame.style.setProperty("max-width", "220px", "important");
+      frame.style.setProperty("max-height", "220px", "important");
+      frame.style.setProperty("box-sizing", "border-box", "important");
+      frame.style.setProperty("border-radius", "50%", "important");
+      frame.style.setProperty("transform", "none", "important");
+    }
+    if (neon) {
+      neon.style.setProperty("width", "70%", "important");
+      neon.style.setProperty("height", "70%", "important");
+      neon.style.setProperty("max-width", "154px", "important");
+      neon.style.setProperty("max-height", "154px", "important");
+    }
+    if (img) {
+      img.style.setProperty("width", "100%", "important");
+      img.style.setProperty("height", "100%", "important");
+      img.style.setProperty("object-fit", "cover", "important");
+      img.style.setProperty("border-radius", "50%", "important");
+    }
+    if (!isResult) {
+      overlayTitle = parkOverlayTitle(true);
+    }
+  }
+  window.applyForcedProfileCardLayout = applyForcedProfileCardLayout;
+
+  function purgeBoardWatermarks() {
+    const roots = [
+      document.getElementById("board-wrap"),
+      document.getElementById("tetris-board-wrapper"),
+      document.querySelector(".board-canvas-stack"),
+      document.getElementById("board-bg"),
+    ].filter(Boolean);
+    const sel = ".watermark, .board-watermark, .bg-watermark, .board-level-watermark, .level-watermark, [class*='watermark'], [data-level-watermark]";
+    roots.forEach((root) => {
+      try {
+        root.querySelectorAll(sel).forEach((node) => node.remove());
+      } catch (err) {
+        /* ignore */
+      }
+    });
   }
 
   function setProfileCardActive(on) {
@@ -12815,6 +13122,7 @@ export function GameEngine() {
     card.classList.toggle("is-active", !!on);
     card.removeAttribute("hidden");
     card.setAttribute("aria-hidden", "false");
+    applyForcedProfileCardLayout();
   }
 
   function showGameOverlay(mode) {
@@ -13671,6 +13979,113 @@ export function GameEngine() {
       || document.querySelector(".slider-ghost-opacity");
   }
 
+  function persistVolumeToLs(kind, rawVal) {
+    const fallback = kind === "bgm" ? SETTING_DEFAULTS.bgmVolume : SETTING_DEFAULTS.soundVolume;
+    const n = clampPercent(rawVal, fallback);
+    if (kind === "bgm") {
+      settings.bgmVolume = n;
+      try {
+        if (window.gameSettings) {
+          window.gameSettings.bgmVolume = n;
+        }
+      } catch (err) { /* ignore */ }
+      try {
+        localStorage.setItem("dad_tetris_bgm_vol", String(n));
+        localStorage.setItem("bgmVolume", String(n));
+      } catch (err) { /* private mode */ }
+    } else {
+      settings.soundVolume = n;
+      try {
+        if (window.gameSettings) {
+          window.gameSettings.soundVolume = n;
+        }
+      } catch (err) { /* ignore */ }
+      try {
+        localStorage.setItem("dad_tetris_sfx_vol", String(n));
+        localStorage.setItem("sfxVolume", String(n));
+        localStorage.setItem("soundVolume", String(n));
+      } catch (err) { /* private mode */ }
+    }
+    try {
+      let obj = {};
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        obj = raw ? JSON.parse(raw) : {};
+      } catch (parseErr) {
+        obj = {};
+      }
+      if (!obj || typeof obj !== "object") {
+        obj = {};
+      }
+      if (kind === "bgm") {
+        obj.bgmVolume = n;
+      } else {
+        obj.soundVolume = n;
+      }
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj));
+    } catch (err) { /* private mode */ }
+    return n;
+  }
+
+  function applyVolumeGraphNow(kind, pct) {
+    const n = clampPercent(pct, 0);
+    const unit = n / 100;
+    const mgr = (sfx && typeof sfx.ensureGraph === "function") ? sfx : soundManager;
+    if (!mgr) {
+      return n;
+    }
+    try {
+      if (typeof mgr.ensureGraph === "function") {
+        mgr.ensureGraph();
+      }
+      if (kind === "bgm") {
+        if (typeof mgr.setBgmVolume === "function") {
+          mgr.setBgmVolume(unit);
+        } else if (mgr.bgmGain) {
+          mgr.bgmGain.gain.value = mgr.muted ? 0 : unit;
+        }
+        if (bgm && typeof bgm.applyVolume === "function") {
+          bgm.applyVolume();
+        }
+      } else if (typeof mgr.setSfxVolume === "function") {
+        mgr.setSfxVolume(unit);
+      } else if (mgr.sfxGain) {
+        mgr.sfxGain.gain.value = mgr.muted ? 0 : unit;
+      }
+    } catch (err) { /* audio graph optional */ }
+    return n;
+  }
+
+  function bindVolumeSliders() {
+    const bgmSlider = document.getElementById("bgm-volume");
+    if (bgmSlider && bgmSlider.dataset.volSyncBound !== "1") {
+      bgmSlider.dataset.volSyncBound = "1";
+      const syncBgm = (val) => {
+        const n = persistVolumeToLs("bgm", val);
+        applyVolumeGraphNow("bgm", n);
+        if (window.soundManager && typeof window.soundManager.setBgmVolume === "function") {
+          window.soundManager.setBgmVolume(n / 100);
+        }
+      };
+      bgmSlider.addEventListener("input", (e) => syncBgm(e.target.value));
+      bgmSlider.addEventListener("change", (e) => syncBgm(e.target.value));
+    }
+
+    const sfxSlider = document.getElementById("sfx-volume") || document.getElementById("sound-volume");
+    if (sfxSlider && sfxSlider.dataset.volSyncBound !== "1") {
+      sfxSlider.dataset.volSyncBound = "1";
+      const syncSfx = (val) => {
+        const n = persistVolumeToLs("sfx", val);
+        applyVolumeGraphNow("sfx", n);
+        if (window.soundManager && typeof window.soundManager.setSfxVolume === "function") {
+          window.soundManager.setSfxVolume(n / 100);
+        }
+      };
+      sfxSlider.addEventListener("input", (e) => syncSfx(e.target.value));
+      sfxSlider.addEventListener("change", (e) => syncSfx(e.target.value));
+    }
+  }
+
   function bindPercentSlider(id, key, fallback, onLive) {
     const slider = document.getElementById(id)
       || (id === "ghost-strength" ? ghostSliderEl() : null);
@@ -13686,6 +14101,10 @@ export function GameEngine() {
         || document.getElementById(`${id}-value`);
       if (valueLabel) {
         valueLabel.textContent = `${settings[key]}%`;
+      }
+      if (key === "soundVolume" || key === "bgmVolume") {
+        persistVolumeToLs(key === "bgmVolume" ? "bgm" : "sfx", settings[key]);
+        applyVolumeGraphNow(key === "bgmVolume" ? "bgm" : "sfx", settings[key]);
       }
       if (onLive) {
         onLive(event.type);
@@ -13726,6 +14145,7 @@ export function GameEngine() {
   bindPercentSlider("bgm-volume", "bgmVolume", SETTING_DEFAULTS.bgmVolume, () => {
     bgm.applyVolume();
   });
+  bindVolumeSliders();
   bindPercentSlider("bg-dim", "bgDim", SETTING_DEFAULTS.bgDim, () => {
     applyCurrentBackground();
   });
@@ -14521,7 +14941,7 @@ export function GameEngine() {
     if (location.protocol === "file:") {
       return;
     }
-    navigator.serviceWorker.register("./sw.js?v=1.2.0-master", { updateViaCache: "none" }).catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=1.3.4-vol-c10", { updateViaCache: "none" }).catch(() => {});
   }
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
