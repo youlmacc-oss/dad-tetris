@@ -33,8 +33,8 @@
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305070c'/%3E%3Crect x='24' y='8' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='8' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='24' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3Crect x='40' y='24' width='16' height='16' fill='%2300d2ff'/%3E%3C/svg%3E" type="image/svg+xml">
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="style.css?v=1.3.8-avatar" type="text/css">
-  <meta name="dad-tetris-version" content="1.3.8-avatar">
+  <link rel="stylesheet" href="style.css?v=1.3.10-center" type="text/css">
+  <meta name="dad-tetris-version" content="1.3.10-center">
   <meta name="dad-ui" content="mobile-overlay-20260818_002">
   <meta name="description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
   <meta property="og:description" content="랭킹 차트는 관리 필요성에 따라 언제든 삭제/초기화될 수 있습니다">
@@ -342,6 +342,9 @@
             <h3 data-i18n="guideDasTitle">🎯 DAS / ARR 정밀 조작 튜닝</h3>
             <p class="guide-copy guide-dad-tip" data-i18n="guideDasBody">환경설정 [조작 &amp; 감도]에서 DAS(첫 이동 딜레이 100~300ms, 기본 150ms), ARR(연속 이동 15~80ms, 기본 33ms), 소프트드롭 배율(1x~20x, 기본 10x)을 조절합니다. PC 방향키와 모바일 7버튼 터치패드에 바로 적용됩니다.</p>
             <p class="guide-copy" data-i18n="guidePauseHint">💡 모바일은 보드 중앙 안내문을 터치해 시작하고, PC는 상단 [ ▶ 게임 시작 ]이 게임 중 [ ⏸ 일시정지 ] / [ ▶ 계속하기 ]로 바뀝니다.</p>
+            <h3 data-i18n="guideOverlayCenterTitle">🎯 보드 중앙 프로필 카드</h3>
+            <p class="guide-copy" data-i18n="guideOverlayCenterBody">대기·일시정지·게임 종료·레벨 20 정복 카드는 게임 패널(#board-wrap) 한가운데에 flex로 붙습니다. 오토플레이가 끝나도 카드가 오른쪽 아래로 밀리지 않습니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideDiagOverlayCenter">C1은 대기 카드와 정복 카드가 보드 기하 중심에 있는지 측정합니다. 레이아웃은 50%+translate가 아니라 오버레이 flex 중앙입니다.</p>
           </article>
           <article class="guide-card guide-viz-fold">
             <h3 data-i18n="guideMobileTitle">📱 모바일 터치패드</h3>
@@ -450,24 +453,26 @@
           <article class="guide-card guide-viz-hero">
             <span class="guide-badge" data-i18n="guideVizTabBg">미디어·배경</span>
             <h3 data-i18n="guideIdleSplitTitle">🖼️ 윈도우 / 게임 패널 대기 배경 분리</h3>
-            <p class="guide-copy" data-i18n="guideVizSlotMap">대기(Idle)와 Level 1~20은 서로 다른 IndexedDB 슬롯입니다.</p>
+            <p class="guide-copy" data-i18n="guideVizSlotMap">윈도우와 패널, 대기와 Level 1~20은 서로 다른 IndexedDB 키입니다. 공유 키 bg_level_N은 사용하지 않습니다.</p>
             <div class="guide-slot-map" aria-hidden="true">
               <span class="guide-slot is-idle">Idle</span>
               <span class="guide-slot">1</span><span class="guide-slot">5</span><span class="guide-slot">10</span><span class="guide-slot is-hot">20</span>
             </div>
             <ul class="guide-custom-list">
-              <li data-i18n="guideIdleSplitWindow">🖥️ 전체 윈도우: 기본 대기 이미지 + 레벨 1~20, 윈도우 전용 블러/투명도</li>
-              <li data-i18n="guideIdleSplitBoard">🎮 게임 패널: 패널 대기 이미지 + 레벨 1~20, 패널 전용 블러/투명도</li>
-              <li data-i18n="guideLevelBgLiveBody">레벨이 오르면 IndexedDB 슬롯(bg_level_X) 또는 기본 폴백 이미지가 보드/패널 배경에 즉시 연동됩니다. [기본 배경 고정]이 켜져 있으면 대기 배경을 유지합니다.</li>
+              <li data-i18n="guideIdleSplitWindow">🖥️ 전체 윈도우: custom_bg_window_default / custom_bg_window_level_N, 윈도우 전용 블러/투명도. [전체 윈도우 배경 세트] 일괄 등록만 이 키에 저장됩니다.</li>
+              <li data-i18n="guideIdleSplitBoard">🎮 게임 패널: board_idle_bg_blob / custom_bg_board_level_N, 패널 전용 블러/투명도. [게임 패널 배경 세트] 일괄 등록만 이 키에 저장됩니다.</li>
+              <li data-i18n="guideBgIsolateBody">윈도우 일괄 등록과 패널 일괄 등록은 동작·저장이 독립입니다. 공유 키(bg_level_N)를 쓰지 않아 한쪽 등록이 다른 쪽에 복사되지 않습니다.</li>
+              <li data-i18n="guideLevelBgLiveBody">레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 커스텀이 없으면 level_N.jpg 폴더 이미지로 폴백하고, [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.</li>
             </ul>
+            <p class="guide-copy" data-i18n="guideIdleSplitBody">전체 윈도우와 게임 패널은 등록·저장·재생이 완전히 독립입니다. 패널에 올린 이미지가 윈도우에 섞이지 않으며, 블러·투명도와 [기본 배경 계속 유지]도 대상별로 동작합니다.</p>
           </article>
           <article class="guide-card">
             <h3 data-i18n="guideBulkTitle">📦 배경 일괄 등록 &amp; 스마트 전체 자동 분배</h3>
             <div class="guide-drop-visual">
               <p data-i18n="guideVizBulkDrop">여러 장을 한 번에 고르면 스마트 엔진이 파일명으로 슬롯을 나눕니다.</p>
             </div>
-            <p class="guide-copy" data-i18n="guideBulkBody">환경설정 배경 탭의 [📦 배경 일괄 등록]에서 [📁 여러 파일 선택]으로 여러 장을 고릅니다. 대상은 [전체 윈도우 배경 세트], [게임 패널 배경 세트], [스마트 전체 자동 분배]입니다. 로컬과 HTTPS/GitHub Pages 모두 브라우저 IndexedDB(DadTetrisDB / media_files)에 파일 단위 트랜잭션으로 저장됩니다.</p>
-            <p class="guide-copy guide-dad-tip" data-i18n="guideVizFileMap">예: idle.jpg → 대기, bg5.jpg / level5.png → 레벨 5</p>
+            <p class="guide-copy" data-i18n="guideBulkBody">환경설정 배경 탭에서 [전체 윈도우 배경 세트]와 [게임 패널 배경 세트]를 완전히 나눠 등록합니다. 한쪽 세트가 다른 쪽 저장 키를 덮지 않습니다. [스마트 전체 자동 분배]만 파일명 힌트로 대상을 나눕니다. 저장소는 IndexedDB(DadTetrisDB / media_files)입니다.</p>
+            <p class="guide-copy guide-dad-tip" data-i18n="guideVizFileMap">임의 이름도 대상별 정규 파일로 저장됩니다. 윈도우: default_bg.jpg / level_N.jpg, 패널: board_default_bg.jpg / board_level_N.jpg. IMG_0008.jpg의 숫자만으로는 레벨을 추정하지 않습니다.</p>
             <ul class="guide-custom-list">
               <li data-i18n="guideBulkKwIdle">파일명 대기 / idle / wait → bg_idle (전체 윈도우 대기 배경)</li>
               <li data-i18n="guideBulkKwLevel">[전체 윈도우 배경 세트] 1번째 → bg_idle, 2~16번째 → bg_lvl_1 … bg_lvl_15. 스마트 모드에서 lv숫자/레벨숫자면 해당 레벨</li>
@@ -479,7 +484,7 @@
           </article>
           <article class="guide-card">
             <h3 data-i18n="guideBgCustomTitle">🖼️ 배경 커스텀 마스터 가이드</h3>
-            <p class="guide-copy" data-i18n="guideVizFxPreview">keepDefault는 레벨업 고정, masterDisable는 네온만, Blur/Opacity는 블록 가독성용입니다.</p>
+            <p class="guide-copy" data-i18n="guideBgCustomBody">전체 윈도우 배경과 게임 패널 배경을 탭으로 나눠 각각 등록·삭제합니다. 저장 키와 일괄 등록 대상이 섞이지 않습니다.</p>
             <ul class="guide-custom-list">
               <li data-i18n="guideKeepDefaultBg">기본 배경 고정(keepDefault): 레벨이 올라도 대기(Idle) 배경을 유지합니다.</li>
               <li data-i18n="guideDisableAllCustomBg">배경 마스터 끄기(masterDisable): 등록 파일을 지우지 않고 기본 네온만 보여 줍니다.</li>
@@ -558,18 +563,18 @@
             <h3 data-i18n="guideDiagTitle">🧪 0.1초 실시간 무결점 자가진단 (Test Runner)</h3>
             <p class="guide-copy" data-i18n="guideDiagPipelineBody">자가진단은 12대 핵심 항목(C1~C12)을 순차 비동기 E2E 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 실제 화면·동작 검증이 모두 통과할 때만 [PASS 12/12] ALL GREEN이 출력됩니다.</p>
             <ol class="guide-custom-list guide-diag-core-list">
-              <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
+              <li data-i18n="guideDiagCore1">1) [DOM &amp; 레이아웃] 듀얼 캔버스, 보드 중앙 프로필 카드(대기/정복 flex 정렬), 워터마크 0건, 스킨/그림자 프리뷰, 모달 클릭 가드</li>
               <li data-i18n="guideDiagCore2">2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 렌더러 무결성</li>
-              <li data-i18n="guideDiagCore3">3) [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input 다중 선택 · Blob/DataURL 순차 put · #bulk-progress-bar</li>
+              <li data-i18n="guideDiagCore3">3) [미디어 스토리지] IndexedDB CRUD · 윈도우/패널 키 완전 분리 · #bulk-bg-file-input 대상별 일괄 put · 정규 파일명</li>
               <li data-i18n="guideDiagCore4">4) [설정 데이터] localStorage 키 · dad_tetris_player_name · 기본 닉네임 ‘시스템’ 폴백 · 12개국 TRANSLATIONS</li>
               <li data-i18n="guideDiagCore5">5) [오디오/비디오] Web Audio API 및 사운드 매니저 초기화</li>
               <li data-i18n="guideDiagCore6">6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드</li>
               <li data-i18n="guideDiagCore7">7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 상호 참조 · 터치 엘리먼트 DOM</li>
               <li data-i18n="guideDiagCore8">8) [AI 동적 스트레스] 오토플레이 15x 충돌·FPS·라인클리어·DAD 전광판</li>
-              <li data-i18n="guideDiagCore9">9) [배경 E2E] 윈도우/게임패널 탭 전환 시 Idle~Lv20 썸네일·타이틀 IndexedDB 동기화, 일괄등록 배지, 기본배경/마스터 비활성 분기</li>
+              <li data-i18n="guideDiagCore9">9) [배경 E2E] 윈도우/패널 탭·저장 키 독립, Idle~Lv20 썸네일 동기화, 일괄등록 배지, 기본배경/마스터 비활성 분기</li>
               <li data-i18n="guideDiagCore10">10) [오디오 인터락] BGM/SFX GainNode.gain.value 0~1 연동, 뮤트 출력 차단, DAD 타임스톱 피치 벤드</li>
               <li data-i18n="guideDiagCore11">11) [룰/타임스톱] 정지 시간 1,000~10,000ms K키 주입, Standard/Dual Queue 넥스트 레이아웃, 가비지 라인·낙하 배속</li>
-              <li data-i18n="guideDiagCore12">12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 진단 Memory Snapshot 원상 복구</li>
+              <li data-i18n="guideDiagCore12">12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 레벨별 폴더 배경 구분, 진단 Memory Snapshot 원상 복구</li>
             </ol>
             <p class="guide-copy guide-dad-tip" data-i18n="guideDiagHint">💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. C1~C12 실제 화면·동작 검증과 1-1~19-1 전수가 모두 통과할 때만 “🎉 100% ALL GREEN [PASS 12/12]”가 결과창에 출력됩니다.</p>
           </article>
@@ -595,6 +600,7 @@
             <span data-i18n="guideAutoRecordBody"></span>
             <span data-i18n="guideAutoRecordTitle"></span>
             <span data-i18n="guideBgCustomBody"></span>
+            <span data-i18n="guideBgIsolateBody"></span>
             <span data-i18n="guideBgMasterDelete"></span>
             <span data-i18n="guideBlockSkinHow"></span>
             <span data-i18n="guideBulkHow"></span>
@@ -638,6 +644,7 @@
             <span data-i18n="guideDiagLevelBgInterlock"></span>
             <span data-i18n="guideDiagLevelBgSim"></span>
             <span data-i18n="guideDiagLevelBgSlots"></span>
+            <span data-i18n="guideDiagOverlayCenter"></span>
             <span data-i18n="guideDiagStage10"></span>
             <span data-i18n="guideDiagStage11"></span>
             <span data-i18n="guideDiagStage12"></span>
@@ -1421,6 +1428,6 @@
   <div id="shutdown-screen" class="shutdown-screen hidden" role="status" aria-live="polite">
     <p id="shutdown-message" data-i18n="gameTerminatedMsg">🎮 모든 게임 프로세스가 안전하게 종료되었습니다. 탭을 닫아주세요.</p>
   </div>
-  <script src="./script.js?v=1.3.8-avatar"></script>
+  <script src="./script.js?v=1.3.10-center"></script>
 </body>
 </html>

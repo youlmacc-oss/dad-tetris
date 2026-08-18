@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.8-avatar single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.3.10-center single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -2932,7 +2932,7 @@ function GameEngine() {
       "levelBgRegistered": "등록됨: {name}",
       "levelBgQuota": "저장 용량이 부족합니다. 더 작은 이미지를 선택해 주세요.",
       "bulkBgTitle": "📦 배경 일괄 등록",
-      "bulkBgHint": "여러 장의 사진을 한 번에 선택하면 대기 이미지 및 레벨별 슬롯에 순서대로 자동 배치됩니다.",
+      "bulkBgHint": "파일 이름은 아무것이나 괜찮습니다. 선택 순서대로 대기/레벨 슬롯에 넣고 default_bg.jpg, level_1.jpg 형식으로 자동 등록합니다.",
       "bulkBgChoose": "📁 여러 파일 선택",
       "bulkBgTargetWindow": "전체 윈도우 배경 세트",
       "bulkBgTargetBoard": "게임 패널 배경 세트",
@@ -3125,9 +3125,9 @@ function GameEngine() {
       "guideVizCountLead": "착지 후 3→2→1 동안 자리를 고칠 수 있습니다.",
       "guideVizSnapLead": "0초에 Best Fit이 명당으로 맞춰 줍니다.",
       "guideVizTimeStopLead": "K / ⏳로 중력을 멈추고 제자리 회전. 착지 후 1턴에 1회만 다시 쓸 수 있습니다.",
-      "guideVizSlotMap": "대기(Idle)와 Level 1~20은 서로 다른 IndexedDB 슬롯입니다.",
+      "guideVizSlotMap": "윈도우와 패널, 대기와 Level 1~20은 서로 다른 IndexedDB 키입니다. 공유 키 bg_level_N은 사용하지 않습니다.",
       "guideVizBulkDrop": "여러 장을 한 번에 고르면 스마트 엔진이 파일명으로 슬롯을 나눕니다.",
-      "guideVizFileMap": "예: idle.jpg → 대기, bg5.jpg / level5.png → 레벨 5",
+      "guideVizFileMap": "임의 이름도 대상별 정규 파일로 저장됩니다. 윈도우: default_bg.jpg / level_N.jpg, 패널: board_default_bg.jpg / board_level_N.jpg. IMG_0008.jpg의 숫자만으로는 레벨을 추정하지 않습니다.",
       "guideVizFxPreview": "keepDefault는 레벨업 고정, masterDisable는 네온만, Blur/Opacity는 블록 가독성용입니다.",
       "guideVizF9How": "F9 또는 상단 ✏️ 버튼으로 C1~C12 E2E 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.",
       "guideVizSkinTip": "스킨을 고르면 보드·NEXT·HOLD가 즉시 다시 그려집니다.",
@@ -3145,7 +3145,7 @@ function GameEngine() {
       "guideCh5FailBody": "FAIL이 뜨면 [📋 로그 복사] 또는 [💾 파일로 저장]으로 리포트를 남긴 뒤, 환경설정의 해당 항목(스킨·배경·언어·저장소)을 한 번 껐다 켜거나 페이지를 새로고침하세요. 자가진단은 가능한 항목을 AUTO-FIXED로 복구합니다.",
       "guideCh6Badge": "챕터 6 · 배경 일괄 등록",
       "guideBulkTitle": "📦 배경 일괄 등록 & 스마트 전체 자동 분배",
-      "guideBulkBody": "환경설정 배경 탭의 [📦 배경 일괄 등록]에서 [📁 여러 파일 선택]으로 여러 장을 고릅니다. 대상은 [전체 윈도우 배경 세트], [게임 패널 배경 세트], [스마트 전체 자동 분배]입니다. 로컬과 HTTPS/GitHub Pages 모두 브라우저 IndexedDB(DadTetrisDB / media_files)에 파일 단위 트랜잭션으로 저장됩니다.",
+      "guideBulkBody": "환경설정 배경 탭에서 [전체 윈도우 배경 세트]와 [게임 패널 배경 세트]를 완전히 나눠 등록합니다. 한쪽 세트가 다른 쪽 저장 키를 덮지 않습니다. [스마트 전체 자동 분배]만 파일명 힌트로 대상을 나눕니다. 저장소는 IndexedDB(DadTetrisDB / media_files)입니다.",
       "guideBulkKwIdle": "파일명 대기 / idle / wait → bg_idle (전체 윈도우 대기 배경)",
       "guideBulkKwPanel": "[게임 패널 배경 세트] 1번째 파일 → bg_panel_idle, 2~16번째 → bg_panel_lvl_1 … bg_panel_lvl_15. 스마트 모드에서 파일명 패널/panel/보드면 패널 슬롯",
       "guideBulkKwLevel": "[전체 윈도우 배경 세트] 1번째 → bg_idle, 2~16번째 → bg_lvl_1 … bg_lvl_15. 스마트 모드에서 lv숫자/레벨숫자면 해당 레벨",
@@ -3166,13 +3166,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 진단 로그 복사 & 파일 저장",
       "guideDiagExportBody": "자가진단 결과 화면의 [📋 로그 복사]와 [💾 파일로 저장]으로 종합 리포트를 남길 수 있습니다. 리포트에는 12개국어 사전 상태, 윈도우/패널 배경 등록 현황, 스마트 분배 엔진 상태가 포함됩니다.",
       "guideIdleSplitTitle": "🖼️ 윈도우 / 게임 패널 대기 배경 분리",
-      "guideIdleSplitBody": "전체 윈도우와 왼쪽 게임 패널은 대기 이미지를 따로 등록합니다. 각 탭에서 블러·투명도를 조절하고, [기본 배경 계속 유지]를 켜면 플레이 중에도 대기 배경이 유지됩니다.",
-      "guideIdleSplitWindow": "🖥️ 전체 윈도우: 기본 대기 이미지 + 레벨 1~20, 윈도우 전용 블러/투명도",
-      "guideIdleSplitBoard": "🎮 게임 패널: 패널 대기 이미지 + 레벨 1~20, 패널 전용 블러/투명도",
-      "guideLevelBgLiveBody": "레벨이 오르면 IndexedDB 슬롯(bg_level_X) 또는 기본 폴백 이미지가 보드/패널 배경에 즉시 연동됩니다. [기본 배경 고정]이 켜져 있으면 대기 배경을 유지합니다.",
-      "guideDiagLevelBgSim": "자가진단이 Level 1→5→10→20을 순차 전환하며 bg_level_X 조회와 캔버스/DOM 배경 렌더 호출을 검증합니다.",
-      "guideDiagLevelBgSlots": "Level 1~20 슬롯과 Idle 대기 슬롯은 키가 분리되며, 커스텀이 없으면 폴백 이미지를 로드합니다.",
+      "guideIdleSplitBody": "전체 윈도우와 게임 패널은 등록·저장·재생이 완전히 독립입니다. 패널에 올린 이미지가 윈도우에 섞이지 않으며, 블러·투명도와 [기본 배경 계속 유지]도 대상별로 동작합니다.",
+      "guideIdleSplitWindow": "🖥️ 전체 윈도우: custom_bg_window_default / custom_bg_window_level_N, 윈도우 전용 블러/투명도. [전체 윈도우 배경 세트] 일괄 등록만 이 키에 저장됩니다.",
+      "guideIdleSplitBoard": "🎮 게임 패널: board_idle_bg_blob / custom_bg_board_level_N, 패널 전용 블러/투명도. [게임 패널 배경 세트] 일괄 등록만 이 키에 저장됩니다.",
+      "guideBgIsolateBody": "윈도우 일괄 등록과 패널 일괄 등록은 동작·저장이 독립입니다. 공유 키(bg_level_N)를 쓰지 않아 한쪽 등록이 다른 쪽에 복사되지 않습니다.",
+      "guideLevelBgLiveBody": "레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 커스텀이 없으면 level_N.jpg 폴더 이미지로 폴백하고, [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.",
+      "guideDiagLevelBgSim": "자가진단이 Level 1→5→10→20을 전환하며 윈도우/패널 저장 키가 겹치지 않는지, 폴더 레벨 이미지가 서로 다른지, 대상별 캔버스/DOM 페인트가 호출되는지 검증합니다.",
+      "guideDiagLevelBgSlots": "윈도우와 패널의 Idle·Level 1~20 키는 완전히 분리됩니다(custom_bg_window_* vs custom_bg_board_* / bg_panel_*). 커스텀이 없으면 대상별 폴백을 로드합니다.",
       "guideDiagLevelBgInterlock": "마스터 끄기·기본 고정·블러/투명도 값은 레벨 전환 중에도 DOM/Canvas에 유지됩니다.",
+      "guideOverlayCenterTitle": "🎯 보드 중앙 프로필 카드",
+      "guideOverlayCenterBody": "대기·일시정지·게임 종료·레벨 20 정복 카드는 게임 패널(#board-wrap) 한가운데에 flex로 붙습니다. 오토플레이가 끝나도 카드가 오른쪽 아래로 밀리지 않습니다.",
+      "guideDiagOverlayCenter": "C1은 대기 카드와 정복 카드가 보드 기하 중심에 있는지 측정합니다. 레이아웃은 50%+translate가 아니라 오버레이 flex 중앙입니다.",
       "guidePcTitle": "💻 PC 키보드",
       "guideMobileTitle": "📱 모바일 터치패드",
       "guideMobileArcadeBody": "세로 화면은 한 장(100dvh, 스크롤 없음)에 맞춥니다. 상단은 타이틀과 ⚙️설정·📖가이드·✏️진단 미니메뉴, 중앙은 좌측 10×20 게임 보드와 우측 기능타워(시작/종료, NEXT·HOLD, 2x2 점수판, AUTO, DAD 스페셜), 그 아래 가로 와이드 DAD 전광판, 최하단은 7버튼 터치패드입니다. 보드 중앙의 ‘게임 시작을 눌러 주세요’를 터치하면 바로 시작합니다.",
@@ -3206,9 +3210,9 @@ function GameEngine() {
       "guideCustomBody": "환경설정에서 프로필 사진, 윈도우/패널 배경(레벨 1~20), 좋아하는 BGM(mp3)을 등록할 수 있습니다.",
       "guideMemoryTitle": "🖼️ 나만의 추억 헌정! 가족사진 & 테마 커스텀 가이드",
       "guideMemoryProfile": "① 프로필 사진: [환경설정]에서 본인 또는 가족사진을 불러와 마우스 드래그와 확대/축소(50%~300%), 위치 조절로 멋진 프로필 아이콘을 만들 수 있습니다.",
-      "guideMemoryBg": "② 레벨별 추억 배경: 환경설정에서 사진을 등록하면 레벨이 오를 때마다 배경이 바뀝니다. 파일이 없어도 네온 그리드로 바로 플레이됩니다.",
+      "guideMemoryBg": "② 레벨별 추억 배경: 윈도우와 패널 사진을 따로 등록하면 레벨이 오를 때 각 대상만 바뀝니다. 커스텀이 없으면 레벨별 기본 이미지로 플레이됩니다.",
       "guideBgCustomTitle": "🖼️ 배경 커스텀 마스터 가이드",
-      "guideBgCustomBody": "전체 윈도우 배경(기본/단계별)과 게임 패널 배경(단계별 전용)을 토글로 전환하여 각각 등록·삭제(🗑️)할 수 있습니다.",
+      "guideBgCustomBody": "전체 윈도우 배경과 게임 패널 배경을 탭으로 나눠 각각 등록·삭제합니다. 저장 키와 일괄 등록 대상이 섞이지 않습니다.",
       "guideBgMasterToggle": "마스터 토글: 등록된 이미지를 삭제하지 않고 스위치 하나로 기본 네온 테마로 즉시 전환할 수 있습니다.",
       "guideBgMasterWindow": "윈도우 배경: 기본/레벨별 배경 등록, 기본 배경 고정 유지, 그리고 윈도우 전용 블러(흐림) 및 투명도 조절 기능을 지원합니다.",
       "guideBgMasterBoard": "게임 패널 배경: 패널 전용 레벨별 배경 등록과 패널 블러/투명도 듀얼 조절로 블록 시인성을 극대화할 수 있습니다.",
@@ -3250,7 +3254,7 @@ function GameEngine() {
       "guideDiagTitle": "🧪 0.1초 실시간 무결점 자가진단 (Test Runner)",
       "guideDiagBody": "상단의 [🧪 자가진단] 버튼(또는 단축키 [F9])을 누르면 컴퓨터가 스스로 핵심 기능을 실시간으로 검증합니다.",
       "guideDiagStage6": "6단계 전수 검사: 파티클, PWA, 컬러 테마. 통과 시 로그에 [🎨 THEME & FX: PASS]가 출력됩니다.",
-      "guideDiagStage7": "7단계: 윈도우/패널 배경 무결성, 블러·투명도 localStorage, 마스터 비활성화, 더블탭 바인딩, 저장 용량(Quota)을 점검합니다. 통과 시 [🖼️ BG & TOUCH: PASS]와 [✅ ALL GREEN]이 출력됩니다.",
+      "guideDiagStage7": "7단계: 윈도우/패널 저장 키 격리, 일괄 등록 매핑, 블러·투명도, 마스터 비활성화, 더블탭, Quota를 점검합니다. 통과 시 [🖼️ BG & TOUCH: PASS]가 출력됩니다.",
       "guideDiagStage8": "8단계: 자동 게임기록 모드 플래그와 명예의 전당(localStorage) 바인딩을 점검합니다. 통과 시 [⚡ AUTO RECORD: PASS]가 출력됩니다.",
       "guideDiagStage9": "9단계: 시작 장애물 라인(0~10층) 설정값과 보드 생성 시 가비지 라인(구멍 보장) 유효성을 점검합니다. 통과 시 [🧱 GARBAGE LINES: PASS]가 출력됩니다.",
       "guideDiagStage10": "10단계: 블록 가이드 모드 설정값과 넥스트 큐(Next Queue 2단) 데이터 무결성을 점검합니다. 통과 시 [🧩 PREVIEW MODE: PASS]가 출력됩니다.",
@@ -3277,18 +3281,18 @@ function GameEngine() {
       "guideIndexedDbBody": "환경설정에서 가족 사진, 레벨별 배경, 좋아하는 mp3, 게임 종료 영상을 등록하면 브라우저 용량 한도 안에서 고화질 원본을 유지합니다. 설정값(5종 스킨, ROWS, 볼륨)은 localStorage에 남아 IndexedDB와 분리됩니다.",
       "guideIndexedDbHow": "💡 파일은 DadTetrisDB의 media_files 스토어에 저장됩니다. 자가진단이 연결·쓰기/읽기/삭제를 검증합니다.",
       "guideDiagPipelineBody": "자가진단은 12대 핵심 항목(C1~C12)을 순차 비동기 E2E 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 실제 화면·동작 검증이 모두 통과할 때만 [PASS 12/12] ALL GREEN이 출력됩니다.",
-      "guideDiagCore1": "1) [DOM & 레이아웃] 듀얼 캔버스(#bg-canvas, #tetris-canvas), #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, 스킨/그림자 프리뷰, 모달 클릭 가드",
+      "guideDiagCore1": "1) [DOM & 레이아웃] 듀얼 캔버스, 보드 중앙 프로필 카드(대기/정복 flex 정렬), 워터마크 0건, 스킨/그림자 프리뷰, 모달 클릭 가드",
       "guideDiagCore2": "2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 및 고스트 큐브 오프스크린 렌더",
-      "guideDiagCore3": "3) [미디어 스토리지] IndexedDB CRUD · #bulk-bg-file-input 다중 선택 · Blob/DataURL 순차 put · #bulk-progress-bar",
+      "guideDiagCore3": "3) [미디어 스토리지] IndexedDB CRUD · 윈도우/패널 키 완전 분리 · #bulk-bg-file-input 대상별 일괄 put · 정규 파일명",
       "guideDiagCore4": "4) [설정 데이터] localStorage 키 · dad_tetris_player_name · 기본 닉네임 ‘시스템’ 폴백 · 12개국 TRANSLATIONS",
       "guideDiagCore5": "5) [오디오/비디오] Web Audio API, BGM/SFX 볼륨·음소거 동기화",
       "guideDiagCore6": "6) [모바일 환경] 뷰포트 감지, 20칸 고정, 100dvh 아케이드 1화면, 2x2 점수판, 와이드 DAD 전광판, 폴더블 양손 분할 패드",
       "guideDiagCore7": "7) [ES 모듈] Storage/Audio/Render/UI/GameEngine 5대 모듈 바인딩 · 터치 엘리먼트 DOM",
       "guideDiagCore8": "8) [AI 동적 스트레스] 대기 패널 숨김, 15x 5회 낙하, 충돌 0, 15fps, DAD 응원, 파티클 GC, 보드 원상 복구",
-      "guideDiagCore9": "9) [배경 E2E] 윈도우/게임패널 탭 전환 시 Idle~Lv20 썸네일·타이틀 IndexedDB 동기화, 일괄등록 배지, 기본배경/마스터 비활성 분기",
+      "guideDiagCore9": "9) [배경 E2E] 윈도우/패널 탭·저장 키 독립, Idle~Lv20 썸네일 동기화, 일괄등록 배지, 기본배경/마스터 비활성 분기",
       "guideDiagCore10": "10) [오디오 인터락] BGM/SFX GainNode.gain.value 0~1 연동, 뮤트 출력 차단, DAD 타임스톱 피치 벤드",
       "guideDiagCore11": "11) [룰/타임스톱] 정지 시간 1,000~10,000ms K키 주입, Standard/Dual Queue 넥스트 레이아웃, 가비지 라인·낙하 배속",
-      "guideDiagCore12": "12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 진단 Memory Snapshot 원상 복구",
+      "guideDiagCore12": "12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 레벨별 폴더 배경 구분, 진단 Memory Snapshot 원상 복구",
       "guideThemeTitle": "🎨 5대 맞춤 네온 컬러 테마",
       "guideThemeBody": "환경설정 [게임] 탭의 둥근 컬러 팔레트를 누르면 화면 전체 테두리, 버튼, 네온 글로우, 포인트 색이 즉시 바뀝니다.",
       "guideThemeHow": "💡 팔레트를 누르면 0ms로 전환되고 localStorage에 영구 저장됩니다.",
@@ -3554,7 +3558,7 @@ function GameEngine() {
       "levelBgRegistered": "Saved: {name}",
       "levelBgQuota": "Not enough storage. Please choose a smaller image.",
       "bulkBgTitle": "📦 Bulk background upload",
-      "bulkBgHint": "Select multiple photos at once to auto-fill the idle image and level slots in order.",
+      "bulkBgHint": "Any file name is fine. Files are assigned in selection order and registered as default_bg.jpg, level_1.jpg, and so on.",
       "bulkBgChoose": "📁 Choose multiple files",
       "bulkBgTargetWindow": "Full window background set",
       "bulkBgTargetBoard": "Game panel background set",
@@ -3747,9 +3751,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -3788,13 +3792,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "💻 PC keyboard",
       "guideMobileTitle": "📱 Mobile touch pad",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -3830,7 +3838,7 @@ function GameEngine() {
       "guideMemoryProfile": "① Profile photo: In Settings, load your own or a family photo, then drag, zoom (50%–300%), and offset to make a great profile icon.",
       "guideMemoryBg": "② Level memory backgrounds: Register photos in Settings and the background changes as you level up. Without files, the neon grid is used so you can play immediately.",
       "guideBgCustomTitle": "🖼️ Background custom master guide",
-      "guideBgCustomBody": "Switch between the full-window background (default + per-level) and the game-panel background (per-level only) to register or delete (🗑️) each slot.",
+      "guideBgCustomBody": "Register or delete window and panel backgrounds on separate tabs. Store keys and bulk-upload targets never mix.",
       "guideBgMasterToggle": "Master toggle: switch to the default neon theme instantly with one switch, without deleting registered images.",
       "guideBgMasterWindow": "Window background: default/per-level images, keep-default lock, plus window-only blur and opacity.",
       "guideBgMasterBoard": "Game panel background: per-level panel images and dual blur/opacity controls to maximize block visibility.",
@@ -3872,7 +3880,7 @@ function GameEngine() {
       "guideDiagTitle": "🧪 0.1s live flawless self-test (Test Runner)",
       "guideDiagBody": "Press [🧪 Self-test] at the top (or shortcut [F9]). The computer verifies core features in real time.",
       "guideDiagStage6": "Stage 6 checks particles, PWA, and color themes. On pass the log prints [🎨 THEME & FX: PASS].",
-      "guideDiagStage7": "Stage 7 checks window/panel background integrity, blur/opacity localStorage, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS] and [✅ ALL GREEN].",
+      "guideDiagStage7": "Stage 7 checks isolated window/panel store keys, bulk mapping, blur/opacity, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS].",
       "guideDiagStage8": "Stage 8 checks the Auto game record mode flag and Hall of Fame localStorage binding. A pass prints [⚡ AUTO RECORD: PASS].",
       "guideDiagStage9": "Stage 9 checks the starting garbage-line setting (0–10) and that generated cheese rows always keep holes. A pass prints [🧱 GARBAGE LINES: PASS].",
       "guideDiagStage10": "Stage 10 checks the block guide mode setting and the two-deep next queue. A pass prints [🧩 PREVIEW MODE: PASS].",
@@ -3899,18 +3907,18 @@ function GameEngine() {
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
       "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
-      "guideDiagCore1": "1) [DOM & layout] Dual canvas, #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, preview canvases, modal click guard",
+      "guideDiagCore1": "1) [DOM & layout] Dual canvas, board-centered profile card (idle/conquer flex), zero watermarks, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
-      "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, #bulk-bg-file-input multi-select, Blob/DataURL sequential put, #bulk-progress-bar",
+      "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, fully isolated window/panel keys, per-target bulk put via #bulk-bg-file-input, canonical filenames",
       "guideDiagCore4": "4) [Settings] localStorage keys, dad_tetris_player_name, default nickname 시스템 fallback, 12-language TRANSLATIONS",
       "guideDiagCore5": "5) [Audio/video] Web Audio API, BGM/SFX volume and mute sync",
       "guideDiagCore6": "6) [Mobile] Viewport detect, 20-row lock, 100dvh arcade fit, 2x2 scores, wide DAD cheer bar, foldable split pad",
       "guideDiagCore7": "7) [ES modules] Storage/Audio/Render/UI/GameEngine binding · touch element DOM",
       "guideDiagCore8": "8) [AI stress] Hide idle panel, 15x five drops, collision 0, 15fps, DAD cheer, particle GC, board restore",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -4369,9 +4377,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -4410,13 +4418,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "PC कीबोर्ड",
       "guideMobileTitle": "मोबाइल टच पैड",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -4452,7 +4464,7 @@ function GameEngine() {
       "guideMemoryProfile": "① Profile photo: In Settings, load your own or a family photo, then drag, zoom (50%–300%), and offset to make a great profile icon.",
       "guideMemoryBg": "② Level memory backgrounds: Register photos in Settings and the background changes as you level up. Without files, the neon grid is used so you can play immediately.",
       "guideBgCustomTitle": "🖼️ Background custom master guide",
-      "guideBgCustomBody": "Switch between the full-window background (default + per-level) and the game-panel background (per-level only) to register or delete (🗑️) each slot.",
+      "guideBgCustomBody": "Register or delete window and panel backgrounds on separate tabs. Store keys and bulk-upload targets never mix.",
       "guideBgMasterToggle": "Master toggle: switch to the default neon theme instantly with one switch, without deleting registered images.",
       "guideBgMasterWindow": "Window background: default/per-level images, keep-default lock, plus window-only blur and opacity.",
       "guideBgMasterBoard": "Game panel background: per-level panel images and dual blur/opacity controls to maximize block visibility.",
@@ -4494,7 +4506,7 @@ function GameEngine() {
       "guideDiagTitle": "🧪 0.1s live flawless self-test (Test Runner)",
       "guideDiagBody": "Press [🧪 Self-test] at the top (or shortcut [F9]). The computer verifies core features in real time.",
       "guideDiagStage6": "Stage 6 checks particles, PWA, and color themes. On pass the log prints [🎨 THEME & FX: PASS].",
-      "guideDiagStage7": "Stage 7 checks window/panel background integrity, blur/opacity localStorage, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS] and [✅ ALL GREEN].",
+      "guideDiagStage7": "Stage 7 checks isolated window/panel store keys, bulk mapping, blur/opacity, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS].",
       "guideDiagStage8": "Stage 8 checks the Auto game record mode flag and Hall of Fame localStorage binding. A pass prints [⚡ AUTO RECORD: PASS].",
       "guideDiagStage9": "Stage 9 checks the starting garbage-line setting (0–10) and that generated cheese rows always keep holes. A pass prints [🧱 GARBAGE LINES: PASS].",
       "guideDiagStage10": "Stage 10 checks the block guide mode setting and the two-deep next queue. A pass prints [🧩 PREVIEW MODE: PASS].",
@@ -4521,18 +4533,18 @@ function GameEngine() {
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
       "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
-      "guideDiagCore1": "1) [DOM & layout] Dual canvas, #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, preview canvases, modal click guard",
+      "guideDiagCore1": "1) [DOM & layout] Dual canvas, board-centered profile card (idle/conquer flex), zero watermarks, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
-      "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, #bulk-bg-file-input multi-select, Blob/DataURL sequential put, #bulk-progress-bar",
+      "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, fully isolated window/panel keys, per-target bulk put via #bulk-bg-file-input, canonical filenames",
       "guideDiagCore4": "4) [Settings] localStorage keys, dad_tetris_player_name, default nickname 시스템 fallback, 12-language TRANSLATIONS",
       "guideDiagCore5": "5) [Audio/video] Web Audio API, BGM/SFX volume and mute sync",
       "guideDiagCore6": "6) [Mobile] Viewport detect, 20-row lock, 100dvh arcade fit, 2x2 scores, wide DAD cheer bar, foldable split pad",
       "guideDiagCore7": "7) [ES modules] Storage/Audio/Render/UI/GameEngine binding · touch element DOM",
       "guideDiagCore8": "8) [AI stress] Hide idle panel, 15x five drops, collision 0, 15fps, DAD cheer, particle GC, board restore",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -4991,9 +5003,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -5032,13 +5044,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "💻 PC键盘",
       "guideMobileTitle": "📱 移动触摸板",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -5151,10 +5167,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [移动检测] Viewport ≤768px 和标准 20 行锁定",
       "guideDiagCore7": "7) 【ES模块】Storage/Audio/Render/UI/GameEngine交叉链接",
       "guideDiagCore8": "8) [AI 动态压力] 15 倍自动播放碰撞、FPS、消行与 DAD 应援板",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 五种自定义霓虹灯颜色主题",
       "guideThemeBody": "点击“设置”→“游戏”中的圆形调色板样本即可立即重新着色边框、按钮、霓虹灯发光和强调文本。",
       "guideThemeHow": "💡 切换是即时的（0ms）并永久保存在localStorage中。",
@@ -5613,9 +5629,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -5654,13 +5670,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "Teclado de PC 💻",
       "guideMobileTitle": "📱 Panel táctil móvil",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -5773,10 +5793,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Detección de dispositivos móviles] Ventana gráfica ≤768 px y bloqueo estándar de 20 filas",
       "guideDiagCore7": "7) [Módulos ES] Enlaces cruzados Storage/Audio/Render/UI/GameEngine",
       "guideDiagCore8": "8) [Estrés de IA] Autojuego 15x: colisión, FPS, líneas y tablero DAD",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Cinco temas de colores neón personalizados",
       "guideThemeBody": "Toque una muestra de paleta redonda en Configuración → Juego para cambiar instantáneamente el color de los bordes, los botones, el brillo de neón y resaltar el texto.",
       "guideThemeHow": "💡 El cambio es instantáneo (0ms) y se guarda para siempre en localStorage.",
@@ -6235,9 +6255,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -6276,13 +6296,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "💻 PC キーボード",
       "guideMobileTitle": "📱 モバイルタッチパッド",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -6395,10 +6419,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [モバイル検出] ビューポート ≤768px および標準 20 行ロック",
       "guideDiagCore7": "7) [ES モジュール] Storage/Audio/Render/UI/GameEngine クロスリンク",
       "guideDiagCore8": "8) [AIストレス] オートプレイ15xの衝突・FPS・ライン消去・DAD電光掲示板",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 5 つのカスタム ネオン カラー テーマ",
       "guideThemeBody": "「設定」→「ゲーム」で丸いパレットの見本をタップすると、枠線、ボタン、ネオンの輝き、アクセントのテキストの色が即座に変更されます。",
       "guideThemeHow": "💡 切り替えは瞬時 (0ms) で、localStorage に永久に保存されます。",
@@ -6857,9 +6881,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -6898,13 +6922,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "Clavier PC 💻",
       "guideMobileTitle": "📱 Tablette tactile mobile",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -7017,10 +7045,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Détection mobile] Fenêtre d'affichage ≤768px et verrouillage standard à 20 rangées",
       "guideDiagCore7": "7) [modules ES] liaisons croisées Storage/Audio/Render/UI/GameEngine",
       "guideDiagCore8": "8) [Stress IA] Autoplay 15x collision, FPS, lignes et panneau DAD",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Cinq thèmes de couleurs néon personnalisés",
       "guideThemeBody": "Appuyez sur un échantillon de palette ronde dans Paramètres → Jeu pour recolorer instantanément les bordures, les boutons, la lueur au néon et accentuer le texte.",
       "guideThemeHow": "💡 Le changement est instantané (0 ms) et enregistré pour toujours dans localStorage.",
@@ -7479,9 +7507,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -7520,13 +7548,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "💻 PC-Tastatur",
       "guideMobileTitle": "📱 Mobiles Touchpad",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -7639,10 +7671,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Mobile Erkennung] Ansichtsfenster ≤768px und standardmäßige 20-Zeilen-Sperre",
       "guideDiagCore7": "7) [ES-Module] Storage/Audio/Render/UI/GameEngine Crosslinks",
       "guideDiagCore8": "8) [KI-Stress] Autoplays 15x Kollision, FPS, Linien und Papa-Tafel",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Fünf benutzerdefinierte Neonfarbthemen",
       "guideThemeBody": "Tippen Sie unter „Einstellungen“ → „Spiel“ auf ein rundes Farbfeld, um Ränder, Schaltflächen, Neonlicht und Akzenttext sofort neu einzufärben.",
       "guideThemeHow": "💡 Der Wechsel erfolgt sofort (0 ms) und wird für immer in localStorage gespeichert.",
@@ -8101,9 +8133,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -8142,13 +8174,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "💻 Teclado de PC",
       "guideMobileTitle": "📱 Touch pad móvel",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -8261,10 +8297,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Detecção móvel] Janela de visualização ≤768px e bloqueio padrão de 20 linhas",
       "guideDiagCore7": "7) [Módulos ES] Armazenamento/Áudio/Renderização/UI/GameEngine ligações cruzadas",
       "guideDiagCore8": "8) [Estresse de IA] Autoplay 15x colisão, FPS, linhas e painel DAD",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Cinco temas de cores neon personalizados",
       "guideThemeBody": "Toque em uma amostra redonda da paleta em Configurações → Jogo para recolorir instantaneamente bordas, botões, brilho neon e realçar texto.",
       "guideThemeHow": "💡 A troca é instantânea (0ms) e salva para sempre em localStorage.",
@@ -8723,9 +8759,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -8764,13 +8800,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "Клавиатура ПК",
       "guideMobileTitle": "Сенсорный пад",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -8806,7 +8846,7 @@ function GameEngine() {
       "guideMemoryProfile": "① Profile photo: In Settings, load your own or a family photo, then drag, zoom (50%–300%), and offset to make a great profile icon.",
       "guideMemoryBg": "② Level memory backgrounds: Register photos in Settings and the background changes as you level up. Without files, the neon grid is used so you can play immediately.",
       "guideBgCustomTitle": "🖼️ Background custom master guide",
-      "guideBgCustomBody": "Switch between the full-window background (default + per-level) and the game-panel background (per-level only) to register or delete (🗑️) each slot.",
+      "guideBgCustomBody": "Register or delete window and panel backgrounds on separate tabs. Store keys and bulk-upload targets never mix.",
       "guideBgMasterToggle": "Master toggle: switch to the default neon theme instantly with one switch, without deleting registered images.",
       "guideBgMasterWindow": "Window background: default/per-level images, keep-default lock, plus window-only blur and opacity.",
       "guideBgMasterBoard": "Game panel background: per-level panel images and dual blur/opacity controls to maximize block visibility.",
@@ -8848,7 +8888,7 @@ function GameEngine() {
       "guideDiagTitle": "🧪 0.1s live flawless self-test (Test Runner)",
       "guideDiagBody": "Press [🧪 Self-test] at the top (or shortcut [F9]). The computer verifies core features in real time.",
       "guideDiagStage6": "Stage 6 checks particles, PWA, and color themes. On pass the log prints [🎨 THEME & FX: PASS].",
-      "guideDiagStage7": "Stage 7 checks window/panel background integrity, blur/opacity localStorage, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS] and [✅ ALL GREEN].",
+      "guideDiagStage7": "Stage 7 checks isolated window/panel store keys, bulk mapping, blur/opacity, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS].",
       "guideDiagStage8": "Stage 8 checks the Auto game record mode flag and Hall of Fame localStorage binding. A pass prints [⚡ AUTO RECORD: PASS].",
       "guideDiagStage9": "Stage 9 checks the starting garbage-line setting (0–10) and that generated cheese rows always keep holes. A pass prints [🧱 GARBAGE LINES: PASS].",
       "guideDiagStage10": "Stage 10 checks the block guide mode setting and the two-deep next queue. A pass prints [🧩 PREVIEW MODE: PASS].",
@@ -8875,18 +8915,18 @@ function GameEngine() {
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
       "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
-      "guideDiagCore1": "1) [DOM & layout] Dual canvas, #board-wrap, #mobile-right-tower, 2x2 #stats-bar-row, #dad-cheer-banner, #mobile-controls, preview canvases, modal click guard",
+      "guideDiagCore1": "1) [DOM & layout] Dual canvas, board-centered profile card (idle/conquer flex), zero watermarks, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
-      "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, #bulk-bg-file-input multi-select, Blob/DataURL sequential put, #bulk-progress-bar",
+      "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, fully isolated window/panel keys, per-target bulk put via #bulk-bg-file-input, canonical filenames",
       "guideDiagCore4": "4) [Settings] localStorage keys, dad_tetris_player_name, default nickname 시스템 fallback, 12-language TRANSLATIONS",
       "guideDiagCore5": "5) [Audio/video] Web Audio API, BGM/SFX volume and mute sync",
       "guideDiagCore6": "6) [Mobile] Viewport detect, 20-row lock, 100dvh arcade fit, 2x2 scores, wide DAD cheer bar, foldable split pad",
       "guideDiagCore7": "7) [ES modules] Storage/Audio/Render/UI/GameEngine binding · touch element DOM",
       "guideDiagCore8": "8) [AI stress] Hide idle panel, 15x five drops, collision 0, 15fps, DAD cheer, particle GC, board restore",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -9345,9 +9385,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -9386,13 +9426,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "💻 Bàn phím máy tính",
       "guideMobileTitle": "📱 Bàn di chuột cảm ứng",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -9505,10 +9549,10 @@ function GameEngine() {
       "guideDiagCore6": "6) [Phát hiện trên thiết bị di động] Viewport ≤768px và khóa 20 hàng tiêu chuẩn",
       "guideDiagCore7": "7) [ES module] Lưu trữ/Âm thanh/Render/UI/GameEngine liên kết chéo",
       "guideDiagCore8": "8) [AI stress] Autoplays 15x va chạm, FPS, xóa dòng và bảng cổ vũ Bố",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Năm chủ đề màu neon tùy chỉnh",
       "guideThemeBody": "Chạm vào mẫu bảng màu tròn trong Cài đặt → Trò chơi để đổi màu ngay lập tức các đường viền, nút, ánh sáng neon và văn bản có dấu.",
       "guideThemeHow": "💡 Quá trình chuyển đổi diễn ra tức thời (0ms) và được lưu vĩnh viễn trong localStorage.",
@@ -9967,9 +10011,9 @@ function GameEngine() {
       "guideVizCountLead": "After landing you can still adjust during the 3→2→1 gauge.",
       "guideVizSnapLead": "At 0s Best Fit locks the piece into a scoring pocket.",
       "guideVizTimeStopLead": "K / ⏳ freeze gravity for in-place spins. One recharge per landing.",
-      "guideVizSlotMap": "Idle and Level 1–20 use separate IndexedDB slots.",
+      "guideVizSlotMap": "Window vs panel and Idle vs Level 1–20 use separate IndexedDB keys. Shared alias bg_level_N is not used.",
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
-      "guideVizFileMap": "Examples: idle.jpg → idle, bg5.jpg / level5.png → level 5",
+      "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
       "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
@@ -10008,13 +10052,17 @@ function GameEngine() {
       "guideDiagExportTitle": "📋 Copy log & save file",
       "guideDiagExportBody": "Use Copy log and Save file on the self-test screen. The report includes 12-language dictionary status, window/panel background counts, and the smart mapping engine.",
       "guideIdleSplitTitle": "🖼️ Separate window / panel idle backgrounds",
-      "guideIdleSplitBody": "Full window and the left game panel each have their own idle image. Blur/opacity are per target. Keep default background holds the idle image during play.",
-      "guideIdleSplitWindow": "🖥️ Window: idle + levels 1–20, window blur/opacity",
-      "guideIdleSplitBoard": "🎮 Panel: idle + levels 1–20, panel blur/opacity",
-      "guideLevelBgLiveBody": "On level-up, IndexedDB slot bg_level_X or the fallback image is applied to the board/panel immediately. Keep-default holds the idle background.",
-      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, querying bg_level_X and triggering canvas/DOM background paints.",
-      "guideDiagLevelBgSlots": "Level 1–20 slots stay isolated from Idle slots; missing customs fall back to the default image.",
+      "guideIdleSplitBody": "Window and panel register, store, and play independently. A panel upload never copies into window slots. Blur/opacity and keep-default stay per target.",
+      "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
+      "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
+      "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
+      "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
+      "guideOverlayCenterTitle": "🎯 Board-centered profile card",
+      "guideOverlayCenterBody": "Idle, pause, game-over, and Level 20 conquer cards sit in the geometric center of the game panel (#board-wrap) with flex. After autoplay the card does not drift to the bottom-right.",
+      "guideDiagOverlayCenter": "C1 measures that idle and conquer cards sit on the board center. Layout uses overlay flex centering, not 50%+translate.",
       "guidePcTitle": "Bab.5: 💾 IndexedDB media",
       "guideMobileTitle": "💻 papan ketik komputer",
       "guideMobileArcadeBody": "Portrait fits on one screen (100dvh, no scroll): title plus ⚙️ settings, 📖 guide, and ✏️ diagnostics on top; a 10×20 board on the left with a right-side tower (start/end, NEXT·HOLD, 2x2 scores, AUTO, DAD special); a slim wide DAD cheer bar under the play area; and the 7-button pad at the bottom. Tap the board prompt to start immediately.",
@@ -10127,10 +10175,10 @@ function GameEngine() {
       "guideDiagCore6": "5) [Audio/video] Web Audio API and sound manager init",
       "guideDiagCore7": "6) [Deteksi seluler] Area pandang ≤768 piksel dan kunci standar 20 baris\n0\n7) [Modul ES] Penyimpanan/Audio/Render/UI/GameEngine tautan silang",
       "guideDiagCore8": "8) [Stres AI] Autoplays 15x tabrakan, FPS, baris, dan papan sorak Ayah",
-      "guideDiagCore9": "9) [Background E2E] Window/board tab switch syncs Idle~Lv20 thumbs/titles from IndexedDB, bulk badges, default/master isolate",
+      "guideDiagCore9": "9) [Background E2E] Isolated window/panel tabs and store keys, Idle~Lv20 thumbs, bulk badges, default/master isolate",
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
-      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, diagnostic Memory Snapshot restore",
+      "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
       "guideThemeTitle": "🎨 Lima tema warna neon khusus",
       "guideThemeBody": "Ketuk contoh palet bulat di Pengaturan → Game untuk langsung mewarnai ulang batas, tombol, cahaya neon, dan teks aksen.",
       "guideThemeHow": "💡 Peralihannya instan (0 ms) dan disimpan selamanya dalam localStorage.",
@@ -10343,7 +10391,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.8-avatar";
+  const APP_VERSION = "1.3.10-center";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -14390,13 +14438,18 @@ function GameEngine() {
     level = nextLevelFromLines(lines);
     const changed = playLevel(level) > prevPlay;
     if (changed) {
-      if (localStorage.getItem("dad_tetris_keep_default_bg") !== "1") {
-        if (typeof window.updateLevelBackground === "function") {
-          try {
+      try {
+        paintLevelBgOnLevelUp(level, { fade: true });
+      } catch (bgErr) {
+        try {
+          if (typeof window.updateLevelBackground === "function") {
             window.updateLevelBackground(level);
-          } catch (bgErr) {
-            /* HUD still updates */
           }
+          if (typeof window.updateBoardBackground === "function") {
+            window.updateBoardBackground(level);
+          }
+        } catch (bgErr2) {
+          /* HUD still updates */
         }
       }
       flashLevelGuideCheer(level);
@@ -15016,8 +15069,10 @@ function GameEngine() {
         urls.push(value);
       }
     };
-    push(getAssetUrl(bundledLevelRel(lv)));
-    bundledIdleBgCandidates().forEach(push);
+    urlCacheBustVariants(getAssetUrl(bundledLevelRel(lv))).forEach(push);
+    bundledIdleBgCandidates().forEach((idle) => {
+      urlCacheBustVariants(idle).forEach(push);
+    });
     return urls;
   }
 
@@ -15034,8 +15089,56 @@ function GameEngine() {
     if (!raw || isUserMediaUrl(raw)) {
       return false;
     }
-    return /(?:^|\/)assets\/images\/level_\d+\.(?:jpe?g|png|webp)(?:\?|#|$)/i.test(raw)
-      || /(?:^|\/)images\/bg\d+\.(?:jpe?g|png|webp)(?:\?|#|$)/i.test(raw);
+    return /(?:^|\/)images\/bg\d+\.(?:jpe?g|png|webp)(?:\?|#|$)/i.test(raw);
+  }
+
+  function urlCacheBustVariants(url) {
+    const out = [];
+    const push = (value) => {
+      if (typeof value === "string" && value && out.indexOf(value) < 0) {
+        out.push(value);
+      }
+    };
+    push(url);
+    try {
+      const u = new URL(url, assetBaseHref());
+      if (u.search) {
+        u.search = "";
+        push(u.href);
+      }
+    } catch (err) {
+      /* keep original */
+    }
+    return out;
+  }
+
+  const LEVEL_BG_CHROME = [
+    { glow: "rgba(0, 210, 255, 0.42)", overlay: "rgba(0, 210, 255, 0.10)" },
+    { glow: "rgba(34, 240, 178, 0.42)", overlay: "rgba(34, 240, 178, 0.10)" },
+    { glow: "rgba(255, 138, 61, 0.42)", overlay: "rgba(255, 138, 61, 0.10)" },
+    { glow: "rgba(255, 79, 163, 0.42)", overlay: "rgba(255, 79, 163, 0.10)" },
+    { glow: "rgba(124, 180, 255, 0.42)", overlay: "rgba(124, 180, 255, 0.10)" },
+    { glow: "rgba(250, 204, 21, 0.42)", overlay: "rgba(250, 204, 21, 0.10)" },
+    { glow: "rgba(80, 250, 140, 0.42)", overlay: "rgba(80, 250, 140, 0.10)" },
+    { glow: "rgba(255, 80, 90, 0.42)", overlay: "rgba(255, 80, 90, 0.10)" },
+    { glow: "rgba(192, 132, 252, 0.42)", overlay: "rgba(192, 132, 252, 0.10)" },
+    { glow: "rgba(0, 245, 255, 0.46)", overlay: "rgba(0, 245, 255, 0.12)" },
+  ];
+
+  function markPlayLevelChrome(n) {
+    const lv = playLevel(n);
+    const chrome = LEVEL_BG_CHROME[(Math.max(1, lv) - 1) % LEVEL_BG_CHROME.length];
+    const wrap = document.getElementById("board-wrap");
+    try {
+      document.documentElement.setAttribute("data-play-level", String(lv));
+      document.documentElement.style.setProperty("--level-bg-glow", chrome.glow);
+      document.documentElement.style.setProperty("--level-bg-overlay", chrome.overlay);
+    } catch (err) {
+      /* css optional */
+    }
+    if (wrap) {
+      wrap.setAttribute("data-play-level", String(lv));
+    }
   }
 
   function drawLevelWatermark() {
@@ -15098,12 +15201,23 @@ function GameEngine() {
     return `bg_level_${shownLevel(n)}`;
   }
 
+  function isOwnedBgStoreKey(key, dest) {
+    const k = String(key || "");
+    if (!k || /^bg_level_\d+$/i.test(k)) {
+      return false;
+    }
+    const boardOwned = k === BOARD_IDLE_BG_IDB
+      || /^custom_bg_board_/.test(k)
+      || /^bg_panel_/.test(k);
+    return dest === "board" ? boardOwned : !boardOwned;
+  }
+
   function bgCandidateKeys(target, kind) {
     const dest = target === "board" ? "board" : "window";
     const idle = kind === "default" || kind === "idle";
     const keys = [];
     const push = (key) => {
-      if (key && keys.indexOf(key) < 0) {
+      if (key && isOwnedBgStoreKey(key, dest) && keys.indexOf(key) < 0) {
         keys.push(key);
       }
     };
@@ -15121,7 +15235,6 @@ function GameEngine() {
       }
     } else {
       const n = shownLevel(kind);
-      push(bgLevelAliasKey(n));
       if (dest === "board") {
         push(`custom_bg_board_level_${n}`);
         push(`bg_panel_lvl_${n}`);
@@ -15197,7 +15310,7 @@ function GameEngine() {
         url = mediaStore.peek("idleBg") || mediaStore.peek("bg_idle") || readLocal(IDLE_BG_KEY) || url;
       } else {
         const n = shownLevel(kind);
-        url = mediaStore.peek(`levelBg${n}`) || mediaStore.peek(`bg_lvl_${n}`) || mediaStore.peek(bgLevelAliasKey(n)) || readLocal(levelBgStorageKey(n)) || url;
+        url = mediaStore.peek(`levelBg${n}`) || mediaStore.peek(`bg_lvl_${n}`) || readLocal(levelBgStorageKey(n)) || url;
       }
     }
     return isUserMediaUrl(url) ? url : "";
@@ -15251,6 +15364,36 @@ function GameEngine() {
     const n = shownLevel(kind);
     const map = target === "board" ? settings.boardBgFileNames : (settings.windowBgFileNames || settings.levelBgFileNames);
     return (map && map[n]) || "";
+  }
+
+  function canonicalBgFileName(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    if (kind === "default" || kind === "idle") {
+      return dest === "board" ? "board_default_bg.jpg" : "default_bg.jpg";
+    }
+    const n = shownLevel(kind);
+    return dest === "board" ? ("board_level_" + n + ".jpg") : ("level_" + n + ".jpg");
+  }
+
+  function asCanonicalBgFile(file, target, kind) {
+    const canon = canonicalBgFileName(target, kind);
+    if (!file) {
+      return file;
+    }
+    try {
+      return new File([file], canon, {
+        type: file.type || "image/jpeg",
+        lastModified: file.lastModified || Date.now(),
+      });
+    } catch (err) {
+      return file;
+    }
+  }
+
+  function registerCanonicalBgName(target, kind) {
+    const canon = canonicalBgFileName(target, kind);
+    setBgFileName(target, kind, canon);
+    return canon;
   }
 
   function setBgFileName(target, kind, name) {
@@ -15405,7 +15548,7 @@ function GameEngine() {
     const slot = kind === "idle" ? "default" : kind;
     const keys = bgCandidateKeys(dest, slot);
     for (let i = 0; i < keys.length; i++) {
-      if (!keys[i] || keys[i] === primaryKey) {
+      if (!keys[i] || keys[i] === primaryKey || !isOwnedBgStoreKey(keys[i], dest)) {
         continue;
       }
       try {
@@ -15435,7 +15578,7 @@ function GameEngine() {
 
   function parseBulkBgHints(fileName) {
     const raw = String(fileName || "");
-    const base = raw.replace(/\.[^.]+$/, "").toLowerCase();
+    const base = raw.replace(/\.[^.]+$/, "").toLowerCase().trim();
     let target = "";
     if (/(?:^|[^a-z0-9])(?:panel|board)(?:[^a-z0-9]|$)/.test(base) || /패널|보드/.test(raw)) {
       target = "board";
@@ -15443,18 +15586,16 @@ function GameEngine() {
       target = "window";
     }
     let slot = "";
-    if (/(?:^|[^a-z0-9])(?:idle|wait|default)(?:[^a-z0-9]|$)/.test(base) || /대기/.test(raw)) {
+    if (/^(?:default_bg|board_default_bg)$/i.test(base)
+      || /(?:^|[^a-z0-9])(?:idle|wait|default)(?:[^a-z0-9]|$)/.test(base)
+      || /대기/.test(raw)) {
       slot = "idle";
     }
+    const bundled = base.match(/^(?:board[_-])?level[_-]?0*([1-9]|1[0-9]|20)$/i);
     const lvRe = /(?:^|[^a-z0-9가-힣])(?:lv|lvl|level|레벨)\s*[-_ ]*0*([1-9]|1[0-9]|20)(?![0-9])/i;
-    const lvMatch = raw.match(lvRe) || base.match(lvRe);
+    const lvMatch = bundled || raw.match(lvRe) || base.match(lvRe);
     if (lvMatch) {
       slot = Number(lvMatch[1]);
-    } else if (!slot) {
-      const nums = [...base.matchAll(/(\d+)/g)].map((m) => Number(m[1]));
-      if (nums.length === 1 && nums[0] >= 1 && nums[0] <= 20) {
-        slot = nums[0];
-      }
     }
     return { target, slot };
   }
@@ -15531,7 +15672,13 @@ function GameEngine() {
           return;
         }
       }
-      jobs.push({ name, index, target, slot });
+      jobs.push({
+        name,
+        index,
+        target,
+        slot,
+        canonical: canonicalBgFileName(target, slot),
+      });
     }
 
     if (mode === "smart" && !anyHint) {
@@ -15784,6 +15931,7 @@ function GameEngine() {
   function paintLevelBgOnLevelUp(newLevel, options) {
     const fade = !(options && options.fade === false);
     const lv = playLevel(newLevel != null ? newLevel : level);
+    markPlayLevelChrome(lv);
     if (isCustomBgMasterDisabled()) {
       invalidateBgLoadSeq();
       try {
@@ -15795,12 +15943,13 @@ function GameEngine() {
     }
     const customWin = loadBgData("window", lv);
     const customBoard = loadBgData("board", lv);
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : folderLevelBgSrc(lv);
+    const bundled = folderLevelBgSrc(lv);
+    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : bundled;
     let winUrl = "";
     if (settings.keepDefaultWindowBg) {
       winUrl = loadBgData("window", "default") || lastValidBgUrl;
     } else {
-      winUrl = isUserMediaUrl(customWin) ? customWin : (loadBgData("window", "default") || lastValidBgUrl);
+      winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
     }
     invalidateBgLoadSeq();
     try {
@@ -15864,6 +16013,11 @@ function GameEngine() {
       wrap.classList.add("has-board-bg");
     }
     try {
+      markPlayLevelChrome(playLevel(level));
+    } catch (chromeErr) {
+      /* chrome optional */
+    }
+    try {
       document.documentElement.style.setProperty("--board-bg-image", cssBgImage(lastValidBoardBgUrl));
     } catch (err) {
       /* ignore */
@@ -15917,6 +16071,21 @@ function GameEngine() {
           }
         };
         img.onerror = () => {
+          if (seq !== seqRef()) {
+            return;
+          }
+          try {
+            const u = new URL(url, assetBaseHref());
+            if (u.search) {
+              u.search = "";
+              const bare = u.href;
+              if (bare !== url && unique.indexOf(bare) < 0) {
+                unique.splice(index + 1, 0, bare);
+              }
+            }
+          } catch (err) {
+            /* ignore */
+          }
           tryAt(index + 1);
         };
         img.src = url;
@@ -15973,6 +16142,9 @@ function GameEngine() {
     if (dest === "board" && shouldUseBoardLevelBackgrounds()) {
       return folderLevelBgSrc(playLevel(level));
     }
+    if (dest === "window" && (shouldUseLevelBackgrounds() || forceLevelBgPaint)) {
+      return folderLevelBgSrc(playLevel(level));
+    }
     if (dest === "window") {
       return loadBgData("window", "default") || custom;
     }
@@ -16010,7 +16182,7 @@ function GameEngine() {
     push(resolveTargetBgUrl(dest, level));
     if (dest === "board") {
       if (shouldUseBoardLevelBackgrounds()) {
-        push(folderLevelBgSrc(level));
+        folderLevelBgCandidates(level).forEach(push);
       }
       return urls;
     }
@@ -16021,9 +16193,10 @@ function GameEngine() {
     }
     if (shouldUseLevelBackgrounds() || forceLevelBgPaint) {
       const customWin = loadBgData("window", playLevel(level));
-      if (!isUserMediaUrl(customWin)) {
-        bundledIdleBgCandidates().forEach(push);
+      if (isUserMediaUrl(customWin)) {
+        push(customWin);
       }
+      folderLevelBgCandidates(level).forEach(push);
       return urls;
     }
     bundledIdleBgCandidates().forEach(push);
@@ -16073,41 +16246,22 @@ function GameEngine() {
     const isKeep = readKeepDefaultBgNow();
     settings.keepDefaultWindowBg = isKeep;
     syncGameSettingsExport();
-    const customBoard = loadBgData("board", lv)
-      || (mediaStore && typeof mediaStore.peek === "function" && mediaStore.peek("custom_bg_board_level_" + lv))
-      || "";
-    const boardUrl = isUserMediaUrl(customBoard)
-      ? customBoard
-      : (folderLevelBgSrc(lv) || getAssetUrl("assets/images/level_" + lv + ".jpg"));
-    try {
-      applyResolvedBoardBackground(boardUrl, fade);
-    } catch (boardErr) {
-      /* continue window paint */
-    }
     if (!isKeep) {
       const customWin = loadBgData("window", lv);
-      if (isUserMediaUrl(customWin)) {
-        try {
-          applyResolvedBackground(customWin, fade);
-        } catch (winErr) {
-          /* board already painted */
-        }
+      try {
+        applyResolvedBackground(isUserMediaUrl(customWin) ? customWin : folderLevelBgSrc(lv), fade);
+      } catch (winErr) {
+        /* probe continues */
       }
     }
     const releaseForce = pushLevelBgForce(!!(options && options.force) || !isKeep);
     const seq = ++bgLoadSeq;
     const kind = bgPaintKind("window", lv);
     paintTargetBackground("window", lv, fade, seq, false);
-    const boardSeq = ++boardBgLoadSeq;
-    paintTargetBackground("board", lv, fade, boardSeq, false);
-    return Promise.resolve(hydrateBgSlot("board", lv)).then(() => {
-      return hydrateBgSlot("window", kind);
-    }).then(() => {
+    return Promise.resolve(hydrateBgSlot("window", kind)).then(() => {
       paintTargetBackground("window", lv, fade, seq, allowClear);
-      paintTargetBackground("board", lv, fade, boardSeq, allowClear);
     }).catch(() => {
       paintTargetBackground("window", lv, fade, seq, allowClear);
-      paintTargetBackground("board", lv, fade, boardSeq, allowClear);
     }).then(releaseForce, releaseForce);
   }
 
@@ -16517,7 +16671,7 @@ function GameEngine() {
           persistBoardIdleBgFlag(false);
           return;
         }
-        setBgFileName("board", "default", file.name || "");
+        registerCanonicalBgName("board", "default");
         saveSettings();
         refreshAllBgSlotThumbnails("board").then(() => {
           updateCurrentLiveBackground();
@@ -16858,12 +17012,13 @@ function GameEngine() {
   }
 
   function updateCurrentLiveBackground() {
-    applyBackgroundToCanvas({ fade: true });
     const lv = playLevel(level) || 1;
     try {
       if (settings.bgTarget === "board") {
+        applyBoardBgFx();
         updateBoardBackground(lv, { fade: true, force: true, allowClear: false });
       } else {
+        applyWindowBgFx();
         updateLevelBackground(lv, { fade: true, force: true, allowClear: false });
       }
     } catch (err) {
@@ -17083,6 +17238,8 @@ function GameEngine() {
     applyBackgroundToCanvas({ fade: true });
   }
   window.refreshBackgrounds = refreshBackgrounds;
+  window.canonicalBgFileName = canonicalBgFileName;
+  window.registerCanonicalBgName = registerCanonicalBgName;
   window.refreshAllBackgroundPreviews = refreshAllBackgroundPreviews;
   window.renderCurrentBackground = renderCurrentBackground;
   window.updateAllBackgroundThumbnails = updateAllBackgroundThumbnails;
@@ -17233,8 +17390,13 @@ function GameEngine() {
     } catch (err) {
       console.error("[DadTetrisDB] hydrate/logical put failed", primaryKey, err);
     }
-    setBgFileName(job.target, kind, file && file.name || "");
-    return { url: mediaStore.peek(primaryKey) || url, dataUrl };
+    const canon = registerCanonicalBgName(job.target, kind);
+    return {
+      url: mediaStore.peek(primaryKey) || url,
+      dataUrl,
+      canonical: canon,
+      originalName: (file && file.name) || "",
+    };
   }
 
   let lastBulkUploadPromise = Promise.resolve(true);
@@ -17290,7 +17452,7 @@ function GameEngine() {
         }
         const dest = job.target === "board" ? "board" : "window";
         const kind = job.slot === "idle" ? "default" : job.slot;
-        entries.push({ key: bgStoreKey(dest, kind), blob: file });
+        entries.push({ key: bgStoreKey(dest, kind), blob: asCanonicalBgFile(file, dest, kind) });
       });
       try {
         if (window.MediaStorage && typeof window.MediaStorage.bulkPut === "function") {
@@ -17398,8 +17560,8 @@ function GameEngine() {
           updateBulkProgressUI(pct, t("bulkStatusSaving", {
             done,
             total: totalFiles,
-            name: file.name || "",
-            slot: bulkTargetSlotText(job),
+            name: (file && file.name) || "",
+            slot: (job.canonical || canonicalBgFileName(job.target, job.slot === "idle" ? "default" : job.slot)),
           }));
           await yieldBulkUi();
           const result = await persistBulkFileToSlot(file, job);
@@ -17599,7 +17761,7 @@ function GameEngine() {
           }
           return;
         }
-        setBgFileName(bgEditTarget(), isIdle ? "default" : kind, file.name);
+        registerCanonicalBgName(bgEditTarget(), isIdle ? "default" : kind);
         saveSettings();
         refreshAllBgSlotThumbnails(bgEditTarget()).then(() => {
           updateCurrentLiveBackground();
@@ -20362,13 +20524,13 @@ function GameEngine() {
       let leveledUp = false;
       if (newLevel > prevLevel) {
         leveledUp = true;
-        if (localStorage.getItem("dad_tetris_keep_default_bg") !== "1") {
-          if (typeof window.updateLevelBackground === "function") {
-            try {
-              window.updateLevelBackground(newLevel);
-            } catch (bgErr) {
-              /* keep lock loop alive */
-            }
+        try {
+          paintLevelBgOnLevelUp(newLevel, { fade: true });
+        } catch (bgErr) {
+          try {
+            applyLevelBackgroundForPlay(newLevel, { fade: true });
+          } catch (bgErr2) {
+            /* keep lock loop alive */
           }
         }
       }
@@ -20629,7 +20791,13 @@ function GameEngine() {
     syncActionButtons();
     applyCurrentBackground({ fade: false });
     syncExtremeLevelFx();
+    document.body.classList.remove("is-autoplay");
     document.body.classList.add("is-conquer-ending");
+    try {
+      scheduleOverlayRecenter();
+    } catch (layoutErr) {
+      /* center overlay even if layout extras fail */
+    }
     showNeonToast(t("level20Toast"), { crown: true, conquer: true, ms: 5600 });
     spawnConquerFireworks();
     sfx.play("fanfare");
@@ -21612,18 +21780,18 @@ function GameEngine() {
   }
 
   const DIAG_CASES = [
-    { id: "C1", title: "C1 [DOM E2E] 듀얼 캔버스 · 워터마크 0건 · 프로필 60~70%" },
+    { id: "C1", title: "C1 [DOM E2E] 듀얼 캔버스 · 워터마크 0건 · 프로필 카드 보드 중앙" },
     { id: "C2", title: "C2 [스킨 E2E] gemstone/glass/wire_glass/mecha/candy 픽셀·파티클" },
-    { id: "C3", title: "C3 [IDB E2E] #bulk-bg-file-input await · Blob · 슬롯 UI" },
+    { id: "C3", title: "C3 [IDB E2E] 윈도우/패널 키 격리 · 일괄 등록 · 정규 파일명" },
     { id: "C4", title: "C4 [설정 데이터] localStorage 스킨·ROWS·볼륨·최고기록" },
     { id: "C5", title: "C5 [오디오/비디오] Web Audio API · 사운드 매니저" },
     { id: "C6", title: "C6 [모바일 환경] 뷰포트 감지 · 20칸 고정 · 아케이드 핏" },
     { id: "C7", title: "C7 [ES 모듈] Storage/Audio/Render/UI/GameEngine · 터치 DOM" },
     { id: "C8", title: "C8 [AI 동적 스트레스 검사] 실시간 충돌·FPS 렌더링·라인클리어 파이프라인" },
-    { id: "C9", title: "C9 [4중 인터락] 윈도우/패널 탭 클릭 · 0~20 슬롯 썸네일 교체" },
+    { id: "C9", title: "C9 [4중 인터락] 윈도우/패널 저장 독립 · 0~20 슬롯 썸네일" },
     { id: "C10", title: "C10 [4중 인터락] 볼륨 슬라이더 · GainNode · 뮤트" },
     { id: "C11", title: "C11 [4중 인터락] keepDefaultBg · 타임스톱 · Dual Queue · 가비지" },
-    { id: "C12", title: "C12 [E2E] clearLines→checkLevelUp 배경 · IDB 선페인트 부팅" },
+    { id: "C12", title: "C12 [E2E] 레벨업 대상별 배경 · 폴더 JPG 구분 · 부팅 페인트" },
     { id: "1-1", title: "1-1 착지 카운트다운 · 선명도 부스트" },
     { id: "1-2", title: "1-2 X축 절대 관통 (좌/우 Ghost Phase)" },
     { id: "1-3", title: "1-3 Y축 스텝 하강 · 우물 파고들기" },
@@ -21635,7 +21803,7 @@ function GameEngine() {
     { id: "3-1", title: "3-1 모바일 7버튼 · 햅틱 가드" },
     { id: "3-2", title: "3-2 100dvh 핏 · 더블탭/스크롤 방어" },
     { id: "4-1", title: "4-1 시작 버튼 3단 스마트 토글" },
-    { id: "4-2", title: "4-2 윈도우/패널 배경 · Lv1–20 슬롯" },
+    { id: "4-2", title: "4-2 윈도우/패널 배경 독립 저장 · Lv1–20 슬롯" },
     { id: "4-3", title: "4-3 종료 Kill Process 훅 무결성" },
     { id: "4-4", title: "4-4 프로필 사진 저장소 · 렌더링 무결성" },
     { id: "4-5", title: "4-5 배포 Base Path · Idle/Lv1–20 Image preload · Blob revoke" },
@@ -21648,14 +21816,14 @@ function GameEngine() {
     { id: "6-1", title: "6-1 파티클 렌더러 · 스크린 셰이크 · TETRIS 배너" },
     { id: "6-2", title: "6-2 PWA 앱 설치 · manifest · 서비스 워커" },
     { id: "6-3", title: "6-3 5대 컬러 테마 · 가이드북 동기화 · localStorage 복원" },
-    { id: "7-1", title: "7-1 윈도우/패널 배경 키 · 일괄 등록 진행 바 · 스마트 매핑" },
+    { id: "7-1", title: "7-1 윈도우/패널 키 격리 · 일괄 등록 · 스마트 매핑" },
     { id: "7-2", title: "7-2 패널 블러·투명도 설정 로드" },
     { id: "7-3", title: "7-3 고스트 프리뷰 · 일시정지 더블탭" },
     { id: "7-4", title: "7-4 기본 배경 고정 유지 · localStorage" },
     { id: "7-5", title: "7-5 윈도우 배경 블러·투명도 설정 로드" },
     { id: "7-6", title: "7-6 배경 마스터 비활성화 · 렌더러 분기" },
     { id: "7-7", title: "7-7 로컬 스토리지 Quota · 기록 가능 여부" },
-    { id: "7-8", title: "7-8 레벨 배경 동적 전환 · IndexedDB 슬롯 격리 · 옵션 인터락" },
+    { id: "7-8", title: "7-8 레벨 배경 전환 · 윈도우/패널 슬롯 격리 · 옵션 인터락" },
     { id: "8-1", title: "8-1 자동 게임기록 모드 · 명예의 전당 스토리지" },
     { id: "9-1", title: "9-1 시작 장애물 라인 · 가비지 보드 유효성" },
     { id: "10-1", title: "10-1 블록 가이드 모드 · 넥스트 큐 2단 무결성" },
@@ -22452,6 +22620,77 @@ function GameEngine() {
       && input.multiple
       && input.accept && input.accept.indexOf("image") >= 0
       && radioOk);
+  }
+
+  function diagCanonicalBgRenameOk() {
+    if (typeof canonicalBgFileName !== "function" || typeof planBulkBgAssignments !== "function") {
+      return false;
+    }
+    const namesOk = canonicalBgFileName("window", "idle") === "default_bg.jpg"
+      && canonicalBgFileName("window", "default") === "default_bg.jpg"
+      && canonicalBgFileName("window", 1) === "level_1.jpg"
+      && canonicalBgFileName("window", 10) === "level_10.jpg"
+      && canonicalBgFileName("board", "idle") === "board_default_bg.jpg"
+      && canonicalBgFileName("board", 7) === "board_level_7.jpg";
+    const wild = planBulkBgAssignments(["IMG_0008.jpg", "vacation.png", "DSC_1234.HEIC"], "window_all");
+    const wildOk = wild.length === 3
+      && wild[0].slot === "idle" && wild[0].canonical === "default_bg.jpg"
+      && wild[1].slot === 1 && wild[1].canonical === "level_1.jpg"
+      && wild[2].slot === 2 && wild[2].canonical === "level_2.jpg";
+    const hinted = planBulkBgAssignments(["idle.jpg", "lv5.png", "photo.jpg"], "window_all");
+    const hintedOk = hinted.length === 3
+      && hinted[0].canonical === "default_bg.jpg"
+      && hinted[1].canonical === "level_1.jpg"
+      && hinted[2].canonical === "level_2.jpg";
+    const parsed = typeof parseBulkBgHints === "function" ? parseBulkBgHints("IMG_0008.jpg") : { slot: 8 };
+    const noFalseLevel = parsed.slot !== 8 && parsed.slot !== 1;
+    return namesOk && wildOk && hintedOk && noFalseLevel;
+  }
+
+  function diagBgStorageIsolationOk() {
+    if (typeof bgCandidateKeys !== "function" || typeof isOwnedBgStoreKey !== "function") {
+      return false;
+    }
+    const kinds = ["default", 1, 7, 20];
+    for (let i = 0; i < kinds.length; i++) {
+      const board = bgCandidateKeys("board", kinds[i]);
+      const win = bgCandidateKeys("window", kinds[i]);
+      if (!board.length || !win.length) {
+        return false;
+      }
+      for (let b = 0; b < board.length; b++) {
+        if (win.indexOf(board[b]) >= 0 || !isOwnedBgStoreKey(board[b], "board") || isOwnedBgStoreKey(board[b], "window")) {
+          return false;
+        }
+      }
+      for (let w = 0; w < win.length; w++) {
+        if (board.indexOf(win[w]) >= 0 || !isOwnedBgStoreKey(win[w], "window") || isOwnedBgStoreKey(win[w], "board")) {
+          return false;
+        }
+      }
+    }
+    const winAll = typeof planBulkBgAssignments === "function"
+      ? planBulkBgAssignments(["a.png", "b.png"], "window_all")
+      : [];
+    const panelAll = typeof planBulkBgAssignments === "function"
+      ? planBulkBgAssignments(["a.png", "b.png"], "panel_all")
+      : [];
+    return winAll.length === 2
+      && panelAll.length === 2
+      && winAll.every((job) => job.target === "window")
+      && panelAll.every((job) => job.target === "board")
+      && !isOwnedBgStoreKey("bg_level_3", "window")
+      && !isOwnedBgStoreKey("bg_level_3", "board");
+  }
+
+  function diagDistinctLevelBgUrlsOk() {
+    const a = folderLevelBgSrc(1);
+    const b = folderLevelBgSrc(2);
+    const c = folderLevelBgSrc(5);
+    return !!(a && b && c && a !== b && b !== c
+      && /level_1\.jpg/i.test(a)
+      && /level_2\.jpg/i.test(b)
+      && /level_5\.jpg/i.test(c));
   }
 
   function diagTinyPngFile(name, mime) {
@@ -23376,6 +23615,27 @@ function GameEngine() {
     return { ok };
   }
 
+  function diagOverlayCenteredOnBoard(boardEl, cardEl, label) {
+    if (!boardEl || !cardEl) {
+      return false;
+    }
+    const boardR = boardEl.getBoundingClientRect();
+    const cardR = cardEl.getBoundingClientRect();
+    if (cardR.width < 8 || cardR.height < 8 || boardR.width < 8 || boardR.height < 8) {
+      diagLog(`${label} empty box card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)}`);
+      return false;
+    }
+    const cx = (cardR.left + cardR.right) / 2;
+    const cy = (cardR.top + cardR.bottom) / 2;
+    const bx = (boardR.left + boardR.right) / 2;
+    const by = (boardR.top + boardR.bottom) / 2;
+    const dx = Math.abs(cx - bx);
+    const dy = Math.abs(cy - by);
+    const ok = dx <= Math.max(18, boardR.width * 0.08) && dy <= Math.max(24, boardR.height * 0.1);
+    diagLog(`${label} dx=${dx.toFixed(1)} dy=${dy.toFixed(1)} card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} ok=${ok}`);
+    return ok;
+  }
+
   function diagE2EProfileCard() {
     const board = document.getElementById("board-wrap")
       || document.getElementById("tetris-board-wrapper")
@@ -23489,8 +23749,25 @@ function GameEngine() {
       const noDistort = Math.abs(aspect - 1) <= 0.12;
       const originalOk = !!(neon && String(neon.tagName || "").toLowerCase() === "svg"
         && neon.classList.contains("dad-neon-avatar"));
-      ok = compactOk && notBoardFill && frameOk && avatarOk && noDistort && originalOk;
-      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${wRatio.toFixed(2)} frame=${frameSize.toFixed(0)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} original=${originalOk} ok=${ok}`);
+      const startCenterOk = diagOverlayCenteredOnBoard(board, card, "C1 start-center");
+      let conquerCenterOk = false;
+      if (overlay) {
+        const prevAuto = document.body.classList.contains("is-autoplay");
+        overlay.classList.remove("is-start", "is-pause", "hidden");
+        overlay.classList.add("is-result", "is-conquer");
+        document.body.classList.remove("is-autoplay");
+        applyForcedProfileCardLayout();
+        const panel = document.getElementById("start-overlay") || card;
+        conquerCenterOk = diagOverlayCenteredOnBoard(board, panel, "C1 conquer-center");
+        overlay.classList.remove("is-result", "is-conquer");
+        overlay.classList.add("is-start");
+        if (prevAuto) {
+          document.body.classList.add("is-autoplay");
+        }
+        applyForcedProfileCardLayout();
+      }
+      ok = compactOk && notBoardFill && frameOk && avatarOk && noDistort && originalOk && startCenterOk && conquerCenterOk;
+      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${wRatio.toFixed(2)} frame=${frameSize.toFixed(0)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} original=${originalOk} startCenter=${startCenterOk} conquerCenter=${conquerCenterOk} ok=${ok}`);
     } catch (err) {
       diagLog(`C1 profile: ${err && err.message ? err.message : err}`);
       ok = false;
@@ -23513,7 +23790,7 @@ function GameEngine() {
 
   const DIAG_RUNNERS = {
     "C1": async () => {
-      const guideOk = diagGuideSync(["guideDiagCore1", "guideCheerTitle", "guideSkinPreviewTitle", "guideFxJuiceTitle"]);
+      const guideOk = diagGuideSync(["guideDiagCore1", "guideCheerTitle", "guideSkinPreviewTitle", "guideFxJuiceTitle", "guideOverlayCenterTitle", "guideOverlayCenterBody", "guideDiagOverlayCenter"]);
       const bg = document.getElementById("bg-canvas");
       const fg = document.getElementById("tetris-canvas") || document.getElementById("board");
       const wrap = document.getElementById("tetris-board-wrapper") || document.getElementById("board-wrap") || document.querySelector(".board-canvas-stack");
@@ -23650,7 +23927,7 @@ function GameEngine() {
       return renderOk && pixelOk && dualOk && partOk ? "pass" : "fail";
     },
     "C3": async () => {
-      const bulkGuideOk = diagGuideSync(["guideDiagCore3", "guideIndexedDbTitle", "guideDiagStage17", "guideBulkProgress", "guideBulkThumbs"]);
+      const bulkGuideOk = diagGuideSync(["guideDiagCore3", "guideIndexedDbTitle", "guideDiagStage17", "guideBulkProgress", "guideBulkThumbs", "guideBgIsolateBody", "guideVizFileMap"]);
       const bulkUiOk = diagBulkProgressUiOk();
       const slotKeysOk = BOARD_IDLE_BG_IDB === "board_idle_bg_blob"
         && bgStoreKey("window", "default") === "custom_bg_window_default"
@@ -23696,6 +23973,8 @@ function GameEngine() {
         && typeof updateAllBackgroundThumbnails === "function"
         && typeof applyBackgroundToCanvas === "function"
         && typeof handleBulkBgUpload === "function"
+        && typeof canonicalBgFileName === "function"
+        && typeof registerCanonicalBgName === "function"
         && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
       let bulk = false;
       try {
@@ -23719,12 +23998,16 @@ function GameEngine() {
       } catch (slotUiErr) {
         /* thumbs optional after dry-run */
       }
-      const staticOk = slotKeysOk && bulkOk && bulkMapOk && bulkUiOk && bulkGuideOk && fnOk;
+      const renameOk = diagCanonicalBgRenameOk();
+      const isolateOk = diagBgStorageIsolationOk();
+      const distinctOk = diagDistinctLevelBgUrlsOk();
+      const staticOk = slotKeysOk && bulkOk && bulkMapOk && bulkUiOk && bulkGuideOk && fnOk && renameOk && isolateOk;
       const blobOk = await diagBlobUrlLifecycle();
       const pathShapeOk = !diagIsUnsafeRootImagePath(folderLevelBgSrc(1))
         && !diagIsUnsafeRootImagePath(folderLevelBgSrc(20))
-        && isBundledLevelBgUrl(folderLevelBgSrc(5), 5);
-      diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} slots=${slotKeysOk} bulk=${bulkOk} map=${bulkMapOk} async=${bulkAsyncOk} ui=${bulkUiOk} fn=${fnOk} guide=${bulkGuideOk}`);
+        && isBundledLevelBgUrl(folderLevelBgSrc(5), 5)
+        && distinctOk;
+      diagLog(`C3 blobCycle=${blobOk} pathShape=${pathShapeOk} distinct=${distinctOk} rename=${renameOk} isolate=${isolateOk} slots=${slotKeysOk} bulk=${bulkOk} map=${bulkMapOk} async=${bulkAsyncOk} ui=${bulkUiOk} fn=${fnOk} guide=${bulkGuideOk}`);
       return staticOk && blobOk && pathShapeOk ? "pass" : "fail";
     },
     "C4": async () => {
@@ -24417,7 +24700,7 @@ function GameEngine() {
       }
     },
     "C9": async () => {
-      const guideOk = diagGuideSync(["guideDiagCore9"]);
+      const guideOk = diagGuideSync(["guideDiagCore9", "guideBgIsolateBody", "guideIdleSplitTitle", "guideIdleSplitBody"]);
       const prevTarget = typeof currentBgTarget !== "undefined" ? currentBgTarget : (settings.bgTarget || "window");
       const prevKeep = !!settings.keepDefaultWindowBg;
       const prevMaster = !!settings.disableAllCustomBg;
@@ -24510,8 +24793,9 @@ function GameEngine() {
         await diagSimulateBgTargetClick("board");
         const boardScan = diagScanLevelSlotGrid("board");
         const gridOk = !!(winScan && boardScan && winScan.ok && boardScan.ok);
-        diagLog(`C9 switch=${switchOk} grid=${gridOk} win=${winScan && winScan.prefix} board=${boardScan && boardScan.prefix} titles=${winScan && winScan.titles}/${boardScan && boardScan.titles} bulk=${bulkUiOk} keep=${keepSkip} master=${masterOn} isolate=${isolateOk} guide=${guideOk}`);
-        const ok = guideOk && (switchOk || gridOk) && bulkUiOk;
+        const storeIso = typeof diagBgStorageIsolationOk === "function" && diagBgStorageIsolationOk();
+        diagLog(`C9 switch=${switchOk} grid=${gridOk} win=${winScan && winScan.prefix} board=${boardScan && boardScan.prefix} titles=${winScan && winScan.titles}/${boardScan && boardScan.titles} bulk=${bulkUiOk} keep=${keepSkip} master=${masterOn} isolate=${isolateOk} storeIso=${storeIso} guide=${guideOk}`);
+        const ok = guideOk && (switchOk || gridOk) && bulkUiOk && storeIso;
         return ok ? (fixed ? "fix" : "pass") : "fail";
       } catch (err) {
         diagLog(`C9: ${err && err.message ? err.message : err}`);
@@ -24789,7 +25073,7 @@ function GameEngine() {
       }
     },
     "C12": async () => {
-      const guideOk = diagGuideSync(["guideDiagCore12"]);
+      const guideOk = diagGuideSync(["guideDiagCore12", "guideDiagLevelBgSim", "guideBgIsolateBody"]);
       let idbReady = false;
       try {
         if (window.MediaStorage && typeof window.MediaStorage.initDB === "function") {
@@ -24883,14 +25167,38 @@ function GameEngine() {
         const lastBoard = String(typeof lastValidBoardBgUrl !== "undefined" ? lastValidBoardBgUrl : "");
         const lvNow = playLevel(level);
         const bundled = typeof folderLevelBgSrc === "function" ? folderLevelBgSrc(lvNow) : "";
+        const distinctOk = diagDistinctLevelBgUrlsOk();
+        try {
+          paintLevelBgOnLevelUp(1, { fade: false });
+        } catch (p1Err) {
+          /* continue */
+        }
+        const cssLv1 = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "")
+          + " " + String(lastValidBoardBgUrl || "");
+        try {
+          paintLevelBgOnLevelUp(2, { fade: false });
+        } catch (p2Err) {
+          /* continue */
+        }
+        const cssLv2 = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "")
+          + " " + String(lastValidBoardBgUrl || "");
+        const wrap = document.getElementById("board-wrap");
+        const chromeOk = !!(wrap && wrap.getAttribute("data-play-level") === "2");
+        const switched = /level_1/i.test(cssLv1) && /level_2/i.test(cssLv2) && cssLv1 !== cssLv2;
         levelBgOk = lvNow >= 2
           && !!changed
+          && distinctOk
+          && switched
+          && chromeOk
           && /level_|blob:|data:|url\(/i.test(boardCss + " " + lastBoard + " " + bundled);
         if (!levelBgOk && typeof window.updateLevelBackground === "function") {
           window.updateLevelBackground(lvNow || 2);
+          if (typeof window.updateBoardBackground === "function") {
+            window.updateBoardBackground(lvNow || 2);
+          }
           await diagDelay(40);
           const boardCss2 = String(getComputedStyle(document.documentElement).getPropertyValue("--board-bg-image") || "");
-          levelBgOk = /level_|blob:|data:|url\(/i.test(boardCss2 + " " + String(lastValidBoardBgUrl || "") + " " + bundled);
+          levelBgOk = distinctOk && /level_|blob:|data:|url\(/i.test(boardCss2 + " " + String(lastValidBoardBgUrl || "") + " " + bundled);
         }
       } catch (lvErr) {
         diagLog(`C12 level-up: ${lvErr && lvErr.message ? lvErr.message : lvErr}`);
@@ -24904,6 +25212,11 @@ function GameEngine() {
         settings.keepDefaultWindowBg = prevLv.keep;
         settings.disableAllCustomBg = prevLv.master;
         settings.levelBgEnabled = prevLv.lvBg;
+        try {
+          markPlayLevelChrome(prevLv.level || 1);
+        } catch (chromeErr) {
+          /* restore optional */
+        }
       }
       diagLog(`C12 boot=${bootFlag} order=${bootOrder} idb=${idbReady} painted=${painted} restore=${restored} levelBg=${levelBgOk} guide=${guideOk}`);
       const ok = guideOk && bootFlag && bootOrder && idbReady && painted && restored && levelBgOk;
@@ -25255,7 +25568,8 @@ function GameEngine() {
         && src11 === src10
         && src20 === src10
         && src1.indexOf("/images/bg") < 0
-        && LEVEL_BG_MAX === 20;
+        && LEVEL_BG_MAX === 20
+        && diagDistinctLevelBgUrlsOk();
       const prevWait = waitingStart;
       const prevGo = gameOver;
       const prevKeep = !!settings.keepDefaultWindowBg;
@@ -25275,7 +25589,9 @@ function GameEngine() {
           const keys = bgCandidateKeys("board", lv);
           const winKeys = bgCandidateKeys("window", lv);
           const alias = bgLevelAliasKey(lv);
-          const hasAlias = keys.indexOf(alias) >= 0 && winKeys.indexOf(alias) >= 0;
+          const isolated = keys.every((key) => winKeys.indexOf(key) < 0)
+            && keys.indexOf(alias) < 0
+            && winKeys.indexOf(alias) < 0;
           await hydrateBgSlot("board", lv);
           await hydrateBgSlot("window", lv);
           updateLevelBackground(lv, { fade: false });
@@ -25286,9 +25602,9 @@ function GameEngine() {
           const custom = resolveTargetBgUrl("board", lv) || "";
           const paint = resolvePaintBgUrl("board", lv) || "";
           const fb = folderLevelBgSrc(lv);
-          const triggered = hasAlias && isBundledLevelBgUrl(fb, lv)
+          const triggered = isolated && isBundledLevelBgUrl(fb, lv)
             && (custom ? paint === custom : isBundledLevelBgUrl(paint, lv));
-          diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
+          diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} isolated=${isolated} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
           if (triggered) {
             hits += 1;
           }
@@ -25694,6 +26010,7 @@ function GameEngine() {
           "guideMobileDblTapTitle", "guideMobileDblTapBody",
           "guideDiagStage7",
           "guideBulkTitle", "guideBulkProgress", "guideBulkThumbs", "guideBulkHow",
+          "guideBgIsolateBody", "guideIdleSplitWindow", "guideIdleSplitBoard", "guideVizFileMap",
         ]);
         buildLevelBgCards();
         let keysOk = bgStoreKey("window", "default") === "custom_bg_window_default";
@@ -25820,6 +26137,8 @@ function GameEngine() {
           && typeof applyBackgroundToCanvas === "function"
           && typeof clearAllCustomBackgrounds === "function"
           && typeof handleBulkBgUpload === "function"
+          && typeof canonicalBgFileName === "function"
+          && typeof registerCanonicalBgName === "function"
           && !!(window.MediaStorage && typeof window.MediaStorage.bulkPut === "function");
         let bulk = false;
         try {
@@ -25843,8 +26162,8 @@ function GameEngine() {
         } catch (slotErr) {
           /* ignore */
         }
-        const mapsOk = bulkUiOk && mapWinOk && mapSmartOk && mapSeqOk && bulkFnOk;
-        diagLog(`keys allLv=${keysOk} names=${nameCountOk} slots=${slotOk} idleHideBoard=${boardHide} idleShowWindow=${windowShow} boardIdleShow=${boardIdleShow} boardIdleHide=${boardIdleHide} nodes=${nodesOk} crud=${crudOk} render=${renderOk} bulk=${bulkOk} mapWin=${mapWinOk} async=${bulkAsyncOk} guide=${guideOk}`);
+        const mapsOk = bulkUiOk && mapWinOk && mapSmartOk && mapSeqOk && bulkFnOk && diagCanonicalBgRenameOk();
+        diagLog(`keys allLv=${keysOk} names=${nameCountOk} slots=${slotOk} idleHideBoard=${boardHide} idleShowWindow=${windowShow} boardIdleShow=${boardIdleShow} boardIdleHide=${boardIdleHide} nodes=${nodesOk} crud=${crudOk} render=${renderOk} bulk=${bulkOk} mapWin=${mapWinOk} rename=${diagCanonicalBgRenameOk()} async=${bulkAsyncOk} guide=${guideOk}`);
         const ok = guideOk && keysOk && nameCountOk && slotOk && boardHide && windowShow
           && nodesOk && crudOk && renderOk && boardIdleShow && boardIdleHide && bulkOk && mapsOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
@@ -26288,6 +26607,10 @@ function GameEngine() {
           && bgLogicalKey("window", 7) === "bg_lvl_7"
           && bgLevelAliasKey(1) === "bg_level_1"
           && bgLevelAliasKey(20) === "bg_level_20"
+          && lv1Keys.indexOf(bgLevelAliasKey(1)) < 0
+          && bgCandidateKeys("window", 1).indexOf(bgLevelAliasKey(1)) < 0
+          && lv1Keys.every((key) => bgCandidateKeys("window", 1).indexOf(key) < 0)
+          && idleKeys.every((key) => bgCandidateKeys("window", "default").indexOf(key) < 0)
           && !idleHasLevel
           && !lv1HasIdle;
         await hydrateBgSlot("board", "default");
@@ -26323,8 +26646,9 @@ function GameEngine() {
         const liveOk = livePaint === (resolveTargetBgUrl("board", 5) || liveFb);
         diagLog(`[IDB SLOT MAP] idleBoard=${idleBoard} idleWin=${idleWin} lv1Board=${lv1Board} lv1Win=${lv1Win} alias20=${bgLevelAliasKey(20)} iso=${isoOk} isolatedLoad=${isolatedLoad}`);
         diagLog(`[OPTION INTERLOCK] keep=${keepOk} master=${masterOk} fx=${fxOk} live=${liveOk} blur=${cssBlur} opacity=${cssOp}`);
+        const isolateOk = typeof diagBgStorageIsolationOk === "function" && diagBgStorageIsolationOk();
         const fnOk = typeof hydrateBgSlot === "function" && typeof bgCandidateKeys === "function" && typeof resolvePaintBgUrl === "function";
-        const ok = guideOk && isoOk && isolatedLoad && keepOk && masterOk && fxOk && liveOk && fnOk;
+        const ok = guideOk && isoOk && isolatedLoad && keepOk && masterOk && fxOk && liveOk && fnOk && isolateOk;
         return ok ? "pass" : "fail";
       } catch (err) {
         diagLog(`❌ 7-8: ${err && err.message ? err.message : err}`);
@@ -28259,6 +28583,60 @@ function GameEngine() {
     applyForcedProfileCardLayout();
   }
 
+  function pinOverlayDummyNodes() {
+    ["idle-overlay", "start-prompt-overlay"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) {
+        return;
+      }
+      el.setAttribute("hidden", "");
+      el.style.setProperty("display", "none", "important");
+      el.style.setProperty("position", "absolute", "important");
+      el.style.setProperty("width", "0", "important");
+      el.style.setProperty("height", "0", "important");
+      el.style.setProperty("overflow", "hidden", "important");
+      el.style.setProperty("flex", "0 0 0", "important");
+      el.style.setProperty("pointer-events", "none", "important");
+    });
+  }
+
+  function applyInFlowOverlayCard(el, asHost) {
+    if (!el) {
+      return;
+    }
+    el.style.setProperty("position", "relative", "important");
+    el.style.setProperty("inset", "auto", "important");
+    el.style.setProperty("left", "auto", "important");
+    el.style.setProperty("right", "auto", "important");
+    el.style.setProperty("top", "auto", "important");
+    el.style.setProperty("bottom", "auto", "important");
+    el.style.setProperty("transform", "none", "important");
+    el.style.setProperty("display", "flex", "important");
+    el.style.setProperty("flex-direction", "column", "important");
+    el.style.setProperty("align-items", "center", "important");
+    el.style.setProperty("justify-content", "center", "important");
+    el.style.setProperty("box-sizing", "border-box", "important");
+    if (asHost) {
+      el.style.setProperty("width", "92%", "important");
+      el.style.setProperty("max-width", "420px", "important");
+      el.style.setProperty("min-width", "0", "important");
+      el.style.setProperty("height", "auto", "important");
+      el.style.setProperty("min-height", "0", "important");
+      el.style.setProperty("max-height", "none", "important");
+      el.style.setProperty("padding", "0", "important");
+      el.style.setProperty("margin", "auto", "important");
+      el.style.setProperty("align-self", "center", "important");
+      el.style.setProperty("flex", "0 0 auto", "important");
+    } else {
+      el.style.setProperty("width", "100%", "important");
+      el.style.setProperty("max-width", "none", "important");
+      el.style.setProperty("min-width", "0", "important");
+      el.style.setProperty("height", "auto", "important");
+      el.style.setProperty("min-height", "0", "important");
+      el.style.setProperty("margin", "0", "important");
+    }
+  }
+
   function applyForcedProfileCardLayout() {
     const overlay = document.getElementById("overlay");
     const hostCard = document.getElementById("profile-card");
@@ -28268,50 +28646,29 @@ function GameEngine() {
     const img = document.getElementById("profile-image");
     const crop = document.getElementById("profile-main-canvas");
     const isResult = !!(overlay && (overlay.classList.contains("is-result") || overlay.classList.contains("is-conquer")));
-    const sizeProps = [
-      "width", "height", "min-width", "min-height", "max-width", "max-height",
-      "transform", "padding",
-    ];
-    const clearInline = (el) => {
-      if (!el) {
-        return;
-      }
-      sizeProps.forEach((prop) => {
-        try {
-          el.style.removeProperty(prop);
-        } catch (err) {
-          /* ignore */
-        }
-      });
-    };
+    pinOverlayDummyNodes();
+    if (overlay && !overlay.classList.contains("hidden")) {
+      overlay.style.setProperty("position", "absolute", "important");
+      overlay.style.setProperty("inset", "0", "important");
+      overlay.style.setProperty("left", "0", "important");
+      overlay.style.setProperty("right", "0", "important");
+      overlay.style.setProperty("top", "0", "important");
+      overlay.style.setProperty("bottom", "0", "important");
+      overlay.style.setProperty("width", "auto", "important");
+      overlay.style.setProperty("height", "auto", "important");
+      overlay.style.setProperty("display", "flex", "important");
+      overlay.style.setProperty("flex-direction", "column", "important");
+      overlay.style.setProperty("align-items", "center", "important");
+      overlay.style.setProperty("justify-content", "center", "important");
+      overlay.style.setProperty("place-items", "center", "important");
+      overlay.style.setProperty("transform", "none", "important");
+      overlay.style.setProperty("margin", "0", "important");
+    }
+    applyInFlowOverlayCard(hostCard, true);
+    applyInFlowOverlayCard(panel, false);
     if (isResult) {
+      syncProfileNicknameLabel();
       return;
-    }
-    clearInline(hostCard);
-    clearInline(panel);
-    clearInline(frame);
-    if (hostCard) {
-      hostCard.style.setProperty("width", "92%", "important");
-      hostCard.style.setProperty("max-width", "420px", "important");
-      hostCard.style.setProperty("min-width", "0", "important");
-      hostCard.style.setProperty("height", "auto", "important");
-      hostCard.style.setProperty("min-height", "0", "important");
-      hostCard.style.setProperty("max-height", "none", "important");
-      hostCard.style.setProperty("padding", "0", "important");
-      hostCard.style.setProperty("box-sizing", "border-box", "important");
-      hostCard.style.setProperty("display", "flex", "important");
-      hostCard.style.setProperty("flex-direction", "column", "important");
-      hostCard.style.setProperty("align-items", "center", "important");
-      hostCard.style.setProperty("justify-content", "center", "important");
-      hostCard.style.setProperty("transform", "none", "important");
-    }
-    if (panel) {
-      panel.style.setProperty("width", "100%", "important");
-      panel.style.setProperty("max-width", "none", "important");
-      panel.style.setProperty("min-width", "0", "important");
-      panel.style.setProperty("height", "auto", "important");
-      panel.style.setProperty("min-height", "0", "important");
-      panel.style.setProperty("transform", "none", "important");
     }
     if (frame) {
       frame.style.setProperty("width", "min(300px, 82%)", "important");
@@ -28350,6 +28707,14 @@ function GameEngine() {
   }
   window.applyForcedProfileCardLayout = applyForcedProfileCardLayout;
 
+  function scheduleOverlayRecenter() {
+    applyForcedProfileCardLayout();
+    window.requestAnimationFrame(() => {
+      applyForcedProfileCardLayout();
+      window.requestAnimationFrame(applyForcedProfileCardLayout);
+    });
+  }
+
   function showOverlay(title, hint) {
     const idle = overlay.classList.contains("is-start") || overlay.classList.contains("is-pause");
     overlayTitle = parkOverlayTitle(idle);
@@ -28366,6 +28731,7 @@ function GameEngine() {
     }
     overlay.classList.remove("hidden");
     syncOverlayIdleType();
+    scheduleOverlayRecenter();
   }
 
   function clearOverlayInlineLayout() {
@@ -28405,7 +28771,7 @@ function GameEngine() {
     overlay.classList.toggle("is-result", mode === "gameOver" || mode === "gameEnded" || mode === "conquer20");
     overlay.classList.toggle("is-pause", mode === "pause");
     overlay.classList.toggle("is-start", mode === "start");
-    setProfileCardActive(mode === "start" || mode === "pause");
+    setProfileCardActive(mode === "start" || mode === "pause" || mode === "gameOver" || mode === "gameEnded" || mode === "conquer20");
     syncOverlayActions(mode);
     if (mode === "start") {
       showOverlay(t("gameTitle"), t("pressStart"));

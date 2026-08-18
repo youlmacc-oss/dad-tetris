@@ -364,6 +364,20 @@ body.is-extreme-level .board-wrap {
   opacity: 1;
 }
 
+.board-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--level-bg-overlay, transparent);
+  transition: background var(--bg-fade, 0.6s) ease-in-out;
+}
+
+.board-wrap[data-play-level] {
+  box-shadow: 0 0 28px var(--level-bg-glow, rgba(0, 210, 255, 0.42)), 0 0 48px rgba(168, 85, 255, 0.18);
+}
+
 .board-bg-image {
   position: absolute;
   inset: -24px;
@@ -613,14 +627,15 @@ body.is-extreme-level .board-wrap {
 #overlay,
 .game-overlay {
   position: absolute;
-  inset: 2px;
+  inset: 0;
   z-index: 2;
-  width: 100% !important;
-  height: 100% !important;
+  width: auto !important;
+  height: auto !important;
   border-radius: 8px;
   background: transparent;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 6px;
   overflow: hidden;
@@ -7714,8 +7729,9 @@ body,
   #overlay,
   .overlay,
   .game-overlay {
-    width: 100% !important;
-    height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    inset: 0 !important;
   }
 
   .overlay.is-start .overlay-card,
@@ -8554,6 +8570,19 @@ body.is-autoplay .start-overlay-card {
   pointer-events: none !important;
 }
 
+body.is-autoplay #overlay.is-result,
+body.is-autoplay #overlay.is-conquer,
+body.is-autoplay #overlay.is-result #start-overlay,
+body.is-autoplay #overlay.is-conquer #start-overlay,
+body.is-autoplay #overlay.is-result #profile-card,
+body.is-autoplay #overlay.is-conquer #profile-card,
+body.is-autoplay #overlay.is-result .overlay-card,
+body.is-autoplay #overlay.is-conquer .overlay-card {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 body.diag-running #bg-canvas,
 body.diag-running #tetris-canvas,
 body.hide-board-idle #bg-canvas,
@@ -8715,11 +8744,11 @@ select,
 @keyframes overlayResultCardIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.98);
+    transform: scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: none;
   }
 }
 
@@ -8728,7 +8757,38 @@ select,
 .overlay.is-result #start-overlay,
 .overlay.is-conquer .overlay-card,
 .overlay.is-conquer .game-overlay-card,
-.overlay.is-conquer #start-overlay,
+.overlay.is-conquer #start-overlay {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 20px 16px !important;
+  background: linear-gradient(145deg, rgba(10, 20, 38, 0.96), rgba(6, 12, 24, 0.98)) !important;
+  border: 1.5px solid rgba(0, 240, 255, 0.4) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(0, 240, 255, 0.25) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  box-sizing: border-box !important;
+  z-index: 50;
+  overflow: hidden;
+  animation: overlayResultCardIn 0.25s ease-out;
+}
+
 #ai-complete-modal,
 .level-clear-overlay {
   position: absolute !important;
@@ -8755,7 +8815,6 @@ select,
   box-sizing: border-box !important;
   z-index: 50;
   overflow: hidden;
-  animation: overlayResultCardIn 0.25s ease-out;
 }
 
 .overlay.is-conquer .overlay-card,
@@ -10004,8 +10063,10 @@ select,
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: auto !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
@@ -10546,5 +10607,90 @@ body.hide-board-idle.diag-measure-profile #profile-frame .dad-neon-avatar {
   height: 70% !important;
   max-width: none !important;
   max-height: none !important;
+}
+
+/* Pin overlay to the board and flex-center the card. Never use 50%+translate. */
+#board-wrap > #overlay,
+#overlay.overlay,
+#overlay.game-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+}
+
+#overlay.hidden {
+  display: none !important;
+}
+
+#overlay > #idle-overlay,
+#overlay > #start-prompt-overlay {
+  display: none !important;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  flex: 0 0 0 !important;
+}
+
+#overlay > #profile-card,
+#overlay #profile-card.profile-card-host,
+#overlay.overlay.is-start #profile-card,
+#overlay.overlay.is-pause #profile-card,
+#overlay.overlay.is-result #profile-card,
+#overlay.overlay.is-conquer #profile-card {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  width: 92% !important;
+  max-width: 420px !important;
+  min-width: 0 !important;
+  height: auto !important;
+  margin: auto !important;
+  align-self: center !important;
+  justify-self: center !important;
+  transform: none !important;
+  flex: 0 0 auto !important;
+}
+
+#overlay #start-overlay,
+#overlay #profile-card > #start-overlay,
+#overlay.overlay.is-start #start-overlay,
+#overlay.overlay.is-pause #start-overlay,
+#overlay.overlay.is-result #start-overlay,
+#overlay.overlay.is-conquer #start-overlay,
+.overlay.is-result #start-overlay,
+.overlay.is-conquer #start-overlay,
+.overlay.is-result .overlay-card,
+.overlay.is-conquer .overlay-card {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  inset: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
 }
 

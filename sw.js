@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.8-avatar";
+const APP_VERSION = "1.3.10-center";
 const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",
@@ -78,12 +78,14 @@ self.addEventListener("fetch", (event) => {
   }
   event.respondWith((async () => {
     if (isMedia(req, url)) {
+      const bareReq = new Request(url.origin + url.pathname, { credentials: req.credentials, mode: req.mode });
       try {
         const fresh = await fetch(req);
         if (fresh && fresh.ok) {
           try {
             const cache = await caches.open(CACHE_NAME);
             cache.put(req, fresh.clone());
+            cache.put(bareReq, fresh.clone());
           } catch (cacheErr) {
             /* cache optional */
           }
@@ -92,9 +94,25 @@ self.addEventListener("fetch", (event) => {
       } catch (err) {
         /* fall through to cache */
       }
-      const cachedMedia = await caches.match(req);
+      const cachedMedia = await caches.match(req)
+        || await caches.match(req, { ignoreSearch: true })
+        || await caches.match(bareReq);
       if (cachedMedia) {
         return cachedMedia;
+      }
+      try {
+        const bareFresh = await fetch(bareReq);
+        if (bareFresh && bareFresh.ok) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(bareReq, bareFresh.clone());
+          } catch (cacheErr) {
+            /* cache optional */
+          }
+          return bareFresh;
+        }
+      } catch (bareErr) {
+        /* miss */
       }
       return new Response("", { status: 404, statusText: "Not Found" });
     }
