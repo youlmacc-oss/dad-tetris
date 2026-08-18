@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.10-center single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.3.11-diag single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -10391,7 +10391,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.10-center";
+  const APP_VERSION = "1.3.11-diag";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -15918,11 +15918,17 @@ function GameEngine() {
     if (isCustomBgMasterDisabled() || settings.keepDefaultWindowBg) {
       return false;
     }
+    if (waitingStart && !autoplay && !forceLevelBgPaint) {
+      return false;
+    }
     return forceLevelBgPaint || isPlayActive() || autoplay || autoplayConquered;
   }
 
   function shouldUseBoardLevelBackgrounds() {
     if (isCustomBgMasterDisabled()) {
+      return false;
+    }
+    if (waitingStart && !autoplay && !forceLevelBgPaint) {
       return false;
     }
     return forceLevelBgPaint || isPlayActive() || autoplay || autoplayConquered;
@@ -25044,12 +25050,17 @@ function GameEngine() {
             garbageOk = false;
           }
         });
+        const prevLevel = level;
+        level = 1;
         const base = levelBaseGravityMs();
         settings.dropSpeedMultiplier = 0.5;
         const slow = gravityInterval();
         settings.dropSpeedMultiplier = 3;
         const fast = gravityInterval();
-        const gravityOk = Math.abs(slow - base / 0.5) < 1 && Math.abs(fast - base / 3) < 1 && slow > fast;
+        const expectedSlow = Math.max(AUTOPLAY_MIN_MS, base / 0.5);
+        const expectedFast = Math.max(AUTOPLAY_MIN_MS, base / 3);
+        const gravityOk = Math.abs(slow - expectedSlow) < 1 && Math.abs(fast - expectedFast) < 1 && slow > fast;
+        level = prevLevel;
         diagLog(`C11 keep=${keepOk} duration=${durationOk} inject=${injected} want=${want} freeze=${Math.round(freezeMs)} dual=${dualDom} std=${stdDom} garbage=${garbageOk} gravity=${gravityOk} guide=${guideOk}`);
         const ok = guideOk && keepOk && durationOk && injected && guideDomOk && garbageOk && gravityOk;
         return ok ? (fixed ? "fix" : "pass") : "fail";
@@ -26054,9 +26065,13 @@ function GameEngine() {
         const prevKeep = !!settings.keepDefaultWindowBg;
         const prevLv = !!settings.levelBgEnabled;
         const prevMaster = !!settings.disableAllCustomBg;
+        const prevAuto = autoplay;
+        const prevConquered = autoplayConquered;
         let renderOk = false;
         try {
           settings.disableAllCustomBg = false;
+          autoplay = false;
+          autoplayConquered = false;
           waitingStart = true;
           gameOver = false;
           settings.keepDefaultWindowBg = false;
@@ -26080,6 +26095,8 @@ function GameEngine() {
         } finally {
           waitingStart = prevWait;
           gameOver = prevGo;
+          autoplay = prevAuto;
+          autoplayConquered = prevConquered;
           settings.keepDefaultWindowBg = prevKeep;
           settings.levelBgEnabled = prevLv;
           settings.disableAllCustomBg = prevMaster;
@@ -26892,6 +26909,7 @@ function GameEngine() {
         "dropSpeedMultiplier", "dropSpeedHint",
       ]);
       const prevMul = clampDropSpeedMultiplier(settings.dropSpeedMultiplier);
+      const prevLevel = level;
       try {
         if (Number(slider.max) !== 3) {
           slider.max = "3";
@@ -26903,19 +26921,23 @@ function GameEngine() {
           && clampDropSpeedMultiplier(SETTING_DEFAULTS.dropSpeedMultiplier) === 1;
         const rangeOk = Number(slider.min) === 0.5 && Number(slider.max) === 3
           && Math.abs(Number(slider.step) - 0.1) < 0.001;
+        level = 1;
         const base = levelBaseGravityMs();
         settings.dropSpeedMultiplier = 0.5;
         const slow = gravityInterval();
         settings.dropSpeedMultiplier = 3;
         const fast = gravityInterval();
-        const delayOk = Math.abs(slow - base / 0.5) < 1
-          && Math.abs(fast - base / 3) < 1
+        const expectedSlow = Math.max(AUTOPLAY_MIN_MS, base / 0.5);
+        const expectedFast = Math.max(AUTOPLAY_MIN_MS, base / 3);
+        const delayOk = Math.abs(slow - expectedSlow) < 1
+          && Math.abs(fast - expectedFast) < 1
           && slow > base
           && fast < base;
         diagLog(`dropSpeed clamp=${clampOk} range=${rangeOk} base=${Math.round(base)} slow=${Math.round(slow)} fast=${Math.round(fast)} delay=${delayOk}`);
         return clampOk && rangeOk && delayOk ? "pass" : "fail";
       } finally {
         settings.dropSpeedMultiplier = prevMul;
+        level = prevLevel;
       }
     },
     "12-1": async () => {
