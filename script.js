@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.12-rank single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.3.13-rank single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -3261,7 +3261,7 @@ function GameEngine() {
       "guideDiagBody": "상단의 [🧪 자가진단] 버튼(또는 단축키 [F9])을 누르면 컴퓨터가 스스로 핵심 기능을 실시간으로 검증합니다.",
       "guideDiagStage6": "6단계 전수 검사: 파티클, PWA, 컬러 테마. 통과 시 로그에 [🎨 THEME & FX: PASS]가 출력됩니다.",
       "guideDiagStage7": "7단계: 윈도우/패널 저장 키 격리, 일괄 등록 매핑, 블러·투명도, 마스터 비활성화, 더블탭, Quota를 점검합니다. 통과 시 [🖼️ BG & TOUCH: PASS]가 출력됩니다.",
-      "guideDiagStage8": "8단계: 자동 게임기록 모드 플래그와 명예의 전당(localStorage) 바인딩을 점검합니다. 통과 시 [⚡ AUTO RECORD: PASS]가 출력됩니다.",
+      "guideDiagStage8": "8단계: 자동 게임기록 모드 플래그와 명예의 전당(localStorage) 바인딩만 점검합니다. 온라인 랭킹 공유·외부 IP/GitHub 동기화는 자가진단 범위가 아닙니다. 통과 시 [⚡ AUTO RECORD: PASS]가 출력됩니다.",
       "guideDiagStage9": "9단계: 시작 장애물 라인(0~10층) 설정값과 보드 생성 시 가비지 라인(구멍 보장) 유효성을 점검합니다. 통과 시 [🧱 GARBAGE LINES: PASS]가 출력됩니다.",
       "guideDiagStage10": "10단계: 블록 가이드 모드 설정값과 넥스트 큐(Next Queue 2단) 데이터 무결성을 점검합니다. 통과 시 [🧩 PREVIEW MODE: PASS]가 출력됩니다.",
       "guideDiagStage11": "11단계: 블록 낙하 속도 배속(0.5x~3.0x) 설정값과 게임 루프 딜레이 계산 유효성을 점검합니다. 통과 시 [⏱️ DROP SPEED: PASS]가 출력됩니다.",
@@ -3890,7 +3890,7 @@ function GameEngine() {
       "guideDiagBody": "Press [🧪 Self-test] at the top (or shortcut [F9]). The computer verifies core features in real time.",
       "guideDiagStage6": "Stage 6 checks particles, PWA, and color themes. On pass the log prints [🎨 THEME & FX: PASS].",
       "guideDiagStage7": "Stage 7 checks isolated window/panel store keys, bulk mapping, blur/opacity, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS].",
-      "guideDiagStage8": "Stage 8 checks the Auto game record mode flag and Hall of Fame localStorage binding. A pass prints [⚡ AUTO RECORD: PASS].",
+      "guideDiagStage8": "Stage 8 checks Auto game record and Hall of Fame localStorage only. Online ranking share and IP/GitHub sync are outside self-test. A pass prints [⚡ AUTO RECORD: PASS].",
       "guideDiagStage9": "Stage 9 checks the starting garbage-line setting (0–10) and that generated cheese rows always keep holes. A pass prints [🧱 GARBAGE LINES: PASS].",
       "guideDiagStage10": "Stage 10 checks the block guide mode setting and the two-deep next queue. A pass prints [🧩 PREVIEW MODE: PASS].",
       "guideDiagStage11": "Stage 11 checks the drop-speed multiplier (0.5x–1.5x) and gravity delay math. A pass prints [⏱️ DROP SPEED: PASS].",
@@ -4519,7 +4519,7 @@ function GameEngine() {
       "guideDiagBody": "Press [🧪 Self-test] at the top (or shortcut [F9]). The computer verifies core features in real time.",
       "guideDiagStage6": "Stage 6 checks particles, PWA, and color themes. On pass the log prints [🎨 THEME & FX: PASS].",
       "guideDiagStage7": "Stage 7 checks isolated window/panel store keys, bulk mapping, blur/opacity, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS].",
-      "guideDiagStage8": "Stage 8 checks the Auto game record mode flag and Hall of Fame localStorage binding. A pass prints [⚡ AUTO RECORD: PASS].",
+      "guideDiagStage8": "Stage 8 checks Auto game record and Hall of Fame localStorage only. Online ranking share and IP/GitHub sync are outside self-test. A pass prints [⚡ AUTO RECORD: PASS].",
       "guideDiagStage9": "Stage 9 checks the starting garbage-line setting (0–10) and that generated cheese rows always keep holes. A pass prints [🧱 GARBAGE LINES: PASS].",
       "guideDiagStage10": "Stage 10 checks the block guide mode setting and the two-deep next queue. A pass prints [🧩 PREVIEW MODE: PASS].",
       "guideDiagStage11": "Stage 11 checks the drop-speed multiplier (0.5x–1.5x) and gravity delay math. A pass prints [⏱️ DROP SPEED: PASS].",
@@ -8922,7 +8922,7 @@ function GameEngine() {
       "guideDiagBody": "Press [🧪 Self-test] at the top (or shortcut [F9]). The computer verifies core features in real time.",
       "guideDiagStage6": "Stage 6 checks particles, PWA, and color themes. On pass the log prints [🎨 THEME & FX: PASS].",
       "guideDiagStage7": "Stage 7 checks isolated window/panel store keys, bulk mapping, blur/opacity, master disable, double-tap binding, and storage quota. A pass prints [🖼️ BG & TOUCH: PASS].",
-      "guideDiagStage8": "Stage 8 checks the Auto game record mode flag and Hall of Fame localStorage binding. A pass prints [⚡ AUTO RECORD: PASS].",
+      "guideDiagStage8": "Stage 8 checks Auto game record and Hall of Fame localStorage only. Online ranking share and IP/GitHub sync are outside self-test. A pass prints [⚡ AUTO RECORD: PASS].",
       "guideDiagStage9": "Stage 9 checks the starting garbage-line setting (0–10) and that generated cheese rows always keep holes. A pass prints [🧱 GARBAGE LINES: PASS].",
       "guideDiagStage10": "Stage 10 checks the block guide mode setting and the two-deep next queue. A pass prints [🧩 PREVIEW MODE: PASS].",
       "guideDiagStage11": "Stage 11 checks the drop-speed multiplier (0.5x–1.5x) and gravity delay math. A pass prints [⏱️ DROP SPEED: PASS].",
@@ -10439,7 +10439,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.12-rank";
+  const APP_VERSION = "1.3.13-rank";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -11044,6 +11044,10 @@ function GameEngine() {
   }
   let settingsHydrated = false;
   let diagAiStressActive = false;
+
+  function isDiagLocalOnly() {
+    return !!(diagOpen || diagRunning || diagSettingsLock || diagAiStressActive);
+  }
   let lastDiagSummary = null;
   let lastDiagBgPreload = null;
   let diagCopyResetTid = 0;
@@ -12966,6 +12970,9 @@ function GameEngine() {
   }
 
   async function probeCountryFromIp() {
+    if (isDiagLocalOnly()) {
+      return detectCountryCode();
+    }
     const cached = readCachedCountryCode();
     if (cached) {
       return cached;
@@ -13292,6 +13299,11 @@ function GameEngine() {
   }
 
   async function pullSharedRanks() {
+    if (isDiagLocalOnly()) {
+      rankSyncState = "local";
+      setHallSyncStatus("local");
+      return loadUnifiedRecords();
+    }
     if (rankPullBusy) {
       return loadUnifiedRecords();
     }
@@ -13313,6 +13325,21 @@ function GameEngine() {
       } catch (err) {
         /* try next mirror */
       }
+    }
+    try {
+      const issueRows = await fetchGithubIssueRanks();
+      if (issueRows.length) {
+        remote = mergeRankRecords([remote, issueRows]);
+        online = true;
+      }
+    } catch (issueErr) {
+      /* issues optional */
+    }
+    if (isDiagLocalOnly()) {
+      rankPullBusy = false;
+      rankSyncState = "local";
+      setHallSyncStatus("local");
+      return loadUnifiedRecords();
     }
     const merged = persistUnified(mergeRankRecords([loadUnifiedRecords(), remote, loadOutbox()]));
     if (online) {
@@ -13336,6 +13363,65 @@ function GameEngine() {
     syncBestFromDualRanks();
     rankPullBusy = false;
     return merged;
+  }
+
+  async function fetchGithubIssueRanks() {
+    const res = await fetch(
+      "https://api.github.com/repos/" + RANK_GITHUB_OWNER + "/" + RANK_GITHUB_REPO + "/issues?labels=dad-rank&state=open&per_page=50",
+      {
+        cache: "no-store",
+        mode: "cors",
+        credentials: "omit",
+        headers: { Accept: "application/vnd.github+json" },
+      }
+    );
+    if (!res.ok) {
+      throw new Error(String(res.status));
+    }
+    const issues = await res.json();
+    const rows = [];
+    (Array.isArray(issues) ? issues : []).forEach((issue) => {
+      const body = String((issue && issue.body) || "");
+      const start = body.indexOf("{");
+      const end = body.lastIndexOf("}");
+      if (start < 0 || end <= start) {
+        return;
+      }
+      try {
+        const parsed = JSON.parse(body.slice(start, end + 1));
+        const row = parsed && parsed.row ? parsed.row : parsed;
+        if (row && Number.isFinite(Number(row.score))) {
+          rows.push(row);
+        }
+      } catch (err) {
+        /* skip bad issue */
+      }
+    });
+    return rows;
+  }
+
+  async function createGithubRankIssue(row) {
+    const token = rankWriteToken();
+    if (!token) {
+      return false;
+    }
+    const res = await fetch("https://api.github.com/repos/" + RANK_GITHUB_OWNER + "/" + RANK_GITHUB_REPO + "/issues", {
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: "Bearer " + token,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "[dad-rank] " + row.countryCode + " " + row.name + " " + row.score,
+        labels: ["dad-rank"],
+        body: "```json\n" + JSON.stringify({ row: row }, null, 2) + "\n```",
+      }),
+    });
+    return res.ok;
   }
 
   function utf8ToBase64(text) {
@@ -13412,11 +13498,21 @@ function GameEngine() {
   async function pushSharedRecord(row) {
     enqueueOutbox(row);
     persistUnified(mergeRankRecords([loadUnifiedRecords(), [row]]));
+    if (isDiagLocalOnly()) {
+      return false;
+    }
     let pushed = false;
     try {
       pushed = await dispatchGithubRank(row);
     } catch (err) {
       pushed = false;
+    }
+    if (!pushed) {
+      try {
+        pushed = await createGithubRankIssue(row);
+      } catch (err) {
+        pushed = false;
+      }
     }
     if (!pushed) {
       try {
@@ -13437,6 +13533,9 @@ function GameEngine() {
   }
 
   async function flushRankOutbox() {
+    if (isDiagLocalOnly()) {
+      return;
+    }
     const rows = loadOutbox();
     if (!rows.length) {
       await pullSharedRanks();
@@ -13472,13 +13571,15 @@ function GameEngine() {
       return loadRankList(hallTab);
     }
     persistUnified(mergeRankRecords([loadUnifiedRecords(), [row]]));
-    enqueueOutbox(row);
     if (!(options && options.skipLastName)) {
       persistPlayerNickname(player);
     }
     syncBestFromDualRanks();
     renderHall();
-    void pushSharedRecord(row);
+    if (!isDiagLocalOnly()) {
+      enqueueOutbox(row);
+      void pushSharedRecord(row);
+    }
     return loadRankList(hallTab);
   }
 
@@ -24976,9 +25077,7 @@ function GameEngine() {
       const dualFnOk = typeof detectCountryCode === "function"
         && typeof isRankEligible === "function"
         && typeof loadRankList === "function"
-        && typeof setHallTab === "function"
-        && typeof pullSharedRanks === "function"
-        && typeof probeCountryFromIp === "function";
+        && typeof setHallTab === "function";
       const dualStoreOk = keys && keys.RANK_DOMESTIC === RANK_DOMESTIC_KEY && keys.RANK_GLOBAL === RANK_GLOBAL_KEY;
       const nickOk = keys && keys.PLAYER_NAME === PLAYER_NAME_KEY
         && PLAYER_NAME_KEY === "dad_tetris_player_name"

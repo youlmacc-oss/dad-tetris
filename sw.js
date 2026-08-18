@@ -1,4 +1,4 @@
-const APP_VERSION = "1.3.12-rank";
+const APP_VERSION = "1.3.13-rank";
 const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",

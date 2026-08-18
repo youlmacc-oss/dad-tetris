@@ -90,6 +90,18 @@ function incomingRows() {
       if (Array.isArray(payload.records)) {
         extra.push(...payload.records);
       }
+      if (event.issue && event.issue.body) {
+        const title = String(event.issue.title || "");
+        const labels = (event.issue.labels || []).map((label) => String((label && label.name) || label || "")).join(" ");
+        if (title.indexOf("[dad-rank]") >= 0 || labels.indexOf("dad-rank") >= 0) {
+          const body = String(event.issue.body);
+          const start = body.indexOf("{");
+          const end = body.lastIndexOf("}");
+          if (start >= 0 && end > start) {
+            extra.push(JSON.parse(body.slice(start, end + 1)));
+          }
+        }
+      }
       if (payload.payload) {
         const nested = typeof payload.payload === "string" ? JSON.parse(payload.payload) : payload.payload;
         if (nested && nested.row) {
