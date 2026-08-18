@@ -676,7 +676,7 @@ body.is-extreme-level .board-wrap {
 .overlay.is-start .overlay-card,
 .overlay.is-start .start-overlay-card,
 .overlay.is-start #start-overlay {
-  min-height: 520px !important;
+  min-height: 0 !important;
 }
 
 .overlay.is-result .overlay-card,
@@ -698,22 +698,25 @@ body.is-extreme-level .board-wrap {
 .overlay:not(.is-result):not(.is-conquer) .overlay-card .profile-avatar-container,
 .overlay:not(.is-result):not(.is-conquer) .start-overlay-card .profile-frame,
 .overlay:not(.is-result):not(.is-conquer) #profile-frame {
-  width: 166px !important;
-  height: 166px !important;
-  max-width: 166px !important;
-  max-height: 166px !important;
+  width: min(300px, 82%) !important;
+  height: min(300px, 82%) !important;
+  max-width: 300px !important;
+  max-height: 300px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   margin-bottom: 8px !important;
+  box-sizing: border-box !important;
 }
 }
 
-.overlay-card .profile-frame,
-.overlay-card .profile-avatar-container,
-.start-overlay-card .profile-frame,
-#profile-frame {
-  width: 166px;
-  height: 166px;
-  max-width: 166px;
-  max-height: 166px;
+.overlay:not(.is-result):not(.is-conquer) .overlay-card .profile-frame,
+.overlay:not(.is-result):not(.is-conquer) .overlay-card .profile-avatar-container,
+.overlay:not(.is-result):not(.is-conquer) .start-overlay-card .profile-frame,
+.overlay:not(.is-result):not(.is-conquer) #profile-frame {
+  width: min(300px, 82%);
+  height: min(300px, 82%);
+  max-width: 300px;
+  max-height: 300px;
 }
 
 .brand-heading {
@@ -1045,20 +1048,14 @@ body.is-extreme-level .board-wrap {
 .overlay:not(.is-result):not(.is-conquer):not(.is-pause) .overlay-title,
 .overlay.is-start #overlay-title,
 .overlay.is-start .overlay-title {
-  display: block !important;
-  font-size: 26px !important;
-  font-weight: 800 !important;
-  line-height: 1.2 !important;
-  height: auto !important;
-  margin: 0 0 8px !important;
+  display: none !important;
+  font-size: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
   padding: 0 !important;
-  overflow: visible !important;
-  opacity: 1 !important;
-  color: #7cf0ff !important;
-  -webkit-text-fill-color: #7cf0ff !important;
-  text-indent: 0 !important;
-  pointer-events: auto !important;
-  text-shadow: 0 0 10px rgba(0, 210, 255, 0.55), 0 0 22px rgba(0, 210, 255, 0.35) !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 }
 
@@ -7404,10 +7401,10 @@ body,
 
   .overlay.is-start .overlay-card,
   .overlay.is-start .start-overlay-card {
-    width: 90% !important;
+    width: 100% !important;
     max-width: none !important;
-    min-height: 520px !important;
-    padding: 28px 22px 24px !important;
+    min-height: 0 !important;
+    padding: 22px 18px !important;
     border-radius: 20px !important;
     border: 1px solid rgba(0, 210, 255, 0.38) !important;
     box-shadow: 0 0 22px rgba(0, 210, 255, 0.22) !important;
@@ -7424,26 +7421,26 @@ body,
   .overlay-card .profile-frame,
   .overlay-card .profile-avatar-container,
   .overlay:not(.is-result):not(.is-conquer) #profile-frame {
-    width: 166px !important;
-    height: 166px !important;
-    max-width: 166px !important;
-    max-height: 166px !important;
+    width: min(300px, 82%) !important;
+    height: min(300px, 82%) !important;
+    max-width: 300px !important;
+    max-height: 300px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
     margin-bottom: 8px !important;
+    box-sizing: border-box !important;
   }
 
   .overlay:not(.is-result):not(.is-conquer):not(.is-pause) #overlay-title,
   .overlay.is-start #overlay-title {
-    display: block !important;
-    font-size: 26px !important;
-    font-weight: 800 !important;
-    height: auto !important;
-    margin: 0 0 8px !important;
+    display: none !important;
+    font-size: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
-    opacity: 1 !important;
-    overflow: visible !important;
-    color: #7cf0ff !important;
-    -webkit-text-fill-color: #7cf0ff !important;
-    text-shadow: 0 0 10px rgba(0, 210, 255, 0.55), 0 0 22px rgba(0, 210, 255, 0.35) !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
   }
 
   .overlay.is-start .overlay-hint,
@@ -7724,10 +7721,10 @@ body,
   .overlay.is-start .overlay-card,
   .overlay.is-start .start-overlay-card,
   .overlay.is-start #start-overlay {
-    width: 90% !important;
+    width: 100% !important;
     height: auto !important;
     max-width: none !important;
-    min-height: 520px !important;
+    min-height: 0 !important;
   }
 
   #board,
@@ -7745,7 +7742,7 @@ body,
 
   .overlay.is-start .overlay-card,
   .overlay.is-start .start-overlay-card {
-    min-height: 520px !important;
+    min-height: 0 !important;
   }
 
   .sidebar,
@@ -10049,14 +10046,15 @@ select,
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
-    width: 166px !important;
-    height: 166px !important;
-    min-width: 166px !important;
-    min-height: 166px !important;
-    max-width: 166px !important;
-    max-height: 166px !important;
+    width: min(300px, 82%) !important;
+    height: min(300px, 82%) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 300px !important;
+    max-height: 300px !important;
     margin: 0 auto 4px auto !important;
     padding: 0 !important;
+    box-sizing: border-box !important;
     border-radius: 50% !important;
     overflow: hidden !important;
     border: 4px solid var(--theme-glow, #00d2ff) !important;
@@ -10068,8 +10066,10 @@ select,
 
   #profile-frame .profile-icon-svg,
   #profile-frame .dad-neon-avatar {
-    width: 100px !important;
-    height: 100px !important;
+    width: 70% !important;
+    height: 70% !important;
+    max-width: none !important;
+    max-height: none !important;
     filter: drop-shadow(0 0 10px #00f0ff) drop-shadow(0 0 18px rgba(168, 85, 255, 0.55)) !important;
   }
 
@@ -10092,18 +10092,14 @@ select,
 
   .overlay:not(.is-result):not(.is-conquer):not(.is-pause) #overlay-title.overlay-title,
   .overlay.is-start #overlay-title.overlay-title {
-    display: block !important;
-    font-size: 26px !important;
-    font-weight: 800 !important;
-    height: auto !important;
-    margin: 0 0 8px !important;
+    display: none !important;
+    font-size: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
-    opacity: 1 !important;
-    overflow: visible !important;
-    color: #7cf0ff !important;
-    -webkit-text-fill-color: #7cf0ff !important;
-    text-indent: 0 !important;
-    text-shadow: 0 0 10px rgba(0, 210, 255, 0.55), 0 0 22px rgba(0, 210, 255, 0.35) !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
   }
 
   .overlay.is-start #overlay-hint.overlay-hint,
@@ -10196,20 +10192,20 @@ select,
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
-  min-height: 520px !important;
+  min-height: 0 !important;
   height: auto !important;
-  padding: 24px 16px !important;
+  padding: 22px 18px !important;
 }
 
 .overlay.is-start #profile-frame,
 .overlay.is-pause #profile-frame,
 .overlay:not(.is-result):not(.is-conquer):not(.is-pause) #profile-frame {
-  width: 220px !important;
-  height: 220px !important;
-  min-width: 220px !important;
-  min-height: 220px !important;
-  max-width: 220px !important;
-  max-height: 220px !important;
+  width: min(300px, 82%) !important;
+  height: min(300px, 82%) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 300px !important;
+  max-height: 300px !important;
   box-sizing: border-box !important;
   border: 4px solid var(--theme-glow, #00d2ff) !important;
   box-shadow:
@@ -10221,24 +10217,21 @@ select,
 .overlay.is-start #profile-frame .dad-neon-avatar,
 .overlay.is-start #profile-frame .profile-icon-svg,
 .overlay:not(.is-result):not(.is-conquer):not(.is-pause) #profile-frame .dad-neon-avatar {
-  width: 100px !important;
-  height: 100px !important;
+  width: 70% !important;
+  height: 70% !important;
+  max-width: none !important;
+  max-height: none !important;
   filter: drop-shadow(0 0 10px #00f0ff) drop-shadow(0 0 18px rgba(168, 85, 255, 0.55)) !important;
 }
 
 .overlay.is-start #overlay-title,
 .overlay:not(.is-result):not(.is-conquer):not(.is-pause) #overlay-title {
-  display: block !important;
-  font-size: 26px !important;
-  font-weight: 800 !important;
-  line-height: 1.2 !important;
-  height: auto !important;
-  margin: 0 0 8px !important;
-  opacity: 1 !important;
-  color: #7cf0ff !important;
-  -webkit-text-fill-color: #7cf0ff !important;
-  text-indent: 0 !important;
-  text-shadow: 0 0 10px rgba(0, 210, 255, 0.55), 0 0 22px rgba(0, 210, 255, 0.35) !important;
+  display: none !important;
+  font-size: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 .overlay.is-start #overlay-hint,
@@ -10254,7 +10247,12 @@ select,
   box-sizing: border-box !important;
 }
 
-/* Idle profile card — 90% board, 220px avatar, no DAD TETRIS title */
+/* Idle profile card — original compact popup; enlarge photo circle only */
+#overlay.overlay.is-start,
+#overlay.overlay.is-pause {
+  padding: 6px !important;
+}
+
 #overlay #profile-card,
 #overlay #profile-card.profile-card-host,
 #overlay.overlay.is-start #profile-card.profile-card-host,
@@ -10262,10 +10260,13 @@ select,
 #overlay #profile-card.profile-card-host.is-active,
 .profile-overlay #profile-card,
 .profile-overlay-card {
-  width: 90% !important;
-  max-width: 92% !important;
-  min-width: 88% !important;
-  padding: 24px 20px !important;
+  width: 92% !important;
+  max-width: 420px !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
   display: flex !important;
   flex-direction: column !important;
@@ -10283,7 +10284,9 @@ select,
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
-  padding: 24px 20px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 22px 18px 20px !important;
   gap: 16px !important;
   box-sizing: border-box !important;
   display: flex !important;
@@ -10307,17 +10310,18 @@ select,
 #overlay #profile-card .avatar-frame,
 #overlay #profile-card .profile-img-container,
 #overlay #profile-card #profile-avatar-canvas {
-  width: 220px !important;
-  height: 220px !important;
-  min-width: 220px !important;
-  min-height: 220px !important;
-  max-width: 220px !important;
-  max-height: 220px !important;
+  width: min(300px, 82%) !important;
+  height: min(300px, 82%) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 300px !important;
+  max-height: 300px !important;
+  aspect-ratio: 1 / 1 !important;
   box-sizing: border-box !important;
   border-radius: 50% !important;
   border: 4px solid #00d2ff !important;
   box-shadow: 0 0 20px rgba(0, 210, 255, 0.5) !important;
-  margin: 0 auto 18px auto !important;
+  margin: 0 auto 14px auto !important;
   overflow: hidden !important;
   transform: none !important;
 }
@@ -10330,8 +10334,8 @@ select,
 #overlay.overlay.is-pause #profile-frame .profile-icon-svg {
   width: 70% !important;
   height: 70% !important;
-  max-width: 154px !important;
-  max-height: 154px !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 
 #overlay #profile-card img,
@@ -10426,15 +10430,20 @@ body.hide-board-idle.diag-measure-profile #profile-frame {
 
 body.diag-running.diag-measure-profile #profile-card.profile-card-host,
 body.hide-board-idle.diag-measure-profile #profile-card.profile-card-host {
-  width: 90% !important;
-  min-width: 88% !important;
-  max-width: 92% !important;
+  width: 92% !important;
+  min-width: 0 !important;
+  max-width: 420px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
 }
 
 body.diag-running.diag-measure-profile #profile-frame,
 body.hide-board-idle.diag-measure-profile #profile-frame {
-  width: 220px !important;
-  height: 220px !important;
+  width: min(300px, 82%) !important;
+  height: min(300px, 82%) !important;
+  max-width: 300px !important;
+  max-height: 300px !important;
   box-sizing: border-box !important;
 }
 
@@ -10442,8 +10451,8 @@ body.diag-running.diag-measure-profile #profile-frame .dad-neon-avatar,
 body.hide-board-idle.diag-measure-profile #profile-frame .dad-neon-avatar {
   width: 70% !important;
   height: 70% !important;
-  max-width: 154px !important;
-  max-height: 154px !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 
 .watermark,
@@ -10465,5 +10474,77 @@ body.hide-board-idle.diag-measure-profile #profile-frame .dad-neon-avatar {
   width: 92% !important;
   max-width: 420px !important;
   min-width: 0 !important;
+}
+
+/* Idle/pause: never show overlay title (wins leftover display:block rules) */
+#overlay.overlay.is-start #overlay-title,
+#overlay.overlay.is-pause #overlay-title,
+#overlay.is-start .overlay-title,
+#overlay.is-pause .overlay-title,
+#overlay.is-start .popup-title,
+#overlay #profile-card h1,
+#overlay #profile-card h2,
+#overlay #profile-card .overlay-title,
+#overlay #profile-card .popup-title,
+#overlay #profile-card .profile-title,
+#overlay #profile-card .profile-caption {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  opacity: 0 !important;
+}
+
+/* Final: compact idle card, large photo circle */
+#overlay.overlay.is-start #profile-card.profile-card-host,
+#overlay.overlay.is-pause #profile-card.profile-card-host,
+#overlay.overlay.is-start #profile-card,
+#overlay.overlay.is-pause #profile-card {
+  width: 92% !important;
+  min-width: 0 !important;
+  max-width: 420px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+}
+
+#overlay.overlay.is-start #profile-card > #start-overlay,
+#overlay.overlay.is-pause #profile-card > #start-overlay,
+#overlay.overlay.is-start #start-overlay,
+#overlay.overlay.is-pause #start-overlay {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+#overlay.overlay.is-start #profile-card #profile-frame,
+#overlay.overlay.is-pause #profile-card #profile-frame,
+#overlay.overlay.is-start #profile-frame,
+#overlay.overlay.is-pause #profile-frame {
+  width: min(300px, 82%) !important;
+  height: min(300px, 82%) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 300px !important;
+  max-height: 300px !important;
+  aspect-ratio: 1 / 1 !important;
+  box-sizing: border-box !important;
+}
+
+#overlay.overlay.is-start #profile-frame .dad-neon-avatar,
+#overlay.overlay.is-pause #profile-frame .dad-neon-avatar,
+#overlay.overlay.is-start #profile-frame .profile-icon-svg,
+#overlay.overlay.is-pause #profile-frame .profile-icon-svg {
+  width: 70% !important;
+  height: 70% !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 

@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.4-vol-c10 single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.3.8-avatar single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -1088,14 +1088,22 @@ const soundManager = {
     }
   },
   applyMasterGains() {
-    if (!host || typeof host.unit !== "function") {
-      return;
-    }
     const muted = !!this.muted;
-    const sfxOn = !muted && !!st().sound;
-    const bgmOn = !muted && !!st().bgm;
-    const sfxV = sfxOn ? Math.max(0, Math.min(1, host.unit(st().soundVolume, def().soundVolume))) : 0;
-    const bgmV = bgmOn ? Math.max(0, Math.min(1, host.unit(st().bgmVolume, def().bgmVolume))) : 0;
+    const cur = st();
+    const toUnit = (v, d) => {
+      if (host && typeof host.unit === "function") {
+        return host.unit(v, d);
+      }
+      const n = Number(v);
+      if (!Number.isFinite(n)) {
+        return (Number(d) || 0) / 100;
+      }
+      return n > 1 ? n / 100 : n;
+    };
+    const sfxOn = !muted && cur.sound !== false;
+    const bgmOn = !muted && cur.bgm !== false;
+    const sfxV = sfxOn ? Math.max(0, Math.min(1, toUnit(cur.soundVolume, 80))) : 0;
+    const bgmV = bgmOn ? Math.max(0, Math.min(1, toUnit(cur.bgmVolume, 70))) : 0;
     if (this.sfxGain) {
       this.sfxGain.gain.value = sfxV;
     }
@@ -10335,7 +10343,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.4-vol-c10";
+  const APP_VERSION = "1.3.8-avatar";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -10401,11 +10409,17 @@ function GameEngine() {
       return raw;
     }
     const cleaned = raw.replace(/^\.?\//, "").replace(/^\/+/, "");
-    try {
-      return new URL("./" + cleaned, assetBaseHref()).href;
-    } catch (err) {
-      return "./" + cleaned;
-    }
+      try {
+        const href = new URL("./" + cleaned, assetBaseHref()).href;
+        if (/\.(jpe?g|png|webp|gif|svg|mp3|wav|ogg)$/i.test(cleaned)) {
+          const u = new URL(href);
+          u.searchParams.set("v", APP_VERSION);
+          return u.href;
+        }
+        return href;
+      } catch (err) {
+        return "./" + cleaned;
+      }
   }
   window.getAssetUrl = getAssetUrl;
 
@@ -10713,48 +10727,58 @@ function GameEngine() {
       el = document.createElement("h1");
       el.id = "overlay-title";
       el.className = "overlay-title popup-title";
-      el.setAttribute("aria-hidden", "true");
     }
     return el;
   }
+  function stripIdleProfileTitles() {
+    const card = document.getElementById("profile-card");
+    const panel = document.getElementById("start-overlay");
+    [card, panel].forEach((root) => {
+      if (!root) {
+        return;
+      }
+      root.querySelectorAll("h1, h2, h3, .profile-title, .profile-caption, .overlay-title, .popup-title").forEach((node) => {
+        if (node.id === "profile-nickname" || node.id === "overlay-hint") {
+          return;
+        }
+        try {
+          node.remove();
+        } catch (err) { /* ignore */ }
+      });
+    });
+    const leftover = document.getElementById("overlay-title");
+    if (leftover) {
+      leftover.textContent = "";
+      leftover.setAttribute("aria-hidden", "true");
+      leftover.setAttribute("data-title", "");
+      try {
+        leftover.remove();
+      } catch (err) { /* ignore */ }
+    }
+  }
   function parkOverlayTitle(idle) {
+    if (idle) {
+      stripIdleProfileTitles();
+      overlayTitle = null;
+      return null;
+    }
     const el = ensureOverlayTitle();
     const panel = document.getElementById("start-overlay");
-    const card = document.getElementById("profile-card");
     const hint = document.getElementById("overlay-hint");
-    if (idle) {
-      el.textContent = "";
-      el.setAttribute("data-title", "");
-      el.setAttribute("aria-hidden", "true");
-      if (overlay && (el.parentElement !== overlay || (card && card.contains(el)))) {
-        overlay.appendChild(el);
-      }
-      if (card) {
-        card.querySelectorAll("h1, h2, h3, .profile-title, .profile-caption").forEach((node) => {
-          if (node === el) {
-            if (overlay) {
-              overlay.appendChild(node);
-            }
-            return;
-          }
-          if (node.id === "profile-nickname") {
-            return;
-          }
-          try {
-            node.remove();
-          } catch (err) { /* ignore */ }
-        });
-      }
-    } else if (panel) {
+    if (panel) {
       if (hint && hint.parentElement === panel) {
         panel.insertBefore(el, hint);
       } else if (el.parentElement !== panel) {
         panel.insertBefore(el, panel.firstChild);
       }
+    } else if (overlay && el.parentElement !== overlay) {
+      overlay.appendChild(el);
     }
+    overlayTitle = el;
     return el;
   }
-  let overlayTitle = parkOverlayTitle(true);
+  let overlayTitle = null;
+  stripIdleProfileTitles();
   const overlayHint = document.getElementById("overlay-hint");
   const profileImageEl = document.getElementById("profile-image");
   const profileFallback = document.getElementById("profile-fallback");
@@ -23396,31 +23420,39 @@ function GameEngine() {
         return { width: w, height: h, left: r.left, top: r.top };
       };
       const boardW = Math.max(1, boardR.width);
-      let cardR = readBox(card, Math.round(boardW * 0.9), 520);
-      let frameR = readBox(frame, 220, 220);
-      let avatarR = neon ? readBox(neon, 154, 154) : frameR;
-      let widthRatio = cardR.width / boardW;
-      if (widthRatio < 0.85 || widthRatio > 0.95) {
-        card.style.setProperty("width", "90%", "important");
-        card.style.setProperty("min-width", "88%", "important");
-        card.style.setProperty("max-width", "92%", "important");
-        cardR = readBox(card, Math.round(boardW * 0.9), 520);
-        widthRatio = cardR.width / boardW;
-        fixed = true;
-        diagLog("🛠️ AUTO-FIXED: C1 대기 카드 폭 90% 보정");
-      }
-      const frameSize = Math.min(frameR.width, frameR.height);
-      if (frameSize < 190 || frameSize > 220) {
-        frame.style.setProperty("width", "220px", "important");
-        frame.style.setProperty("height", "220px", "important");
-        frame.style.setProperty("min-width", "220px", "important");
-        frame.style.setProperty("min-height", "220px", "important");
-        frame.style.setProperty("max-width", "220px", "important");
-        frame.style.setProperty("max-height", "220px", "important");
+      const applyCompactLargeAvatar = () => {
+        card.style.setProperty("width", "92%", "important");
+        card.style.setProperty("max-width", "420px", "important");
+        card.style.setProperty("min-width", "0", "important");
+        card.style.setProperty("height", "auto", "important");
+        card.style.setProperty("min-height", "0", "important");
+        card.style.setProperty("max-height", "none", "important");
+        frame.style.setProperty("width", "min(300px, 82%)", "important");
+        frame.style.setProperty("height", "min(300px, 82%)", "important");
+        frame.style.setProperty("min-width", "0", "important");
+        frame.style.setProperty("min-height", "0", "important");
+        frame.style.setProperty("max-width", "300px", "important");
+        frame.style.setProperty("max-height", "300px", "important");
         frame.style.setProperty("box-sizing", "border-box", "important");
-        frameR = readBox(frame, 220, 220);
+        if (neon) {
+          neon.style.setProperty("width", "70%", "important");
+          neon.style.setProperty("height", "70%", "important");
+          neon.style.setProperty("max-width", "none", "important");
+          neon.style.setProperty("max-height", "none", "important");
+        }
+      };
+      let cardR = readBox(card, Math.min(420, Math.round(boardW * 0.92)), 360);
+      let frameR = readBox(frame, 300, 300);
+      let avatarR = neon ? readBox(neon, 210, 210) : frameR;
+      const compactOkNow = cardR.width <= 440 && (cardR.height / Math.max(1, boardR.height)) < 0.85;
+      const expectedFrame = Math.min(300, cardR.width * 0.82);
+      const frameSizeNow = Math.min(frameR.width, frameR.height);
+      if (!compactOkNow || frameSizeNow < expectedFrame - 24 || frameSizeNow > 310) {
+        applyCompactLargeAvatar();
+        cardR = readBox(card, Math.min(420, Math.round(boardW * 0.92)), 360);
+        frameR = readBox(frame, 300, 300);
         fixed = true;
-        diagLog("🛠️ AUTO-FIXED: C1 아바타 프레임 220px 보정");
+        diagLog("🛠️ AUTO-FIXED: C1 컴팩트 카드 + 큰 원형 사진");
       }
       let avatarRatio = frameR.width > 0
         ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height))
@@ -23430,8 +23462,8 @@ function GameEngine() {
         if (neon && target > 8) {
           neon.style.setProperty("width", "70%", "important");
           neon.style.setProperty("height", "70%", "important");
-          neon.style.setProperty("max-width", "154px", "important");
-          neon.style.setProperty("max-height", "154px", "important");
+          neon.style.setProperty("max-width", "none", "important");
+          neon.style.setProperty("max-height", "none", "important");
           avatarR = readBox(neon, target, target);
           avatarRatio = frameR.width > 0
             ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height))
@@ -23440,12 +23472,15 @@ function GameEngine() {
           diagLog("🛠️ AUTO-FIXED: C1 네온 아바타 70% 직경 보정");
         }
       }
-      cardR = readBox(card, Math.round(boardW * 0.9), 520);
-      frameR = readBox(frame, 220, 220);
-      avatarR = neon ? readBox(neon, 154, 154) : frameR;
+      cardR = readBox(card, Math.min(420, Math.round(boardW * 0.92)), 360);
+      frameR = readBox(frame, 300, 300);
+      avatarR = neon ? readBox(neon, 210, 210) : frameR;
       const wRatio = cardR.width / boardW;
-      const widthOk = wRatio >= 0.85 && wRatio <= 0.95;
-      const tallEnough = cardR.height >= 420 || (cardR.height / Math.max(1, boardR.height)) >= 0.45;
+      const compactOk = cardR.width <= 440 && cardR.width >= 180;
+      const notBoardFill = (cardR.height / Math.max(1, boardR.height)) < 0.85;
+      const expected = Math.min(300, cardR.width * 0.82);
+      const frameSize = Math.min(frameR.width, frameR.height);
+      const frameOk = frameSize >= Math.min(240, expected - 16) && frameSize <= 310;
       const nextAvatar = frameR.width > 0
         ? (Math.min(avatarR.width, avatarR.height) / Math.min(frameR.width, frameR.height))
         : 0.7;
@@ -23454,8 +23489,8 @@ function GameEngine() {
       const noDistort = Math.abs(aspect - 1) <= 0.12;
       const originalOk = !!(neon && String(neon.tagName || "").toLowerCase() === "svg"
         && neon.classList.contains("dad-neon-avatar"));
-      ok = widthOk && tallEnough && avatarOk && noDistort && originalOk;
-      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${wRatio.toFixed(2)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} original=${originalOk} ok=${ok}`);
+      ok = compactOk && notBoardFill && frameOk && avatarOk && noDistort && originalOk;
+      diagLog(`C1 profile card=${cardR.width.toFixed(0)}x${cardR.height.toFixed(0)} board=${boardW.toFixed(0)}x${boardR.height.toFixed(0)} wRatio=${wRatio.toFixed(2)} frame=${frameSize.toFixed(0)} avatarRatio=${nextAvatar.toFixed(2)} aspect=${aspect.toFixed(2)} original=${originalOk} ok=${ok}`);
     } catch (err) {
       diagLog(`C1 profile: ${err && err.message ? err.message : err}`);
       ok = false;
@@ -28256,10 +28291,13 @@ function GameEngine() {
     clearInline(panel);
     clearInline(frame);
     if (hostCard) {
-      hostCard.style.setProperty("width", "90%", "important");
-      hostCard.style.setProperty("max-width", "92%", "important");
-      hostCard.style.setProperty("min-width", "88%", "important");
-      hostCard.style.setProperty("padding", "24px 16px", "important");
+      hostCard.style.setProperty("width", "92%", "important");
+      hostCard.style.setProperty("max-width", "420px", "important");
+      hostCard.style.setProperty("min-width", "0", "important");
+      hostCard.style.setProperty("height", "auto", "important");
+      hostCard.style.setProperty("min-height", "0", "important");
+      hostCard.style.setProperty("max-height", "none", "important");
+      hostCard.style.setProperty("padding", "0", "important");
       hostCard.style.setProperty("box-sizing", "border-box", "important");
       hostCard.style.setProperty("display", "flex", "important");
       hostCard.style.setProperty("flex-direction", "column", "important");
@@ -28271,25 +28309,27 @@ function GameEngine() {
       panel.style.setProperty("width", "100%", "important");
       panel.style.setProperty("max-width", "none", "important");
       panel.style.setProperty("min-width", "0", "important");
+      panel.style.setProperty("height", "auto", "important");
+      panel.style.setProperty("min-height", "0", "important");
       panel.style.setProperty("transform", "none", "important");
     }
     if (frame) {
-      frame.style.setProperty("width", "220px", "important");
-      frame.style.setProperty("height", "220px", "important");
-      frame.style.setProperty("min-width", "220px", "important");
-      frame.style.setProperty("min-height", "220px", "important");
-      frame.style.setProperty("max-width", "220px", "important");
-      frame.style.setProperty("max-height", "220px", "important");
+      frame.style.setProperty("width", "min(300px, 82%)", "important");
+      frame.style.setProperty("height", "min(300px, 82%)", "important");
+      frame.style.setProperty("min-width", "0", "important");
+      frame.style.setProperty("min-height", "0", "important");
+      frame.style.setProperty("max-width", "300px", "important");
+      frame.style.setProperty("max-height", "300px", "important");
       frame.style.setProperty("box-sizing", "border-box", "important");
       frame.style.setProperty("border-radius", "50%", "important");
-      frame.style.setProperty("margin", "0 auto 18px auto", "important");
+      frame.style.setProperty("margin", "0 auto 14px auto", "important");
       frame.style.setProperty("transform", "none", "important");
     }
     if (neon) {
       neon.style.setProperty("width", "70%", "important");
       neon.style.setProperty("height", "70%", "important");
-      neon.style.setProperty("max-width", "154px", "important");
-      neon.style.setProperty("max-height", "154px", "important");
+      neon.style.setProperty("max-width", "none", "important");
+      neon.style.setProperty("max-height", "none", "important");
     }
     if (img) {
       img.style.setProperty("width", "100%", "important");
@@ -28315,13 +28355,15 @@ function GameEngine() {
     overlayTitle = parkOverlayTitle(idle);
     if (idle) {
       syncProfileNicknameLabel();
-    } else {
+    } else if (overlayTitle) {
       const hardened = hardenOverlayTitle(title);
       overlayTitle.textContent = hardened;
       overlayTitle.setAttribute("data-title", hardened);
       overlayTitle.setAttribute("aria-hidden", "false");
     }
-    overlayHint.innerHTML = decorateOverlayHint(hint);
+    if (overlayHint) {
+      overlayHint.innerHTML = decorateOverlayHint(hint);
+    }
     overlay.classList.remove("hidden");
     syncOverlayIdleType();
   }
@@ -29363,46 +29405,26 @@ function GameEngine() {
     const n = clampPercent(rawVal, fallback);
     if (kind === "bgm") {
       settings.bgmVolume = n;
-      try {
-        if (window.gameSettings) {
-          window.gameSettings.bgmVolume = n;
-        }
-      } catch (err) { /* ignore */ }
-      try {
-        localStorage.setItem("dad_tetris_bgm_vol", String(n));
-        localStorage.setItem("bgmVolume", String(n));
-      } catch (err) { /* private mode */ }
     } else {
       settings.soundVolume = n;
-      try {
-        if (window.gameSettings) {
-          window.gameSettings.soundVolume = n;
-        }
-      } catch (err) { /* ignore */ }
-      try {
-        localStorage.setItem("dad_tetris_sfx_vol", String(n));
-        localStorage.setItem("sfxVolume", String(n));
-        localStorage.setItem("soundVolume", String(n));
-      } catch (err) { /* private mode */ }
     }
     try {
-      let obj = {};
-      try {
-        const raw = localStorage.getItem(SETTINGS_KEY);
-        obj = raw ? JSON.parse(raw) : {};
-      } catch (parseErr) {
-        obj = {};
+      if (window.gameSettings) {
+        window.gameSettings.soundVolume = settings.soundVolume;
+        window.gameSettings.bgmVolume = settings.bgmVolume;
       }
-      if (!obj || typeof obj !== "object") {
-        obj = {};
-      }
-      if (kind === "bgm") {
-        obj.bgmVolume = n;
-      } else {
-        obj.soundVolume = n;
-      }
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(obj));
+    } catch (err) { /* ignore */ }
+    try {
+      localStorage.setItem("dad_tetris_bgm_vol", String(settings.bgmVolume));
+      localStorage.setItem("bgmVolume", String(settings.bgmVolume));
+      localStorage.setItem("dad_tetris_sfx_vol", String(settings.soundVolume));
+      localStorage.setItem("sfxVolume", String(settings.soundVolume));
+      localStorage.setItem("soundVolume", String(settings.soundVolume));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (err) { /* private mode / diag shadow */ }
+    try {
+      writeLs(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (err) { /* ignore */ }
     return n;
   }
 
@@ -29430,16 +29452,18 @@ function GameEngine() {
       if (kind === "bgm") {
         if (typeof mgr.setBgmVolume === "function") {
           mgr.setBgmVolume(unit);
-        } else if (mgr.bgmGain) {
-          mgr.bgmGain.gain.value = mgr.muted ? 0 : unit;
         }
         if (bgm && typeof bgm.applyVolume === "function") {
           bgm.applyVolume();
         }
       } else if (typeof mgr.setSfxVolume === "function") {
         mgr.setSfxVolume(unit);
-      } else if (mgr.sfxGain) {
-        mgr.sfxGain.gain.value = mgr.muted ? 0 : unit;
+      }
+      if (mgr.sfxGain && !mgr.muted) {
+        mgr.sfxGain.gain.value = clampPercent(settings.soundVolume, SETTING_DEFAULTS.soundVolume) / 100;
+      }
+      if (mgr.bgmGain && !mgr.muted) {
+        mgr.bgmGain.gain.value = clampPercent(settings.bgmVolume, SETTING_DEFAULTS.bgmVolume) / 100;
       }
     } catch (err) { /* audio graph optional */ }
     return n;
@@ -29482,7 +29506,7 @@ function GameEngine() {
       return;
     }
     const apply = (event) => {
-      if (isSyncingUi) {
+      if (isSyncingUi && key !== "soundVolume" && key !== "bgmVolume") {
         return;
       }
       settings[key] = clampPercent(slider.value, fallback);
@@ -30457,7 +30481,24 @@ function GameEngine() {
     if (!("serviceWorker" in navigator)) {
       return;
     }
-    if (location.protocol === "file:") {
+    const hostName = String(location.hostname || "");
+    const isLocal = location.protocol === "file:"
+      || hostName === "localhost"
+      || hostName === "127.0.0.1"
+      || hostName === "[::1]";
+    if (isLocal) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => {
+          try { reg.unregister(); } catch (err) { /* ignore */ }
+        });
+      }).catch(() => {});
+      if (window.caches && typeof caches.keys === "function") {
+        caches.keys().then((keys) => {
+          keys.forEach((key) => {
+            try { caches.delete(key); } catch (err) { /* ignore */ }
+          });
+        }).catch(() => {});
+      }
       return;
     }
     const swUrl = "./sw.js?v=" + APP_VERSION;
