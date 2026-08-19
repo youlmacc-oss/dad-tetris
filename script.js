@@ -2926,6 +2926,19 @@ function GameEngine() {
       "bgSlotUnregistered": "미등록(기본값 적용)",
       "bgSlotRegistered": "등록됨",
       "bgSlotChooseOne": "🖼️ 개별 등록",
+      "bgScopeTitle": "배경 관리 범위",
+      "bgScopePersonal": "👤 내 개인 배경",
+      "bgScopeCommon": "🌐 공통 시스템 배경",
+      "bgScopeHintPersonal": "이 기기에만 저장되는 개인 배경입니다. 없으면 공통 시스템 배경을 상속합니다.",
+      "bgScopeHintCommon": "모든 플레이에 공통으로 쓰는 시스템 배경입니다. 개인 배경이 없을 때 상속됩니다.",
+      "commonIdleBgTitle": "🌐 공통 기본 배경",
+      "commonIdleBgCaption": "개인 레벨/기본 이미지가 없을 때 사용됩니다",
+      "commonLevelBgTitle": "공통 Level {n} 배경",
+      "commonLevelPlayBgTitle": "🌐 공통 레벨 1 ~ 레벨 20 배경",
+      "commonLevelPlayBgTitleBoard": "🌐 공통 레벨 1 ~ 레벨 20 패널 배경",
+      "commonBgSlotStatusWindow": "🌐 공통 윈도우 배경",
+      "commonBgSlotStatusBoard": "🌐 공통 게임패널 배경",
+      "confirmBulkClearCommonBg": "공통 시스템 배경을 모두 삭제할까요? 개인 배경은 그대로 둡니다.",
       "levelBgExtremeHint": "등록한 이미지가 없으면 네온 그리드가 유지됩니다. 윈도우와 게임 패널 모두 기본 대기+레벨 1~20을 등록할 수 있습니다.",
       "levelBgTitle": "Level {n} 배경",
       "chooseLevelBg": "🖼️ 이미지 선택",
@@ -3176,7 +3189,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ 전체 윈도우: custom_bg_window_default / custom_bg_window_level_N, 윈도우 전용 블러/투명도. [전체 윈도우 배경 세트] 일괄 등록만 이 키에 저장됩니다.",
       "guideIdleSplitBoard": "🎮 게임 패널: board_idle_bg_blob / custom_bg_board_level_N, 패널 전용 블러/투명도. [게임 패널 배경 세트] 일괄 등록만 이 키에 저장됩니다.",
       "guideBgIsolateBody": "윈도우 일괄 등록과 패널 일괄 등록은 동작·저장이 독립입니다. 공유 키(bg_level_N)를 쓰지 않아 한쪽 등록이 다른 쪽에 복사되지 않습니다.",
-      "guideLevelBgLiveBody": "레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 커스텀이 없으면 level_N.jpg 폴더 이미지로 폴백하고, [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.",
+      "guideLevelBgLiveBody": "레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 레벨 커스텀이 없으면 등록해 둔 기본(Idle) 배경을 상속하고, 그것도 없으면 level_N.jpg로 폴백합니다. [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.",
       "guideDiagLevelBgSim": "자가진단이 Level 1→5→10→20을 전환하며 윈도우/패널 저장 키가 겹치지 않는지, 폴더 레벨 이미지가 서로 다른지, 대상별 캔버스/DOM 페인트가 호출되는지 검증합니다.",
       "guideDiagLevelBgSlots": "윈도우와 패널의 Idle·Level 1~20 키는 완전히 분리됩니다(custom_bg_window_* vs custom_bg_board_* / bg_panel_*). 커스텀이 없으면 대상별 폴백을 로드합니다.",
       "guideDiagLevelBgInterlock": "마스터 끄기·기본 고정·블러/투명도 값은 레벨 전환 중에도 DOM/Canvas에 유지됩니다.",
@@ -3557,6 +3570,19 @@ function GameEngine() {
       "bgSlotUnregistered": "Not registered (default applied)",
       "bgSlotRegistered": "Registered",
       "bgSlotChooseOne": "🖼️ Register this slot",
+      "bgScopeTitle": "Background scope",
+      "bgScopePersonal": "👤 My personal backgrounds",
+      "bgScopeCommon": "🌐 Shared system backgrounds",
+      "bgScopeHintPersonal": "Saved on this device only. Missing slots inherit shared system backgrounds.",
+      "bgScopeHintCommon": "Shared backgrounds used when a personal slot is empty.",
+      "commonIdleBgTitle": "🌐 Shared default background",
+      "commonIdleBgCaption": "Used when personal level/default images are missing",
+      "commonLevelBgTitle": "Shared Level {n} background",
+      "commonLevelPlayBgTitle": "🌐 Shared Level 1–20 backgrounds",
+      "commonLevelPlayBgTitleBoard": "🌐 Shared Level 1–20 panel backgrounds",
+      "commonBgSlotStatusWindow": "🌐 Shared window backgrounds",
+      "commonBgSlotStatusBoard": "🌐 Shared panel backgrounds",
+      "confirmBulkClearCommonBg": "Delete all shared system backgrounds? Personal backgrounds stay.",
       "levelBgExtremeHint": "If no image is registered, the neon grid stays. Window and game panel both use idle + levels 1–20.",
       "levelBgTitle": "Level {n} background",
       "chooseLevelBg": "🖼️ Choose image",
@@ -3805,7 +3831,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -4434,7 +4460,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -5063,7 +5089,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -5692,7 +5718,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -6321,7 +6347,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -6950,7 +6976,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -7579,7 +7605,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -8208,7 +8234,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -8837,7 +8863,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -9466,7 +9492,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -10095,7 +10121,7 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing customs fall back to folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -10639,6 +10665,10 @@ function GameEngine() {
     windowBgFileNames: emptyLevelNameMap(),
     boardBgDefaultFileName: "",
     boardBgFileNames: emptyLevelNameMap(),
+    commonWindowBgDefaultFileName: "",
+    commonWindowBgFileNames: emptyLevelNameMap(),
+    commonBoardBgDefaultFileName: "",
+    commonBoardBgFileNames: emptyLevelNameMap(),
     boardBgBlur: 0,
     boardBgOpacity: 80,
     windowBgBlur: 0,
@@ -10686,6 +10716,8 @@ function GameEngine() {
       levelBgFileNames: { ...SETTING_DEFAULTS.levelBgFileNames },
       windowBgFileNames: { ...SETTING_DEFAULTS.windowBgFileNames },
       boardBgFileNames: { ...SETTING_DEFAULTS.boardBgFileNames },
+      commonWindowBgFileNames: { ...SETTING_DEFAULTS.commonWindowBgFileNames },
+      commonBoardBgFileNames: { ...SETTING_DEFAULTS.commonBoardBgFileNames },
     };
   }
   const PROFILE_SHIFT_MAX = 800;
@@ -11135,6 +11167,7 @@ function GameEngine() {
     /* ignore */
   }
   let currentBgTarget = settings && settings.bgTarget === "board" ? "board" : "window";
+  let currentBgScope = "personal";
   ROWS = effectiveBoardRows(settings.boardRowsCount);
   if (!cells || cells.length !== ROWS) {
     cells = createBoard();
@@ -11549,6 +11582,14 @@ function GameEngine() {
     }
     if (!next.boardBgFileNames || typeof next.boardBgFileNames !== "object") {
       next.boardBgFileNames = { ...SETTING_DEFAULTS.boardBgFileNames };
+      fixed += 1;
+    }
+    if (!next.commonWindowBgFileNames || typeof next.commonWindowBgFileNames !== "object") {
+      next.commonWindowBgFileNames = { ...SETTING_DEFAULTS.commonWindowBgFileNames };
+      fixed += 1;
+    }
+    if (!next.commonBoardBgFileNames || typeof next.commonBoardBgFileNames !== "object") {
+      next.commonBoardBgFileNames = { ...SETTING_DEFAULTS.commonBoardBgFileNames };
       fixed += 1;
     }
     const zoomBefore = next.profileZoom;
@@ -15767,6 +15808,108 @@ function GameEngine() {
     return `custom_bg_${t}_level_${shownLevel(kind)}`;
   }
 
+  function isCommonBgScope() {
+    return currentBgScope === "common";
+  }
+
+  function commonBgStoreKey(target, kind) {
+    const t = target === "board" ? "board" : "window";
+    if (kind === "default" || kind === "idle") {
+      return `common_bg_${t}_default`;
+    }
+    return `common_bg_${t}_level_${shownLevel(kind)}`;
+  }
+
+  function commonBgCandidateKeys(target, kind) {
+    return [commonBgStoreKey(target, kind)];
+  }
+
+  function loadCommonBgData(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    const idle = kind === "default" || kind === "idle";
+    const key = commonBgStoreKey(dest, idle ? "default" : kind);
+    const hit = mediaStore.peek(key) || readLocal(key);
+    return isUserMediaUrl(hit) ? hit : "";
+  }
+
+  async function hydrateCommonBgSlot(target, kind) {
+    const keys = commonBgCandidateKeys(target, kind);
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        await mediaStore.get(keys[i]);
+      } catch (err) {
+        /* ignore */
+      }
+    }
+    return keys;
+  }
+
+  function commonBgFileNameOf(target, kind) {
+    if (kind === "default" || kind === "idle") {
+      return target === "board"
+        ? (settings.commonBoardBgDefaultFileName || "")
+        : (settings.commonWindowBgDefaultFileName || "");
+    }
+    const n = shownLevel(kind);
+    const map = target === "board" ? settings.commonBoardBgFileNames : settings.commonWindowBgFileNames;
+    return (map && map[n]) || "";
+  }
+
+  function setCommonBgFileName(target, kind, name) {
+    const value = typeof name === "string" ? name : "";
+    if (kind === "default" || kind === "idle") {
+      if (target === "board") {
+        settings.commonBoardBgDefaultFileName = value;
+      } else {
+        settings.commonWindowBgDefaultFileName = value;
+      }
+      return;
+    }
+    const n = shownLevel(kind);
+    if (!settings.commonBoardBgFileNames) {
+      settings.commonBoardBgFileNames = emptyLevelNameMap();
+    }
+    if (!settings.commonWindowBgFileNames) {
+      settings.commonWindowBgFileNames = emptyLevelNameMap();
+    }
+    if (target === "board") {
+      settings.commonBoardBgFileNames[n] = value;
+    } else {
+      settings.commonWindowBgFileNames[n] = value;
+    }
+  }
+
+  function loadActiveBgData(target, kind) {
+    return isCommonBgScope() ? loadCommonBgData(target, kind) : loadBgData(target, kind);
+  }
+
+  function hasActiveBg(target, kind) {
+    return !!loadActiveBgData(target, kind);
+  }
+
+  function activeBgFileNameOf(target, kind) {
+    return isCommonBgScope() ? commonBgFileNameOf(target, kind) : bgFileNameOf(target, kind);
+  }
+
+  function pickInheritedBgUrl(target, level) {
+    const dest = target === "board" ? "board" : "window";
+    const n = playLevel(level);
+    const custom = loadBgData(dest, n);
+    if (isUserMediaUrl(custom)) {
+      return custom;
+    }
+    const idle = loadIdleBgData(dest);
+    if (isUserMediaUrl(idle)) {
+      return idle;
+    }
+    const commonLv = loadCommonBgData(dest, n);
+    if (isUserMediaUrl(commonLv)) {
+      return commonLv;
+    }
+    const commonIdle = loadCommonBgData(dest, "default");
+    return isUserMediaUrl(commonIdle) ? commonIdle : "";
+  }
+
   function bgLogicalKey(target, kind) {
     const dest = target === "board" ? "board" : "window";
     if (kind === "default" || kind === "idle") {
@@ -15782,7 +15925,7 @@ function GameEngine() {
 
   function isOwnedBgStoreKey(key, dest) {
     const k = String(key || "");
-    if (!k || /^bg_level_\d+$/i.test(k)) {
+    if (!k || /^bg_level_\d+$/i.test(k) || /^common_bg_/.test(k)) {
       return false;
     }
     const boardOwned = k === BOARD_IDLE_BG_IDB
@@ -15827,6 +15970,10 @@ function GameEngine() {
   }
 
   async function deleteAllBgSlotKeys(target, kind) {
+    if (isCommonBgScope()) {
+      await deleteCommonBgSlot(target, kind);
+      return;
+    }
     const dest = target === "board" ? "board" : "window";
     const idle = kind === "default" || kind === "idle";
     const slot = idle ? "default" : kind;
@@ -15871,6 +16018,77 @@ function GameEngine() {
     }
     return /\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(url);
   }
+
+  function inheritedUserBgUrl(target, level) {
+    const dest = target === "board" ? "board" : "window";
+    const custom = loadBgData(dest, playLevel(level));
+    if (isUserMediaUrl(custom)) {
+      return custom;
+    }
+    const idle = loadIdleBgData(dest);
+    return isUserMediaUrl(idle) ? idle : "";
+  }
+
+  async function getMediaBlobUrl(key) {
+    if (!key) {
+      return "";
+    }
+    try {
+      const url = await mediaStore.get(key);
+      if (isUserMediaUrl(url)) {
+        return url;
+      }
+    } catch (err) {
+      /* missing slot */
+    }
+    const peek = mediaStore.peek(key) || readLocal(key);
+    return isUserMediaUrl(peek) ? peek : "";
+  }
+
+  async function getMediaBlob(key) {
+    return getMediaBlobUrl(key);
+  }
+
+  async function resolveLevelBg(type, level) {
+    const dest = type === "board" ? "board" : "window";
+    if (isCustomBgMasterDisabled()) {
+      return "";
+    }
+    const n = playLevel(level);
+    if (dest === "window" && settings.keepDefaultWindowBg) {
+      await hydrateBgSlot("window", "default");
+      await hydrateCommonBgSlot("window", "default");
+      return loadIdleBgData("window") || loadCommonBgData("window", "default") || getAssetUrl(BUNDLED_IDLE_BG_JPG);
+    }
+    await hydrateBgSlot(dest, n);
+    await hydrateBgSlot(dest, "default");
+    await hydrateCommonBgSlot(dest, n);
+    await hydrateCommonBgSlot(dest, "default");
+    const personalLevel = await getMediaBlob(`custom_bg_${dest}_level_${n}`);
+    if (personalLevel) {
+      return personalLevel;
+    }
+    const personalIdle = await getMediaBlob(`custom_bg_${dest}_default`)
+      || await getMediaBlob(`custom_bg_${dest}_idle`)
+      || loadIdleBgData(dest);
+    if (personalIdle) {
+      return personalIdle;
+    }
+    const commonLevel = await getMediaBlob(`common_bg_${dest}_level_${n}`);
+    if (commonLevel) {
+      return commonLevel;
+    }
+    const commonIdle = await getMediaBlob(`common_bg_${dest}_default`);
+    if (commonIdle) {
+      return commonIdle;
+    }
+    if (dest === "board") {
+      return folderLevelBgSrc(n) || getAssetUrl(BUNDLED_IDLE_BG_JPG);
+    }
+    return folderLevelBgSrc(n) || getAssetUrl(BUNDLED_IDLE_BG_JPG);
+  }
+  window.getMediaBlob = getMediaBlob;
+  window.resolveLevelBg = resolveLevelBg;
 
   function loadBgData(target, kind) {
     const dest = target === "board" ? "board" : "window";
@@ -15970,6 +16188,15 @@ function GameEngine() {
   }
 
   function registerCanonicalBgName(target, kind) {
+    if (isCommonBgScope()) {
+      const dest = target === "board" ? "board" : "window";
+      const slot = kind === "idle" ? "default" : kind;
+      const canon = dest === "board"
+        ? (slot === "default" ? "common_board_default_bg.jpg" : ("common_board_level_" + shownLevel(slot) + ".jpg"))
+        : (slot === "default" ? "common_default_bg.jpg" : ("common_level_" + shownLevel(slot) + ".jpg"));
+      setCommonBgFileName(dest, slot, canon);
+      return canon;
+    }
     const canon = canonicalBgFileName(target, kind);
     setBgFileName(target, kind, canon);
     return canon;
@@ -16050,8 +16277,8 @@ function GameEngine() {
     return loadBgData("window", n);
   }
 
-  function loadIdleBgData() {
-    return loadBgData("window", "default");
+  function loadIdleBgData(target) {
+    return loadBgData(target === "board" ? "board" : "window", "default");
   }
 
   async function persistImageToStore(img, key) {
@@ -16138,7 +16365,40 @@ function GameEngine() {
     }
   }
 
+  async function persistCommonBgSlot(target, kind, img) {
+    const dest = target === "board" ? "board" : "window";
+    const slot = kind === "idle" ? "default" : kind;
+    const key = commonBgStoreKey(dest, slot);
+    const url = await persistImageToStore(img, key);
+    if (url) {
+      setCommonBgFileName(dest, slot, dest === "board"
+        ? (slot === "default" ? "common_board_default_bg.jpg" : ("common_board_level_" + shownLevel(slot) + ".jpg"))
+        : (slot === "default" ? "common_default_bg.jpg" : ("common_level_" + shownLevel(slot) + ".jpg")));
+    }
+    return url;
+  }
+
+  async function deleteCommonBgSlot(target, kind) {
+    const dest = target === "board" ? "board" : "window";
+    const slot = kind === "idle" ? "default" : kind;
+    const key = commonBgStoreKey(dest, slot);
+    try {
+      await mediaStore.del(key);
+    } catch (err) {
+      /* ignore */
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      /* ignore */
+    }
+    setCommonBgFileName(dest, slot, "");
+  }
+
   async function persistBgSlot(target, kind, img) {
+    if (isCommonBgScope()) {
+      return persistCommonBgSlot(target, kind, img);
+    }
     const dest = target === "board" ? "board" : "window";
     let url = "";
     let primaryKey = "";
@@ -16330,7 +16590,11 @@ function GameEngine() {
       await mediaStore.get(bgLevelAliasKey(n));
       await mediaStore.get(`bg_lvl_${n}`);
       await mediaStore.get(`bg_panel_lvl_${n}`);
+      await mediaStore.get(commonBgStoreKey("window", n));
+      await mediaStore.get(commonBgStoreKey("board", n));
     }
+    await mediaStore.get(commonBgStoreKey("window", "default"));
+    await mediaStore.get(commonBgStoreKey("board", "default"));
     const bgmUrl = await mediaStore.get("bgm");
     if (bgmUrl) {
       safeSetMediaSrc(bgm.audio, bgmUrl);
@@ -16528,13 +16792,31 @@ function GameEngine() {
     }
     const customWin = loadBgData("window", lv);
     const customBoard = loadBgData("board", lv);
+    const idleWin = loadIdleBgData("window");
+    const idleBoard = loadIdleBgData("board");
+    const commonWinLv = loadCommonBgData("window", lv);
+    const commonBoardLv = loadCommonBgData("board", lv);
+    const commonWinIdle = loadCommonBgData("window", "default");
+    const commonBoardIdle = loadCommonBgData("board", "default");
     const bundled = folderLevelBgSrc(lv);
-    const boardUrl = isUserMediaUrl(customBoard) ? customBoard : bundled;
+    const boardUrl = isUserMediaUrl(customBoard)
+      ? customBoard
+      : (isUserMediaUrl(idleBoard)
+        ? idleBoard
+        : (isUserMediaUrl(commonBoardLv)
+          ? commonBoardLv
+          : (isUserMediaUrl(commonBoardIdle) ? commonBoardIdle : bundled)));
     let winUrl = "";
     if (settings.keepDefaultWindowBg) {
-      winUrl = loadBgData("window", "default") || lastValidBgUrl;
+      winUrl = idleWin || commonWinIdle || lastValidBgUrl;
     } else {
-      winUrl = isUserMediaUrl(customWin) ? customWin : bundled;
+      winUrl = isUserMediaUrl(customWin)
+        ? customWin
+        : (isUserMediaUrl(idleWin)
+          ? idleWin
+          : (isUserMediaUrl(commonWinLv)
+            ? commonWinLv
+            : (isUserMediaUrl(commonWinIdle) ? commonWinIdle : bundled)));
     }
     invalidateBgLoadSeq();
     try {
@@ -16707,7 +16989,7 @@ function GameEngine() {
       return last;
     }
     if (dest === "window") {
-      return loadBgData("window", "default");
+      return loadIdleBgData("window");
     }
     return "";
   }
@@ -16718,11 +17000,23 @@ function GameEngine() {
     }
     const dest = target === "board" ? "board" : "window";
     if (dest === "window" && settings.keepDefaultWindowBg) {
-      return loadBgData("window", "default");
+      return loadIdleBgData("window") || loadCommonBgData("window", "default") || "";
     }
     const custom = resolveTargetBgUrl(dest, level);
     if (isUserMediaUrl(custom)) {
       return custom;
+    }
+    const idle = loadIdleBgData(dest);
+    if (isUserMediaUrl(idle)) {
+      return idle;
+    }
+    const commonLevel = loadCommonBgData(dest, playLevel(level));
+    if (isUserMediaUrl(commonLevel)) {
+      return commonLevel;
+    }
+    const commonIdle = loadCommonBgData(dest, "default");
+    if (isUserMediaUrl(commonIdle)) {
+      return commonIdle;
     }
     if (dest === "board" && shouldUseBoardLevelBackgrounds()) {
       return folderLevelBgSrc(playLevel(level));
@@ -16731,7 +17025,7 @@ function GameEngine() {
       return folderLevelBgSrc(playLevel(level));
     }
     if (dest === "window") {
-      return loadBgData("window", "default") || custom;
+      return idle || custom;
     }
     return custom;
   }
@@ -16764,23 +17058,25 @@ function GameEngine() {
       return urls;
     }
     const dest = target === "board" ? "board" : "window";
-    push(resolveTargetBgUrl(dest, level));
-    if (dest === "board") {
-      if (shouldUseBoardLevelBackgrounds()) {
-        folderLevelBgCandidates(level).forEach(push);
-      }
-      return urls;
-    }
-    if (settings.keepDefaultWindowBg) {
-      push(loadBgData("window", "default"));
+    if (dest === "window" && settings.keepDefaultWindowBg) {
+      push(loadIdleBgData("window"));
+      push(loadCommonBgData("window", "default"));
       bundledIdleBgCandidates().forEach(push);
       return urls;
     }
-    if (shouldUseLevelBackgrounds() || forceLevelBgPaint) {
-      const customWin = loadBgData("window", playLevel(level));
-      if (isUserMediaUrl(customWin)) {
-        push(customWin);
+    push(resolveTargetBgUrl(dest, level));
+    push(loadIdleBgData(dest));
+    push(loadCommonBgData(dest, playLevel(level)));
+    push(loadCommonBgData(dest, "default"));
+    if (dest === "board") {
+      if (shouldUseBoardLevelBackgrounds()) {
+        folderLevelBgCandidates(level).forEach(push);
+      } else {
+        bundledIdleBgCandidates().forEach(push);
       }
+      return urls;
+    }
+    if (shouldUseLevelBackgrounds() || forceLevelBgPaint) {
       folderLevelBgCandidates(level).forEach(push);
       return urls;
     }
@@ -16832,9 +17128,9 @@ function GameEngine() {
     settings.keepDefaultWindowBg = isKeep;
     syncGameSettingsExport();
     if (!isKeep) {
-      const customWin = loadBgData("window", lv);
+      const inheritedWin = pickInheritedBgUrl("window", lv);
       try {
-        applyResolvedBackground(isUserMediaUrl(customWin) ? customWin : folderLevelBgSrc(lv), fade);
+        applyResolvedBackground(inheritedWin || folderLevelBgSrc(lv), fade);
       } catch (winErr) {
         /* probe continues */
       }
@@ -16843,25 +17139,44 @@ function GameEngine() {
     const seq = ++bgLoadSeq;
     const kind = bgPaintKind("window", lv);
     paintTargetBackground("window", lv, fade, seq, false);
-    return Promise.resolve(hydrateBgSlot("window", kind)).then(() => {
-      paintTargetBackground("window", lv, fade, seq, allowClear);
-    }).catch(() => {
-      paintTargetBackground("window", lv, fade, seq, allowClear);
-    }).then(releaseForce, releaseForce);
+    return Promise.resolve(hydrateBgSlot("window", kind))
+      .then(() => hydrateBgSlot("window", "default"))
+      .then(() => hydrateCommonBgSlot("window", kind))
+      .then(() => hydrateCommonBgSlot("window", "default"))
+      .then(() => {
+        paintTargetBackground("window", lv, fade, seq, allowClear);
+      }).catch(() => {
+        paintTargetBackground("window", lv, fade, seq, allowClear);
+      }).then(releaseForce, releaseForce);
   }
 
   function updateBoardBackground(level, options) {
     const fade = !(options && options.fade === false);
     const allowClear = !(options && options.allowClear === false);
+    const lv = playLevel(level);
+    const inheritedBoard = pickInheritedBgUrl("board", lv);
+    const boardUrl = inheritedBoard
+      || (shouldUseBoardLevelBackgrounds() ? folderLevelBgSrc(lv) : "");
+    try {
+      if (isPaintableBgUrl(boardUrl)) {
+        applyResolvedBoardBackground(boardUrl, fade);
+      }
+    } catch (boardErr) {
+      /* probe continues */
+    }
     const releaseForce = pushLevelBgForce(!!(options && options.force));
     const seq = ++boardBgLoadSeq;
     const kind = bgPaintKind("board", level);
     paintTargetBackground("board", level, fade, seq, false);
-    return Promise.resolve(hydrateBgSlot("board", kind)).then(() => {
-      paintTargetBackground("board", level, fade, seq, allowClear);
-    }).catch(() => {
-      paintTargetBackground("board", level, fade, seq, allowClear);
-    }).then(releaseForce, releaseForce);
+    return Promise.resolve(hydrateBgSlot("board", kind))
+      .then(() => hydrateBgSlot("board", "default"))
+      .then(() => hydrateCommonBgSlot("board", kind))
+      .then(() => hydrateCommonBgSlot("board", "default"))
+      .then(() => {
+        paintTargetBackground("board", level, fade, seq, allowClear);
+      }).catch(() => {
+        paintTargetBackground("board", level, fade, seq, allowClear);
+      }).then(releaseForce, releaseForce);
   }
 
   function syncPlayBackgrounds(nextLevel, options) {
@@ -16886,6 +17201,22 @@ function GameEngine() {
 
   function drawBackground(level, options) {
     syncPlayBackgrounds(level, options);
+  }
+
+  function persistPaintedBackgrounds() {
+    try {
+      if (isCustomBgMasterDisabled()) {
+        return;
+      }
+      if (isPaintableBgUrl(lastValidBgUrl)) {
+        applyResolvedBackground(lastValidBgUrl, false);
+      }
+      if (isPaintableBgUrl(lastValidBoardBgUrl)) {
+        applyResolvedBoardBackground(lastValidBoardBgUrl, false);
+      }
+    } catch (err) {
+      /* keep layout resize alive */
+    }
   }
 
   function applyCurrentBackground(options) {
@@ -16957,8 +17288,8 @@ function GameEngine() {
       applyCurrentBackground({ fade });
       return;
     }
-    const customWin = loadBgData("window", "default") || loadBgData("window", 1);
-    const customBoard = loadBgData("board", "default") || loadBgData("board", 1);
+    const customWin = loadIdleBgData("window") || loadBgData("window", 1);
+    const customBoard = loadIdleBgData("board") || loadBgData("board", 1);
     const fallback = folderLevelBgSrc(1);
     const winUrl = isUserMediaUrl(customWin) ? customWin : fallback;
     const boardUrl = isUserMediaUrl(customBoard) ? customBoard : fallback;
@@ -17110,7 +17441,7 @@ function GameEngine() {
 
   function highlightBgTargetUi(targetType) {
     const dest = targetType === "board" ? "board" : "window";
-    document.querySelectorAll(".bg-target-btn").forEach((btn) => {
+    document.querySelectorAll(".bg-target-btn:not(.bg-scope-btn)").forEach((btn) => {
       const on = btn.dataset.bgTarget === dest;
       btn.classList.toggle("is-on", on);
       btn.setAttribute("aria-selected", on ? "true" : "false");
@@ -17142,6 +17473,31 @@ function GameEngine() {
     } catch (err) {
       /* fx optional */
     }
+    highlightBgScopeUi();
+  }
+
+  function highlightBgScopeUi() {
+    const common = isCommonBgScope();
+    document.querySelectorAll(".bg-scope-btn").forEach((btn) => {
+      const on = (btn.dataset.bgScope === "common") === common;
+      btn.classList.toggle("is-on", on);
+      btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    const hint = document.getElementById("bg-scope-hint");
+    if (hint) {
+      hint.setAttribute("data-i18n", common ? "bgScopeHintCommon" : "bgScopeHintPersonal");
+      hint.textContent = t(common ? "bgScopeHintCommon" : "bgScopeHintPersonal");
+    }
+    const clearBtn = document.getElementById("btn-clear-all-bg");
+    if (clearBtn) {
+      clearBtn.textContent = t("bulkBgClearAll");
+    }
+  }
+
+  function setCurrentBgScope(next) {
+    currentBgScope = next === "common" ? "common" : "personal";
+    highlightBgScopeUi();
+    return renderBgSlotList(bgEditTarget());
   }
 
   function syncBgTargetUi() {
@@ -17455,12 +17811,17 @@ function GameEngine() {
   async function reissueTargetBgUrls(targetType) {
     const dest = targetType === "board" ? "board" : "window";
     const keys = bgCandidateKeys(dest, "default").slice();
+    keys.push(commonBgStoreKey(dest, "default"));
     for (let n = 1; n <= LEVEL_BG_MAX; n++) {
       bgCandidateKeys(dest, n).forEach((key) => {
         if (keys.indexOf(key) < 0) {
           keys.push(key);
         }
       });
+      const commonKey = commonBgStoreKey(dest, n);
+      if (keys.indexOf(commonKey) < 0) {
+        keys.push(commonKey);
+      }
     }
     for (let i = 0; i < keys.length; i++) {
       try {
@@ -17480,10 +17841,12 @@ function GameEngine() {
     highlightBgTargetUi(dest);
     const statusTitle = document.getElementById("bg-slot-status-title");
     if (statusTitle) {
-      statusTitle.textContent = t(dest === "board" ? "bgSlotStatusBoard" : "bgSlotStatusWindow");
+      statusTitle.textContent = isCommonBgScope()
+        ? t(dest === "board" ? "commonBgSlotStatusBoard" : "commonBgSlotStatusWindow")
+        : t(dest === "board" ? "bgSlotStatusBoard" : "bgSlotStatusWindow");
     }
     const idleCard = document.querySelector('[data-level-bg="default"]');
-    const hideIdle = dest === "board";
+    const hideIdle = dest === "board" && !isCommonBgScope();
     if (idleCard) {
       idleCard.classList.toggle("is-board-hidden", hideIdle);
       idleCard.hidden = hideIdle;
@@ -17491,35 +17854,40 @@ function GameEngine() {
     }
     const boardCard = document.getElementById("board-idle-bg-card");
     if (boardCard) {
-      boardCard.classList.toggle("is-window-hidden", !hideIdle);
-      boardCard.hidden = !hideIdle;
-      boardCard.style.display = hideIdle ? "" : "none";
+      const showBoardIdle = hideIdle;
+      boardCard.classList.toggle("is-window-hidden", !showBoardIdle);
+      boardCard.hidden = !showBoardIdle;
+      boardCard.style.display = showBoardIdle ? "" : "none";
     }
     bindBoardIdleBgControls();
     bindBulkBgControls();
+    bindBgScopeControls();
     if (hideIdle) {
       syncBoardIdleBgUi();
     } else {
-      const idleCustom = hasCustomBg(dest, "default");
+      const idleCustom = hasActiveBg(dest, "default");
       fillBgCard(
         idleCard,
-        idleCustom ? loadBgData(dest, "default") : "",
-        bgFileNameOf(dest, "default"),
-        t("idleBgTitle"),
+        idleCustom ? loadActiveBgData(dest, "default") : "",
+        activeBgFileNameOf(dest, "default"),
+        t(isCommonBgScope() ? "commonIdleBgTitle" : "idleBgTitle"),
         idleCustom
       );
       const caption = document.querySelector('[data-level-bg="default"] .level-bg-caption');
       if (caption) {
-        caption.textContent = t("idleBgCaption");
+        caption.textContent = t(isCommonBgScope() ? "commonIdleBgCaption" : "idleBgCaption");
       }
     }
     const playTitle = document.querySelector(".level-play-bg-title");
     if (playTitle) {
-      playTitle.textContent = t(dest === "board" ? "levelPlayBgTitleBoard" : "levelPlayBgTitle");
+      playTitle.textContent = isCommonBgScope()
+        ? t(dest === "board" ? "commonLevelPlayBgTitleBoard" : "commonLevelPlayBgTitle")
+        : t(dest === "board" ? "levelPlayBgTitleBoard" : "levelPlayBgTitle");
     }
     const list = document.getElementById("level-bg-list");
     if (list) {
       list.dataset.bgTarget = dest;
+      list.dataset.bgScope = isCommonBgScope() ? "common" : "personal";
       if (!list.children.length) {
         try {
           buildLevelBgCards();
@@ -17528,12 +17896,12 @@ function GameEngine() {
         }
       }
       for (let n = 1; n <= LEVEL_BG_MAX; n++) {
-        const custom = hasCustomBg(dest, n);
+        const custom = hasActiveBg(dest, n);
         fillBgCard(
           list.querySelector(`[data-level-bg="${n}"]`),
-          custom ? loadBgData(dest, n) : "",
-          bgFileNameOf(dest, n),
-          t("levelBgTitle", { n }),
+          custom ? loadActiveBgData(dest, n) : "",
+          activeBgFileNameOf(dest, n),
+          t(isCommonBgScope() ? "commonLevelBgTitle" : "levelBgTitle", { n }),
           custom
         );
       }
@@ -17554,8 +17922,10 @@ function GameEngine() {
     }
     try {
       await hydrateBgSlot(dest, "default");
+      await hydrateCommonBgSlot(dest, "default");
       for (let n = 1; n <= LEVEL_BG_MAX; n++) {
         await hydrateBgSlot(dest, n);
+        await hydrateCommonBgSlot(dest, n);
       }
     } catch (err) {
       console.error("[bg-slot] hydrate", err);
@@ -17620,13 +17990,17 @@ function GameEngine() {
           mediaStore.reissue(key);
         }
       });
+      const commonKey = commonBgStoreKey(dest, slot);
+      if (typeof mediaStore.reissue === "function" && mediaStore.peek(commonKey)) {
+        mediaStore.reissue(commonKey);
+      }
     } catch (err) {
       /* bind with current urls */
     }
     if (bgEditTarget() !== dest) {
       return;
     }
-    if (slot === "default" && dest === "board") {
+    if (slot === "default" && dest === "board" && !isCommonBgScope()) {
       syncBoardIdleBgUi();
       return;
     }
@@ -17635,10 +18009,12 @@ function GameEngine() {
       : `[data-level-bg="${shownLevel(slot)}"]`;
     fillBgCard(
       document.querySelector(selector),
-      loadBgData(dest, slot),
-      bgFileNameOf(dest, slot),
-      slot === "default" ? t("idleBgTitle") : t("levelBgTitle", { n: shownLevel(slot) }),
-      hasCustomBg(dest, slot)
+      loadActiveBgData(dest, slot),
+      activeBgFileNameOf(dest, slot),
+      slot === "default"
+        ? t(isCommonBgScope() ? "commonIdleBgTitle" : "idleBgTitle")
+        : t(isCommonBgScope() ? "commonLevelBgTitle" : "levelBgTitle", { n: shownLevel(slot) }),
+      hasActiveBg(dest, slot)
     );
   }
 
@@ -17765,9 +18141,12 @@ function GameEngine() {
       "custom_bg_window_default",
       "custom_bg_board_default",
       BOARD_IDLE_BG_IDB,
+      commonBgStoreKey("window", "default"),
+      commonBgStoreKey("board", "default"),
     ];
     for (let n = 1; n <= LEVEL_BG_MAX; n++) {
       keys.push(bgStoreKey("window", n), bgStoreKey("board", n), `levelBg${n}`, `bg_lvl_${n}`, `bg_panel_lvl_${n}`, bgLevelAliasKey(n));
+      keys.push(commonBgStoreKey("window", n), commonBgStoreKey("board", n));
     }
     for (let i = 0; i < keys.length; i++) {
       try {
@@ -17887,9 +18266,11 @@ function GameEngine() {
   async function persistBulkRawToSlot(dataUrl, job) {
     const dest = job.target === "board" ? "board" : "window";
     const kind = job.slot === "idle" ? "default" : job.slot;
-    const key = (kind === "default" || kind === "idle")
-      ? (dest === "board" ? BOARD_IDLE_BG_IDB : bgStoreKey("window", "default"))
-      : bgStoreKey(dest, kind);
+    const key = isCommonBgScope()
+      ? commonBgStoreKey(dest, kind)
+      : ((kind === "default" || kind === "idle")
+        ? (dest === "board" ? BOARD_IDLE_BG_IDB : bgStoreKey("window", "default"))
+        : bgStoreKey(dest, kind));
     try {
       if (typeof saveMediaFile === "function") {
         if (await saveMediaFile(key, dataUrl)) {
@@ -17911,6 +18292,10 @@ function GameEngine() {
     return "";
 
     async function afterSave() {
+      if (isCommonBgScope()) {
+        registerCanonicalBgName(dest, kind);
+        return mediaStore.peek(key) || dataUrl;
+      }
       if (dest === "board" && (kind === "default" || kind === "idle")) {
         persistBoardIdleBgFlag(true);
       }
@@ -17966,6 +18351,21 @@ function GameEngine() {
       throw new Error("IndexedDB put failed");
     }
     const dest = job.target === "board" ? "board" : "window";
+    if (isCommonBgScope()) {
+      const commonKey = commonBgStoreKey(dest, kind);
+      try {
+        await mediaStore.get(commonKey);
+      } catch (err) {
+        console.error("[DadTetrisDB] common hydrate failed", commonKey, err);
+      }
+      const canon = registerCanonicalBgName(job.target, kind);
+      return {
+        url: mediaStore.peek(commonKey) || url,
+        dataUrl,
+        canonical: canon,
+        originalName: (file && file.name) || "",
+      };
+    }
     const primaryKey = (kind === "default" || kind === "idle")
       ? (dest === "board" ? BOARD_IDLE_BG_IDB : bgStoreKey("window", "default"))
       : bgStoreKey(dest, kind);
@@ -18037,7 +18437,10 @@ function GameEngine() {
         }
         const dest = job.target === "board" ? "board" : "window";
         const kind = job.slot === "idle" ? "default" : job.slot;
-        entries.push({ key: bgStoreKey(dest, kind), blob: asCanonicalBgFile(file, dest, kind) });
+        entries.push({
+          key: isCommonBgScope() ? commonBgStoreKey(dest, kind) : bgStoreKey(dest, kind),
+          blob: asCanonicalBgFile(file, dest, kind),
+        });
       });
       try {
         if (window.MediaStorage && typeof window.MediaStorage.bulkPut === "function") {
@@ -18192,8 +18595,47 @@ function GameEngine() {
     if (bulkBgBusy) {
       return;
     }
-    const ok = await showIngameConfirm(t("confirmBulkClearBg"));
+    const ok = await showIngameConfirm(t(isCommonBgScope() ? "confirmBulkClearCommonBg" : "confirmBulkClearBg"));
     if (!ok) {
+      return;
+    }
+    if (isCommonBgScope()) {
+      const keys = [
+        commonBgStoreKey("window", "default"),
+        commonBgStoreKey("board", "default"),
+      ];
+      for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+        keys.push(commonBgStoreKey("window", n), commonBgStoreKey("board", n));
+      }
+      await Promise.all(keys.map((key) => mediaStore.del(key)));
+      setCommonBgFileName("window", "default", "");
+      setCommonBgFileName("board", "default", "");
+      for (let n = 1; n <= LEVEL_BG_MAX; n++) {
+        setCommonBgFileName("window", n, "");
+        setCommonBgFileName("board", n, "");
+      }
+      try {
+        saveSettings();
+      } catch (err) {
+        /* ignore */
+      }
+      try {
+        keys.forEach((key) => {
+          try {
+            localStorage.removeItem(key);
+          } catch (err) {
+            /* ignore */
+          }
+        });
+      } catch (err) {
+        /* ignore */
+      }
+      refreshAllBgSlotThumbnails("window").then(() => {
+        return refreshAllBgSlotThumbnails("board");
+      }).then(() => {
+        updateCurrentLiveBackground();
+      });
+      showNeonToast(t("bgDeletedToast"), { ms: 1600 });
       return;
     }
     const keys = [
@@ -18320,6 +18762,20 @@ function GameEngine() {
     }
   }
 
+  function bindBgScopeControls() {
+    document.querySelectorAll(".bg-scope-btn").forEach((btn) => {
+      if (btn.dataset.bound === "1") {
+        return;
+      }
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        setCurrentBgScope(btn.dataset.bgScope === "common" ? "common" : "personal");
+      });
+    });
+    highlightBgScopeUi();
+  }
+
   function syncLevelBgUi() {
     const dest = settings.bgTarget === "board" || settings.bgTarget === "window"
       ? settings.bgTarget
@@ -18329,7 +18785,7 @@ function GameEngine() {
   }
 
   function setBgFromFile(kind, file, statusEl) {
-    if (kind === "default" && bgEditTarget() === "board") {
+    if (kind === "default" && bgEditTarget() === "board" && !isCommonBgScope()) {
       setBoardIdleBgFromFile(file);
       return;
     }
@@ -18378,19 +18834,19 @@ function GameEngine() {
 
   async function restoreDefaultBg(kind) {
     const target = bgEditTarget();
-    if ((kind === "default" || kind === "board-idle") && target === "board") {
+    if ((kind === "default" || kind === "board-idle") && target === "board" && !isCommonBgScope()) {
       await restoreBoardIdleBg();
       return;
     }
     const slot = kind === "default" ? "default" : kind;
-    if (!hasCustomBg(target, slot)) {
+    if (!hasActiveBg(target, slot)) {
       return;
     }
     const ok = await showIngameConfirm(t("confirmDeleteBg"));
     if (!ok) {
       return;
     }
-    const prevUrl = loadBgData(target, slot);
+    const prevUrl = loadActiveBgData(target, slot);
     await deleteAllBgSlotKeys(target, slot);
     if (target === "board") {
       if (lastValidBoardBgUrl && prevUrl && lastValidBoardBgUrl === prevUrl) {
@@ -22319,6 +22775,7 @@ function GameEngine() {
     lockHeaderUtilityButtons();
     applyForcedProfileCardLayout();
     purgeBoardWatermarks();
+    persistPaintedBackgrounds();
   }
 
   function resize() {
@@ -25768,7 +26225,12 @@ function GameEngine() {
           + " " + String(lastValidBoardBgUrl || "");
         const wrap = document.getElementById("board-wrap");
         const chromeOk = !!(wrap && wrap.getAttribute("data-play-level") === "2");
-        const switched = /level_1/i.test(cssLv1) && /level_2/i.test(cssLv2) && cssLv1 !== cssLv2;
+        const idleBoardUrl = (typeof loadIdleBgData === "function" && loadIdleBgData("board")) || "";
+        const commonBoardUrl = (typeof loadCommonBgData === "function" && (loadCommonBgData("board", 1) || loadCommonBgData("board", "default"))) || "";
+        const inheritImg = /blob:|data:/i.test(cssLv1) && /blob:|data:/i.test(cssLv2);
+        const inheritIdle = /^(blob:|data:)/i.test(idleBoardUrl) || /^(blob:|data:)/i.test(commonBoardUrl);
+        const switched = inheritImg
+          || (!inheritIdle && /level_1/i.test(cssLv1) && /level_2/i.test(cssLv2) && cssLv1 !== cssLv2);
         levelBgOk = lvNow >= 2
           && !!changed
           && distinctOk
@@ -26178,6 +26640,10 @@ function GameEngine() {
             && winKeys.indexOf(alias) < 0;
           await hydrateBgSlot("board", lv);
           await hydrateBgSlot("window", lv);
+          await hydrateBgSlot("board", "default");
+          await hydrateBgSlot("window", "default");
+          await hydrateCommonBgSlot("board", lv);
+          await hydrateCommonBgSlot("board", "default");
           updateLevelBackground(lv, { fade: false });
           updateBoardBackground(lv, { fade: false });
           if (typeof drawBackground === "function") {
@@ -26185,9 +26651,13 @@ function GameEngine() {
           }
           const custom = resolveTargetBgUrl("board", lv) || "";
           const paint = resolvePaintBgUrl("board", lv) || "";
+          const idle = loadIdleBgData("board") || "";
+          const commonLv = loadCommonBgData("board", lv) || "";
+          const commonIdle = loadCommonBgData("board", "default") || "";
           const fb = folderLevelBgSrc(lv);
+          const inherited = idle || commonLv || commonIdle;
           const triggered = isolated && isBundledLevelBgUrl(fb, lv)
-            && (custom ? paint === custom : isBundledLevelBgUrl(paint, lv));
+            && (custom ? paint === custom : (inherited ? paint === inherited : isBundledLevelBgUrl(paint, lv)));
           diagLog(`[LEVEL BG SIM] lv=${lv} store=${bgStoreKey("board", lv)} alias=${alias} isolated=${isolated} fallback=${fb} custom=${custom ? "hit" : "empty"} paint=${paint || "neon"} trigger=${triggered}`);
           if (triggered) {
             hits += 1;
@@ -27233,7 +27703,9 @@ function GameEngine() {
         settings.disableAllCustomBg = false;
         const livePaint = resolvePaintBgUrl("board", 5);
         const liveFb = folderLevelBgSrc(5);
-        const liveOk = livePaint === (resolveTargetBgUrl("board", 5) || liveFb);
+        const liveIdle = loadIdleBgData("board") || "";
+        const liveCommon = loadCommonBgData("board", 5) || loadCommonBgData("board", "default") || "";
+        const liveOk = livePaint === (resolveTargetBgUrl("board", 5) || liveIdle || liveCommon || liveFb);
         diagLog(`[IDB SLOT MAP] idleBoard=${idleBoard} idleWin=${idleWin} lv1Board=${lv1Board} lv1Win=${lv1Win} alias20=${bgLevelAliasKey(20)} iso=${isoOk} isolatedLoad=${isolatedLoad}`);
         diagLog(`[OPTION INTERLOCK] keep=${keepOk} master=${masterOk} fx=${fxOk} live=${liveOk} blur=${cssBlur} opacity=${cssOp}`);
         const isolateOk = typeof diagBgStorageIsolationOk === "function" && diagBgStorageIsolationOk();
@@ -29894,6 +30366,7 @@ function GameEngine() {
     } else {
       scheduleResize();
     }
+    persistPaintedBackgrounds();
   };
   window.addEventListener("resize", onViewportFit);
   window.addEventListener("orientationchange", onViewportFit);
@@ -29913,6 +30386,7 @@ function GameEngine() {
         resizeCanvas();
       }
       scheduleResize();
+      persistPaintedBackgrounds();
     });
   }
   window.addEventListener("blur", () => {

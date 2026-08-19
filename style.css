@@ -5057,6 +5057,15 @@ body.diag-running #profile-y {
   background: rgba(46, 230, 255, 0.08);
 }
 
+.bg-scope-toggle {
+  margin-bottom: 10px;
+  border-color: rgba(125, 211, 252, 0.45);
+}
+
+.bg-scope-btn {
+  font-size: 0.88rem;
+}
+
 .bg-target-toggle {
   display: grid;
   grid-template-columns: 1fr 1fr;

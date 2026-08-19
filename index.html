@@ -462,7 +462,7 @@
               <li data-i18n="guideIdleSplitWindow">🖥️ 전체 윈도우: custom_bg_window_default / custom_bg_window_level_N, 윈도우 전용 블러/투명도. [전체 윈도우 배경 세트] 일괄 등록만 이 키에 저장됩니다.</li>
               <li data-i18n="guideIdleSplitBoard">🎮 게임 패널: board_idle_bg_blob / custom_bg_board_level_N, 패널 전용 블러/투명도. [게임 패널 배경 세트] 일괄 등록만 이 키에 저장됩니다.</li>
               <li data-i18n="guideBgIsolateBody">윈도우 일괄 등록과 패널 일괄 등록은 동작·저장이 독립입니다. 공유 키(bg_level_N)를 쓰지 않아 한쪽 등록이 다른 쪽에 복사되지 않습니다.</li>
-              <li data-i18n="guideLevelBgLiveBody">레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 커스텀이 없으면 level_N.jpg 폴더 이미지로 폴백하고, [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.</li>
+              <li data-i18n="guideLevelBgLiveBody">레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 레벨 커스텀이 없으면 등록해 둔 기본(Idle) 배경을 상속하고, 그것도 없으면 level_N.jpg로 폴백합니다. [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.</li>
             </ul>
             <p class="guide-copy" data-i18n="guideIdleSplitBody">전체 윈도우와 게임 패널은 등록·저장·재생이 완전히 독립입니다. 패널에 올린 이미지가 윈도우에 섞이지 않으며, 블러·투명도와 [기본 배경 계속 유지]도 대상별로 동작합니다.</p>
           </article>
@@ -1128,6 +1128,12 @@
           </div>
         </article>
         <section class="setting-block">
+          <p class="row-title" data-i18n="bgScopeTitle">배경 관리 범위</p>
+          <div class="bg-target-toggle bg-scope-toggle" role="tablist" aria-label="배경 관리 범위">
+            <button type="button" class="bg-target-btn bg-scope-btn is-on" data-bg-scope="personal" role="tab" aria-selected="true" data-i18n="bgScopePersonal">👤 내 개인 배경</button>
+            <button type="button" class="bg-target-btn bg-scope-btn" data-bg-scope="common" role="tab" aria-selected="false" data-i18n="bgScopeCommon">🌐 공통 시스템 배경</button>
+          </div>
+          <p class="setting-hint" id="bg-scope-hint" data-i18n="bgScopeHintPersonal">이 기기에만 저장되는 개인 배경입니다. 없으면 공통 시스템 배경을 상속합니다.</p>
           <p class="row-title" data-i18n="bgTargetTitle">배경 대상</p>
           <div class="bg-target-toggle" role="tablist" aria-label="배경 대상">
             <button type="button" class="bg-target-btn is-on" data-bg-target="window" role="tab" aria-selected="true" data-i18n="bgTargetWindow">🖥️ 전체 윈도우 배경</button>
