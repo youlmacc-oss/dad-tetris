@@ -1,7 +1,7 @@
-/* Dad Tetris v1.3.4-vol-c10 */
+/* Dad Tetris v1.4.3-video-opt */
 "use strict";
 
-import { dbManager, storageUtil } from "./storage.js";
+import { dbManager, storageUtil, assertEventVideoFile, saveEventVideoBlob, deleteEventVideoBlob } from "./storage.js";
 import { soundManager } from "./audio.js";
 import { renderEngine, drawBlock, renderStaticBackground, renderGhostPreview, renderSkinPreview, applyForcedProfileCardLayout, purgeBoardWatermarks } from "./render.js";
 
@@ -172,7 +172,81 @@ export function bindUiController(nextHost) {
   bindBgTargetTabs();
   bindPlayerNicknameField();
   bindVolumeSliders();
+  bindEventVideoSlots();
   return uiController;
+}
+
+export function bindEventVideoSlots() {
+  if (typeof document === "undefined" || document.documentElement.dataset.eventVideoBound === "1") {
+    return;
+  }
+  document.documentElement.dataset.eventVideoBound = "1";
+
+  function warnEventVideo(file, check) {
+    if (!check || check.ok) {
+      return;
+    }
+    if (check.reason === "too_large") {
+      const size = check.sizeMB || (file ? (file.size / (1024 * 1024)).toFixed(1) : "?");
+      window.alert(`⚠️ [용량 초과] 영상 크기가 너무 큽니다 (${size}MB).\n게임의 원활한 작동을 위해 15MB 이하의 파일만 등록할 수 있습니다.`);
+      return;
+    }
+    if (check.reason === "type") {
+      window.alert("⚠️ 동영상 파일(MP4, WebM 등)만 업로드 가능합니다.");
+    }
+  }
+
+  document.querySelectorAll("[data-video-file]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const kind = input.dataset.videoFile;
+      const file = input.files && input.files[0];
+      const hostHandler = host && typeof host.handleEventVideoUpload === "function"
+        ? host.handleEventVideoUpload
+        : window.handleEventVideoUpload;
+      const finish = () => {
+        input.value = "";
+      };
+      if (!file) {
+        finish();
+        return;
+      }
+      if (typeof hostHandler === "function") {
+        Promise.resolve(hostHandler(file, kind)).finally(finish);
+        return;
+      }
+      const check = assertEventVideoFile(file);
+      if (!check.ok) {
+        warnEventVideo(file, check);
+        finish();
+        return;
+      }
+      Promise.resolve(saveEventVideoBlob(kind, file)).then((result) => {
+        if (result && result.ok && host && typeof host.refreshVideoSlotUI === "function") {
+          host.refreshVideoSlotUI(kind);
+        }
+      }).finally(finish);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-video]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const kind = btn.dataset.deleteVideo;
+      const hostHandler = host && typeof host.deleteEventVideo === "function"
+        ? host.deleteEventVideo
+        : window.deleteEventVideo;
+      if (typeof hostHandler === "function") {
+        hostHandler(kind);
+        return;
+      }
+      Promise.resolve(deleteEventVideoBlob(kind)).then(() => {
+        if (host && typeof host.refreshVideoSlotUI === "function") {
+          host.refreshVideoSlotUI(kind);
+        }
+      });
+    });
+  });
 }
 
 export function bindBulkBgFilePicker() {
@@ -491,7 +565,7 @@ export function runDiagnostics() {
   }
 }
 
-export const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
+export const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15"];
 export const GUIDE_CHAPTER_TABS = ["controls", "skins", "board", "dad", "media", "bulk", "lang"];
 
 export function coreDiagPassCount() {
@@ -781,6 +855,7 @@ export const uiController = {
   mobileTouchElementsOk,
   applyForcedProfileCardLayout,
   purgeBoardWatermarks,
+  bindEventVideoSlots,
   verifyModules() {
     const storageOk = !!(dbManager && storageUtil && typeof dbManager.saveMediaFile === "function" && typeof storageUtil.get === "function");
     const audioOk = !!(soundManager && typeof soundManager.play === "function" && typeof soundManager.ensure === "function");

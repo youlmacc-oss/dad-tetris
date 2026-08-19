@@ -1,4 +1,4 @@
-/* Dad Tetris v1.3.4-vol-c10 */
+/* Dad Tetris v1.4.3-video-opt */
 "use strict";
 
 const DB_NAME = "DadTetrisDB";
@@ -797,6 +797,64 @@ export function getMediaFile(key) { return dbManager.getMediaFile(key); }
 export function deleteMediaFile(key) { return dbManager.deleteMediaFile(key); }
 export function clearAllMedia() { return dbManager.clearAllMedia(); }
 export function clearMedia() { return dbManager.clearMedia(); }
+
+export const MAX_VIDEO_SIZE_MB = 15;
+export const MAX_VIDEO_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+
+export function eventVideoStoreKey(slotKey) {
+  return `video-${slotKey}`;
+}
+
+export function eventVideoAliasKey(slotKey) {
+  return `event_video_${slotKey}`;
+}
+
+export function isAllowedVideoFile(file) {
+  if (!file) {
+    return false;
+  }
+  const type = String(file.type || "").toLowerCase();
+  if (type.startsWith("video/")) {
+    return true;
+  }
+  if (type && type !== "application/octet-stream") {
+    return false;
+  }
+  const name = String(file.name || "").toLowerCase();
+  return /\.(mp4|webm|mov|m4v|ogg|ogv)$/.test(name);
+}
+
+export function assertEventVideoFile(file) {
+  if (!file) {
+    return { ok: false, reason: "empty" };
+  }
+  if (file.size > MAX_VIDEO_BYTES) {
+    return { ok: false, reason: "too_large", sizeMB: (file.size / (1024 * 1024)).toFixed(1) };
+  }
+  if (!isAllowedVideoFile(file)) {
+    return { ok: false, reason: "type" };
+  }
+  return { ok: true };
+}
+
+export async function saveMediaBlob(key, file) {
+  return saveMediaFile(key, file);
+}
+
+export async function saveEventVideoBlob(slotKey, file) {
+  const check = assertEventVideoFile(file);
+  if (!check.ok) {
+    return check;
+  }
+  const ok = await putMediaFile(eventVideoStoreKey(slotKey), file);
+  return ok ? { ok: true } : { ok: false, reason: "save_failed" };
+}
+
+export async function deleteEventVideoBlob(slotKey) {
+  await deleteMediaFile(eventVideoStoreKey(slotKey));
+  await deleteMediaFile(eventVideoAliasKey(slotKey));
+  return true;
+}
 
 if (typeof window !== "undefined") {
   window.MediaStorage = dbManager;

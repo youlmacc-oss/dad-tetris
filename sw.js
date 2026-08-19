@@ -1,10 +1,11 @@
-const APP_VERSION = "1.3.15-circle";
+const APP_VERSION = "1.4.3-video-opt";
 const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./404.html",
   "./style.css?v=" + APP_VERSION,
+  "./css/settings.css?v=" + APP_VERSION,
   "./script.js?v=" + APP_VERSION,
   "./manifest.json",
   "./assets/images/default_bg.jpg",

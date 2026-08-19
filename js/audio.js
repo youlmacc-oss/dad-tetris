@@ -33,6 +33,9 @@ export const soundManager = {
   ctx: null,
   muted: false,
   bgm: null,
+  bgmDucked: false,
+  bgmDuckRatio: 0.1,
+  bgmRampTimer: 0,
   ensure() {
     if (!host || host.gameTerminated) {
       return;
@@ -48,7 +51,7 @@ export const soundManager = {
       this.ctx = null;
     }
   },
-  ensureGraph() {
+  ensureGraph(options) {
     this.ensure();
     if (!this.ctx) {
       return false;
@@ -68,7 +71,9 @@ export const soundManager = {
         this.timestopFilter.frequency.value = 18000;
       }
       this.connectBgmGraph();
-      this.applyMasterGains();
+      if (!(options && options.skipGains)) {
+        this.applyMasterGains();
+      }
       return true;
     } catch (err) {
       return false;
@@ -95,13 +100,130 @@ export const soundManager = {
     const sfxOn = !muted && !!st().sound;
     const bgmOn = !muted && !!st().bgm;
     const sfxV = sfxOn ? Math.max(0, Math.min(1, host.unit(st().soundVolume, def().soundVolume))) : 0;
-    const bgmV = bgmOn ? Math.max(0, Math.min(1, host.unit(st().bgmVolume, def().bgmVolume))) : 0;
+    let bgmV = bgmOn ? Math.max(0, Math.min(1, host.unit(st().bgmVolume, def().bgmVolume))) : 0;
+    if (bgmOn && this.bgmDucked) {
+      bgmV *= Math.max(0, Math.min(1, Number(this.bgmDuckRatio) || 0.1));
+    }
     if (this.sfxGain) {
       this.sfxGain.gain.value = sfxV;
     }
     if (this.bgmGain) {
       this.bgmGain.gain.value = bgmV;
     }
+  },
+  getBgmVolumeSetting() {
+    let pct = NaN;
+    try {
+      if (host && host.settings && host.settings.bgmVolume != null) {
+        pct = Number(host.settings.bgmVolume);
+      }
+    } catch (err) {
+      pct = NaN;
+    }
+    if (!Number.isFinite(pct)) {
+      try {
+        const saved = localStorage.getItem("dad_tetris_bgm_vol")
+          || localStorage.getItem("bgmVolume")
+          || String((def() && def().bgmVolume) || 70);
+        pct = Number(saved);
+      } catch (err) {
+        pct = (def() && def().bgmVolume) || 70;
+      }
+    }
+    if (!Number.isFinite(pct)) {
+      pct = 70;
+    }
+    let unit = (host && typeof host.unit === "function")
+      ? host.unit(pct, (def() && def().bgmVolume) || 70)
+      : (pct > 1 ? pct / 100 : pct);
+    unit = Math.max(0, Math.min(1, Number(unit) || 0));
+    if (this.muted || st().bgm === false) {
+      return 0;
+    }
+    try {
+      const muteA = localStorage.getItem("dad_tetris_muted");
+      const muteB = localStorage.getItem("dadTetrisMuted");
+      if (muteA === "true" || muteA === "1" || muteB === "true" || muteB === "1") {
+        return 0;
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    return unit;
+  },
+  rampBgmGain(targetVol, duration) {
+    this.ensureGraph({ skipGains: true });
+    const target = Math.max(0, Math.min(1, Number(targetVol) || 0));
+    const dur = Math.max(0, Number(duration) || 0);
+    const audio = (this.bgm && this.bgm.audio) || this.bgmAudioElement;
+    if (this.bgmGain && this.ctx) {
+      try {
+        const now = this.ctx.currentTime;
+        const current = Number(this.bgmGain.gain.value);
+        const from = Number.isFinite(current) ? current : target;
+        this.bgmGain.gain.cancelScheduledValues(now);
+        this.bgmGain.gain.setValueAtTime(from, now);
+        if (dur <= 0) {
+          this.bgmGain.gain.setValueAtTime(target, now);
+        } else {
+          this.bgmGain.gain.linearRampToValueAtTime(target, now + dur);
+        }
+      } catch (err) {
+        try {
+          this.bgmGain.gain.value = target;
+        } catch (setErr) {
+          /* ignore */
+        }
+      }
+    }
+    if (audio) {
+      try {
+        audio.volume = this.bgmSource ? 1 : target;
+      } catch (volErr) {
+        /* ignore */
+      }
+    }
+    window.clearTimeout(this.bgmRampTimer);
+    if (dur > 0) {
+      this.bgmRampTimer = window.setTimeout(() => {
+        if (this.bgmGain) {
+          try {
+            this.bgmGain.gain.value = this.bgmDucked
+              ? this.getBgmVolumeSetting() * (Number(this.bgmDuckRatio) || 0.1)
+              : this.getBgmVolumeSetting();
+          } catch (snapErr) {
+            /* ignore */
+          }
+        }
+        if (audio && !this.bgmSource) {
+          try {
+            audio.volume = this.getBgmVolumeSetting() * (this.bgmDucked ? (Number(this.bgmDuckRatio) || 0.1) : 1);
+          } catch (elErr) {
+            /* ignore */
+          }
+        } else if (audio) {
+          try {
+            audio.volume = 1;
+          } catch (elErr) {
+            /* ignore */
+          }
+        }
+      }, Math.round(dur * 1000) + 16);
+    }
+  },
+  duckBgm(targetRatio, duration) {
+    this.bgmDucked = true;
+    this.bgmDuckRatio = Math.max(0, Math.min(1, Number(targetRatio)));
+    if (!Number.isFinite(this.bgmDuckRatio)) {
+      this.bgmDuckRatio = 0.1;
+    }
+    const currentVol = this.getBgmVolumeSetting();
+    this.rampBgmGain(currentVol * this.bgmDuckRatio, duration == null ? 0.3 : duration);
+  },
+  restoreBgm(duration) {
+    this.bgmDucked = false;
+    const originalVol = this.getBgmVolumeSetting();
+    this.rampBgmGain(originalVol, duration == null ? 0.3 : duration);
   },
   setSfxVolume(v) {
     const n = Number(v);
@@ -127,13 +249,14 @@ export const soundManager = {
       host.settings.bgmVolume = Math.round(unit * 100);
     }
     this.ensureGraph();
+    const ducked = this.bgmDucked ? Math.max(0, Math.min(1, Number(this.bgmDuckRatio) || 0.1)) : 1;
     if (this.bgmGain) {
-      this.bgmGain.gain.value = this.muted ? 0 : unit;
+      this.bgmGain.gain.value = this.muted ? 0 : unit * ducked;
     }
     if (typeof this.applyMasterGains === "function" && !this.muted) {
       this.applyMasterGains();
       if (this.bgmGain && !this.muted) {
-        this.bgmGain.gain.value = unit;
+        this.bgmGain.gain.value = unit * ducked;
       }
     }
   },
@@ -380,10 +503,14 @@ export function createSoundManager(nextHost) {
       } else if (sfx && typeof sfx.applyMasterGains === "function") {
         sfx.applyMasterGains();
       }
+      const unit = this.targetVolume();
+      const ducked = sfx && sfx.bgmDucked
+        ? unit * Math.max(0, Math.min(1, Number(sfx.bgmDuckRatio) || 0.1))
+        : unit;
       if (sfx && sfx.bgmSource) {
         this.audio.volume = 1;
       } else {
-        this.audio.volume = this.targetVolume();
+        this.audio.volume = ducked;
       }
     },
     canPlay() {
@@ -415,6 +542,11 @@ export function createSoundManager(nextHost) {
     },
     fadeOut() {
       sfx.muted = true;
+      this.stopFade();
+      if (sfx && typeof sfx.duckBgm === "function") {
+        sfx.duckBgm(0.1, 0.3);
+        return;
+      }
       if (!this.audio.src || this.audio.paused) {
         return;
       }
@@ -422,31 +554,40 @@ export function createSoundManager(nextHost) {
         this.audio.pause();
       });
     },
+    restoreAfterVideo(duration) {
+      this.stopFade();
+      sfx.muted = false;
+      if (sfx && typeof sfx.restoreBgm === "function") {
+        sfx.restoreBgm(duration == null ? 0.3 : duration);
+        return;
+      }
+      this.applyVolume();
+    },
     fadeIn() {
       if (!host) {
         return;
       }
-      sfx.muted = false;
+      this.restoreAfterVideo(0.3);
       if (!this.canPlay()) {
         this.applyVolume();
         host.syncBgmUi();
         return;
       }
-      if (host.isAudioLoading) {
-        return;
-      }
-      this.audio.volume = 0;
-      host.isAudioLoading = true;
-      this.audio.play().catch(() => {
-        try {
-          this.audio.pause();
-        } catch (err) {
-          /* autoplay blocked */
+      if (this.audio.paused) {
+        if (host.isAudioLoading) {
+          return;
         }
-      }).finally(() => {
-        host.isAudioLoading = false;
-      });
-      this.fadeTo(this.targetVolume(), 420);
+        host.isAudioLoading = true;
+        this.audio.play().catch(() => {
+          try {
+            this.audio.pause();
+          } catch (err) {
+            /* autoplay blocked */
+          }
+        }).finally(() => {
+          host.isAudioLoading = false;
+        });
+      }
       host.syncBgmUi();
     },
     play() {

@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.3.15-circle single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.4.3-video-opt single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -1034,6 +1034,9 @@ const soundManager = {
   ctx: null,
   muted: false,
   bgm: null,
+  bgmDucked: false,
+  bgmDuckRatio: 0.1,
+  bgmRampTimer: 0,
   ensure() {
     if (!host || host.gameTerminated) {
       return;
@@ -1049,7 +1052,7 @@ const soundManager = {
       this.ctx = null;
     }
   },
-  ensureGraph() {
+  ensureGraph(options) {
     this.ensure();
     if (!this.ctx) {
       return false;
@@ -1069,7 +1072,9 @@ const soundManager = {
         this.timestopFilter.frequency.value = 18000;
       }
       this.connectBgmGraph();
-      this.applyMasterGains();
+      if (!(options && options.skipGains)) {
+        this.applyMasterGains();
+      }
       return true;
     } catch (err) {
       return false;
@@ -1104,13 +1109,130 @@ const soundManager = {
     const sfxOn = !muted && cur.sound !== false;
     const bgmOn = !muted && cur.bgm !== false;
     const sfxV = sfxOn ? Math.max(0, Math.min(1, toUnit(cur.soundVolume, 80))) : 0;
-    const bgmV = bgmOn ? Math.max(0, Math.min(1, toUnit(cur.bgmVolume, 70))) : 0;
+    let bgmV = bgmOn ? Math.max(0, Math.min(1, toUnit(cur.bgmVolume, 70))) : 0;
+    if (bgmOn && this.bgmDucked) {
+      bgmV *= Math.max(0, Math.min(1, Number(this.bgmDuckRatio) || 0.1));
+    }
     if (this.sfxGain) {
       this.sfxGain.gain.value = sfxV;
     }
     if (this.bgmGain) {
       this.bgmGain.gain.value = bgmV;
     }
+  },
+  getBgmVolumeSetting() {
+    let pct = NaN;
+    try {
+      if (host && host.settings && host.settings.bgmVolume != null) {
+        pct = Number(host.settings.bgmVolume);
+      }
+    } catch (err) {
+      pct = NaN;
+    }
+    if (!Number.isFinite(pct)) {
+      try {
+        const saved = localStorage.getItem("dad_tetris_bgm_vol")
+          || localStorage.getItem("bgmVolume")
+          || String((def() && def().bgmVolume) || 70);
+        pct = Number(saved);
+      } catch (err) {
+        pct = (def() && def().bgmVolume) || 70;
+      }
+    }
+    if (!Number.isFinite(pct)) {
+      pct = 70;
+    }
+    let unit = (host && typeof host.unit === "function")
+      ? host.unit(pct, (def() && def().bgmVolume) || 70)
+      : (pct > 1 ? pct / 100 : pct);
+    unit = Math.max(0, Math.min(1, Number(unit) || 0));
+    if (this.muted || st().bgm === false) {
+      return 0;
+    }
+    try {
+      const muteA = localStorage.getItem("dad_tetris_muted");
+      const muteB = localStorage.getItem("dadTetrisMuted");
+      if (muteA === "true" || muteA === "1" || muteB === "true" || muteB === "1") {
+        return 0;
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    return unit;
+  },
+  rampBgmGain(targetVol, duration) {
+    this.ensureGraph({ skipGains: true });
+    const target = Math.max(0, Math.min(1, Number(targetVol) || 0));
+    const dur = Math.max(0, Number(duration) || 0);
+    const audio = (this.bgm && this.bgm.audio) || this.bgmAudioElement;
+    if (this.bgmGain && this.ctx) {
+      try {
+        const now = this.ctx.currentTime;
+        const current = Number(this.bgmGain.gain.value);
+        const from = Number.isFinite(current) ? current : target;
+        this.bgmGain.gain.cancelScheduledValues(now);
+        this.bgmGain.gain.setValueAtTime(from, now);
+        if (dur <= 0) {
+          this.bgmGain.gain.setValueAtTime(target, now);
+        } else {
+          this.bgmGain.gain.linearRampToValueAtTime(target, now + dur);
+        }
+      } catch (err) {
+        try {
+          this.bgmGain.gain.value = target;
+        } catch (setErr) {
+          /* ignore */
+        }
+      }
+    }
+    if (audio) {
+      try {
+        audio.volume = this.bgmSource ? 1 : target;
+      } catch (volErr) {
+        /* ignore */
+      }
+    }
+    window.clearTimeout(this.bgmRampTimer);
+    if (dur > 0) {
+      this.bgmRampTimer = window.setTimeout(() => {
+        if (this.bgmGain) {
+          try {
+            this.bgmGain.gain.value = this.bgmDucked
+              ? this.getBgmVolumeSetting() * (Number(this.bgmDuckRatio) || 0.1)
+              : this.getBgmVolumeSetting();
+          } catch (snapErr) {
+            /* ignore */
+          }
+        }
+        if (audio && !this.bgmSource) {
+          try {
+            audio.volume = this.getBgmVolumeSetting() * (this.bgmDucked ? (Number(this.bgmDuckRatio) || 0.1) : 1);
+          } catch (elErr) {
+            /* ignore */
+          }
+        } else if (audio) {
+          try {
+            audio.volume = 1;
+          } catch (elErr) {
+            /* ignore */
+          }
+        }
+      }, Math.round(dur * 1000) + 16);
+    }
+  },
+  duckBgm(targetRatio, duration) {
+    this.bgmDucked = true;
+    this.bgmDuckRatio = Math.max(0, Math.min(1, Number(targetRatio)));
+    if (!Number.isFinite(this.bgmDuckRatio)) {
+      this.bgmDuckRatio = 0.1;
+    }
+    const currentVol = this.getBgmVolumeSetting();
+    this.rampBgmGain(currentVol * this.bgmDuckRatio, duration == null ? 0.3 : duration);
+  },
+  restoreBgm(duration) {
+    this.bgmDucked = false;
+    const originalVol = this.getBgmVolumeSetting();
+    this.rampBgmGain(originalVol, duration == null ? 0.3 : duration);
   },
   setSfxVolume(v) {
     const n = Number(v);
@@ -1136,13 +1258,14 @@ const soundManager = {
       host.settings.bgmVolume = Math.round(unit * 100);
     }
     this.ensureGraph();
+    const ducked = this.bgmDucked ? Math.max(0, Math.min(1, Number(this.bgmDuckRatio) || 0.1)) : 1;
     if (this.bgmGain) {
-      this.bgmGain.gain.value = this.muted ? 0 : unit;
+      this.bgmGain.gain.value = this.muted ? 0 : unit * ducked;
     }
     if (typeof this.applyMasterGains === "function" && !this.muted) {
       this.applyMasterGains();
       if (this.bgmGain && !this.muted) {
-        this.bgmGain.gain.value = unit;
+        this.bgmGain.gain.value = unit * ducked;
       }
     }
   },
@@ -1389,10 +1512,14 @@ function createSoundManager(nextHost) {
       } else if (sfx && typeof sfx.applyMasterGains === "function") {
         sfx.applyMasterGains();
       }
+      const unit = this.targetVolume();
+      const ducked = sfx && sfx.bgmDucked
+        ? unit * Math.max(0, Math.min(1, Number(sfx.bgmDuckRatio) || 0.1))
+        : unit;
       if (sfx && sfx.bgmSource) {
         this.audio.volume = 1;
       } else {
-        this.audio.volume = this.targetVolume();
+        this.audio.volume = ducked;
       }
     },
     canPlay() {
@@ -1424,6 +1551,11 @@ function createSoundManager(nextHost) {
     },
     fadeOut() {
       sfx.muted = true;
+      this.stopFade();
+      if (sfx && typeof sfx.duckBgm === "function") {
+        sfx.duckBgm(0.1, 0.3);
+        return;
+      }
       if (!this.audio.src || this.audio.paused) {
         return;
       }
@@ -1431,31 +1563,40 @@ function createSoundManager(nextHost) {
         this.audio.pause();
       });
     },
+    restoreAfterVideo(duration) {
+      this.stopFade();
+      sfx.muted = false;
+      if (sfx && typeof sfx.restoreBgm === "function") {
+        sfx.restoreBgm(duration == null ? 0.3 : duration);
+        return;
+      }
+      this.applyVolume();
+    },
     fadeIn() {
       if (!host) {
         return;
       }
-      sfx.muted = false;
+      this.restoreAfterVideo(0.3);
       if (!this.canPlay()) {
         this.applyVolume();
         host.syncBgmUi();
         return;
       }
-      if (host.isAudioLoading) {
-        return;
-      }
-      this.audio.volume = 0;
-      host.isAudioLoading = true;
-      this.audio.play().catch(() => {
-        try {
-          this.audio.pause();
-        } catch (err) {
-          /* autoplay blocked */
+      if (this.audio.paused) {
+        if (host.isAudioLoading) {
+          return;
         }
-      }).finally(() => {
-        host.isAudioLoading = false;
-      });
-      this.fadeTo(this.targetVolume(), 420);
+        host.isAudioLoading = true;
+        this.audio.play().catch(() => {
+          try {
+            this.audio.pause();
+          } catch (err) {
+            /* autoplay blocked */
+          }
+        }).finally(() => {
+          host.isAudioLoading = false;
+        });
+      }
       host.syncBgmUi();
     },
     play() {
@@ -2479,7 +2620,7 @@ function runDiagnostics() {
   }
 }
 
-const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
+const CORE_DIAG_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15"];
 
 function coreDiagPassCount() {
   return CORE_DIAG_IDS.filter((id) => {
@@ -2798,8 +2939,8 @@ function GameEngine() {
       "diagClose": "닫기",
       "diagIdle": "대기 중",
       "diagCert": "🎉 100% 무결점 인증 완료! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/렌더/이벤트 체인 E2E 및 C1–C12 핵심 전수 검증 완료 (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/렌더/이벤트 체인 E2E 및 C1–C12 핵심 전수 검증 완료 (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/렌더/이벤트 체인 E2E 및 C1–C15 핵심 전수 검증 완료 (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/렌더/이벤트 체인 E2E 및 C1–C15 핵심 전수 검증 완료 (15/15 PASS)",
       "diagFail": "⚠️ 일부 항목 실패 — 로그를 확인하세요",
       "gameTitle": "DAD TETRIS",
       "pressStart": "게임 시작을 눌러 주세요",
@@ -2968,8 +3109,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "배치할 슬롯이 없어 건너뜀: {name}",
       "eventVideo": "🎬 이벤트 동영상",
       "eventVideoHint": "끄면 점수 달성·게임 종료 축하 팝업이 나오지 않습니다. 미리보기는 계속 사용할 수 있습니다.",
+      "eventVideoSizeHint": "⚡ 원활한 플레이를 위해 동영상 파일 용량은 최대 15MB 이하(MP4 권장)로 제한됩니다.",
       "preview": "▶️ 미리보기",
-      "fileSelect": "파일 선택 (MP4 등)",
+      "fileSelect": "파일 선택 (최대 15MB)",
+      "deleteVideo": "🗑️ 삭제",
+      "confirmDeleteVideo": "이 슬롯의 이벤트 동영상을 삭제할까요? 저장된 파일은 바로 지워집니다.",
+      "videoTooLarge": "⚠️ [용량 초과] 영상 크기가 너무 큽니다 ({size}MB).\n게임의 원활한 작동을 위해 15MB 이하의 파일만 등록할 수 있습니다.",
+      "videoTypeInvalid": "⚠️ 동영상 파일(MP4, WebM 등)만 업로드 가능합니다.",
+      "videoSavedToast": "이벤트 동영상이 성공적으로 등록되었습니다.",
+      "videoDeletedToast": "이벤트 동영상을 삭제했습니다.",
       "videoUrlPlaceholder": "유튜브 또는 영상 URL 입력",
       "goal1": "1차 목표 점수",
       "goal2": "2차 목표 점수",
@@ -3148,7 +3296,7 @@ function GameEngine() {
       "guideVizBulkDrop": "여러 장을 한 번에 고르면 스마트 엔진이 파일명으로 슬롯을 나눕니다.",
       "guideVizFileMap": "임의 이름도 대상별 정규 파일로 저장됩니다. 윈도우: default_bg.jpg / level_N.jpg, 패널: board_default_bg.jpg / board_level_N.jpg. IMG_0008.jpg의 숫자만으로는 레벨을 추정하지 않습니다.",
       "guideVizFxPreview": "keepDefault는 레벨업 고정, masterDisable는 네온만, Blur/Opacity는 블록 가독성용입니다.",
-      "guideVizF9How": "F9 또는 상단 ✏️ 버튼으로 C1~C12 E2E 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.",
+      "guideVizF9How": "F9 또는 상단 ✏️ 버튼으로 C1~C15 E2E 전수 검사를 실행하고, 로그 복사·파일 저장으로 리포트를 남깁니다.",
       "guideVizSkinTip": "스킨을 고르면 보드·NEXT·HOLD가 즉시 다시 그려집니다.",
       "guideCh1RulesTitle": "테트로미노 7종 · 라인 클리어 · 점수/레벨",
       "guideCh1RulesBody": "I·O·T·S·Z·J·L 일곱 가지 블록을 쌓아 가로 한 줄을 가득 채우면 그 줄이 지워집니다. 1줄 100×Lv, 2줄 300×Lv, 3줄 500×Lv, 4줄 테트리스 800×Lv. 지운 줄이 쌓이면 레벨이 오르고 낙하가 빨라집니다.",
@@ -3189,7 +3337,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ 전체 윈도우: custom_bg_window_default / custom_bg_window_level_N, 윈도우 전용 블러/투명도. [전체 윈도우 배경 세트] 일괄 등록만 이 키에 저장됩니다.",
       "guideIdleSplitBoard": "🎮 게임 패널: board_idle_bg_blob / custom_bg_board_level_N, 패널 전용 블러/투명도. [게임 패널 배경 세트] 일괄 등록만 이 키에 저장됩니다.",
       "guideBgIsolateBody": "윈도우 일괄 등록과 패널 일괄 등록은 동작·저장이 독립입니다. 공유 키(bg_level_N)를 쓰지 않아 한쪽 등록이 다른 쪽에 복사되지 않습니다.",
-      "guideLevelBgLiveBody": "레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 레벨 커스텀이 없으면 등록해 둔 기본(Idle) 배경을 상속하고, 그것도 없으면 level_N.jpg로 폴백합니다. [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.",
+      "guideLevelBgLiveBody": "레벨이 오르면 윈도우는 custom_bg_window_level_N, 패널은 custom_bg_board_level_N을 각각 읽습니다. 레벨 커스텀이 없으면 등록해 둔 기본(Idle) 배경을 상속하고, 그것도 없으면 공통 시스템 배경 → level_N.jpg 순으로 폴백합니다. [기본 배경 고정]이 켜져 있으면 윈도우만 대기 배경을 유지합니다.",
+      "guide_bg_inherit": "🖼️ 스마트 배경 상속: 레벨별 전용 이미지가 없는 구간은 등록해 두신 기본 배경이 자동으로 이어져 표시됩니다.",
+      "guide_bg_common": "🌐 공통/개인 배경 분리: 가족 모두가 보는 '공통 배경'과 나만의 '개인 커스텀 배경'을 나누어 관리할 수 있습니다.",
+      "guide_audio_restore": "🎬 오디오 자동 밸런스: 이벤트 영상 재생 시 음악이 부드럽게 줄어들며, 영상이 끝나면 원래 볼륨으로 완벽히 복원됩니다.",
       "guideDiagLevelBgSim": "자가진단이 Level 1→5→10→20을 전환하며 윈도우/패널 저장 키가 겹치지 않는지, 폴더 레벨 이미지가 서로 다른지, 대상별 캔버스/DOM 페인트가 호출되는지 검증합니다.",
       "guideDiagLevelBgSlots": "윈도우와 패널의 Idle·Level 1~20 키는 완전히 분리됩니다(custom_bg_window_* vs custom_bg_board_* / bg_panel_*). 커스텀이 없으면 대상별 폴백을 로드합니다.",
       "guideDiagLevelBgInterlock": "마스터 끄기·기본 고정·블러/투명도 값은 레벨 전환 중에도 DOM/Canvas에 유지됩니다.",
@@ -3286,7 +3437,7 @@ function GameEngine() {
       "guideDiagStage17": "17단계: IndexedDB(DadTetrisDB / media_files) 대용량 미디어 스토리지 연결·쓰기/읽기를 점검합니다. 통과 시 [🗄️ INDEXEDDB: PASS]가 출력됩니다.",
       "guideDiagStage18": "18단계: 듀얼 레이어 캔버스(Background/Foreground) 분리 렌더링 엔진 정상 가동 여부를 점검합니다. 통과 시 [🖼️ DUAL CANVAS: PASS]가 출력됩니다.",
       "guideDiagStage19": "19단계: ES 모듈(Storage, Audio, Render, UI, GameEngine) 연결 상태를 점검합니다. 통과 시 [📦 ESM MODULES: PASS]가 출력됩니다.",
-      "guideDiagHint": "💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. C1~C12 실제 화면·동작 검증과 1-1~19-1 전수가 모두 통과할 때만 “🎉 100% ALL GREEN [PASS 12/12]”가 결과창에 출력됩니다.",
+      "guideDiagHint": "💡 검사가 끝나면 각 항목에 ✅ PASS 또는 🛠️ AUTO-FIXED가 표시됩니다. C1~C15 실제 화면·동작 검증과 1-1~19-1 전수가 모두 통과할 때만 “🎉 100% ALL GREEN [PASS 15/15]”가 결과창에 출력됩니다.",
       "guideCh2Badge": "챕터 2 · 5종 블록 스킨",
       "guideCh2Lead": "환경설정에서 스킨을 고르면 메인 보드·NEXT/HOLD가 즉시 다시 그려집니다. 모달을 닫지 않아도 스킨/그림자 실시간 프리뷰 캔버스 2종으로 질감을 확인할 수 있습니다.",
       "guideCh3Badge": "챕터 3 · 보드 크기 (낙하 거리)",
@@ -3299,7 +3450,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 IndexedDB 기반 고화질 커스텀 미디어",
       "guideIndexedDbBody": "환경설정에서 가족 사진, 레벨별 배경, 좋아하는 mp3, 게임 종료 영상을 등록하면 브라우저 용량 한도 안에서 고화질 원본을 유지합니다. 설정값(5종 스킨, ROWS, 볼륨)은 localStorage에 남아 IndexedDB와 분리됩니다.",
       "guideIndexedDbHow": "💡 파일은 DadTetrisDB의 media_files 스토어에 저장됩니다. 자가진단이 연결·쓰기/읽기/삭제를 검증합니다.",
-      "guideDiagPipelineBody": "자가진단은 12대 핵심 항목(C1~C12)을 순차 비동기 E2E 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 실제 화면·동작 검증이 모두 통과할 때만 [PASS 12/12] ALL GREEN이 출력됩니다.",
+      "guideDiagPipelineBody": "자가진단은 15대 핵심 항목(C1~C15)을 순차 비동기 E2E 검증한 뒤, 기존 1-1~19-1 전수 검사까지 이어서 실행합니다. 실제 화면·동작 검증이 모두 통과할 때만 [PASS 15/15] ALL GREEN이 출력됩니다.",
       "guideDiagCore1": "1) [DOM & 레이아웃] 듀얼 캔버스, 보드 중앙 프로필 카드(대기/정복 flex 정렬), 워터마크 0건, 스킨/그림자 프리뷰, 모달 클릭 가드",
       "guideDiagCore2": "2) [블록 렌더링 엔진] 5종 스킨(gemstone, glass, wire_glass, mecha, candy) 및 고스트 큐브 오프스크린 렌더",
       "guideDiagCore3": "3) [미디어 스토리지] IndexedDB CRUD · 윈도우/패널 키 완전 분리 · #bulk-bg-file-input 대상별 일괄 put · 정규 파일명",
@@ -3312,6 +3463,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [오디오 인터락] BGM/SFX GainNode.gain.value 0~1 연동, 뮤트 출력 차단, DAD 타임스톱 피치 벤드",
       "guideDiagCore11": "11) [룰/타임스톱] 정지 시간 1,000~10,000ms K키 주입, Standard/Dual Queue 넥스트 레이아웃, 가비지 라인·낙하 배속",
       "guideDiagCore12": "12) [부팅/스토리지] IndexedDB 하이드레이션 후 첫 캔버스 페인트, 레벨별 폴더 배경 구분, 진단 Memory Snapshot 원상 복구",
+      "guideDiagCore13": "13) [배경 상속 폴백] resolveLevelBg(board, 99) 미등록 레벨은 Idle/Default·공통 배경·공장 에셋 순으로 상속",
+      "guideDiagCore14": "14) [공통/개인 스토리지] custom_bg_* 와 common_bg_* 키가 충돌 없이 IndexedDB에 독립 격리",
+      "guideDiagCore15": "15) [영상 후 BGM 복원] duckBgm 후 restoreBgm이 GainNode를 설정 볼륨(dad_tetris_bgm_vol)으로 100% 원복",
       "guideThemeTitle": "🎨 5대 맞춤 네온 컬러 테마",
       "guideThemeBody": "환경설정 [게임] 탭의 둥근 컬러 팔레트를 누르면 화면 전체 테두리, 버튼, 네온 글로우, 포인트 색이 즉시 바뀝니다.",
       "guideThemeHow": "💡 팔레트를 누르면 0ms로 전환되고 localStorage에 영구 저장됩니다.",
@@ -3442,8 +3596,8 @@ function GameEngine() {
       "diagClose": "Close",
       "diagIdle": "Idle",
       "diagCert": "🎉 100% certified! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Some checks failed — see the log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Press Start to play",
@@ -3612,8 +3766,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "No slot left, skipped: {name}",
       "eventVideo": "🎬 Event videos",
       "eventVideoHint": "Turn off to hide score and game-over celebration popups. Preview still works.",
+      "eventVideoSizeHint": "⚡ For smooth play, event videos are limited to 15MB or less (MP4 recommended).",
       "preview": "▶️ Preview",
-      "fileSelect": "Choose file (MP4 etc.)",
+      "fileSelect": "Choose file (max 15MB)",
+      "deleteVideo": "🗑️ Delete",
+      "confirmDeleteVideo": "Delete this event video? The saved file will be removed immediately.",
+      "videoTooLarge": "⚠️ [Too large] This video is {size}MB.\nOnly files of 15MB or less can be registered.",
+      "videoTypeInvalid": "⚠️ Only video files (MP4, WebM, etc.) can be uploaded.",
+      "videoSavedToast": "Event video registered.",
+      "videoDeletedToast": "Event video deleted.",
       "videoUrlPlaceholder": "YouTube or video URL",
       "goal1": "1st target score",
       "goal2": "2nd target score",
@@ -3790,7 +3951,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -3831,7 +3992,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -3928,7 +4092,7 @@ function GameEngine() {
       "guideDiagStage17": "Stage 17 checks IndexedDB (DadTetrisDB / media_files) large-media connect, write, and read. A pass prints [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Stage 18 checks the dual-layer canvas (Background/Foreground) split rendering engine. A pass prints [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stage 19 checks ES module wiring (Storage, Audio, Render, UI, GameEngine). A pass prints [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 12/12] appears only when C1–C12 visual/behavior checks and the 1-1–19-1 suite all pass.",
+      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 15/15] appears only when C1–C15 visual/behavior checks and the 1-1–19-1 suite all pass.",
       "guideCh2Badge": "Chapter 2 · Five block skins",
       "guideCh2Lead": "Pick a skin in Settings and the main board plus NEXT/HOLD redraw instantly. Two live preview canvases (skin and ghost) show the texture without closing the modal.",
       "guideCh3Badge": "Chapter 3 · Board height (drop distance)",
@@ -3941,7 +4105,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 High-quality custom media via IndexedDB",
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
-      "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
+      "guideDiagPipelineBody": "Self-test runs 15 core E2E checks (C1–C15) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 15/15] prints only when every visual and behavior assertion passes.",
       "guideDiagCore1": "1) [DOM & layout] Dual canvas, board-centered profile card (idle/conquer flex), zero watermarks, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
       "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, fully isolated window/panel keys, per-target bulk put via #bulk-bg-file-input, canonical filenames",
@@ -3954,6 +4118,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -4084,8 +4251,8 @@ function GameEngine() {
       "diagClose": "Close",
       "diagIdle": "Idle",
       "diagCert": "🎉 100% certified! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Some checks failed — see the log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "खेलने के लिए शुरू दबाएँ",
@@ -4241,8 +4408,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "स्लॉट नहीं बचा, छोड़ दिया: {name}",
       "eventVideo": "🎬 इवेंट वीडियो",
       "eventVideoHint": "बंद करने पर बधाई पॉपअप नहीं आएंगे। पूर्वावलोकन चलता रहेगा।",
+      "eventVideoSizeHint": "⚡ सुचारू खेल के लिए वीडियो 15MB या उससे कम (MP4 अनुशंसित) तक सीमित हैं।",
       "preview": "▶️ पूर्वावलोकन",
-      "fileSelect": "फ़ाइल चुनें (MP4 आदि)",
+      "fileSelect": "फ़ाइल चुनें (अधिकतम 15MB)",
+      "deleteVideo": "🗑️ हटाएँ",
+      "confirmDeleteVideo": "इस इवेंट वीडियो को हटाएँ? सहेजी गई फ़ाइल तुरंत मिट जाएगी।",
+      "videoTooLarge": "⚠️ [आकार अधिक] वीडियो {size}MB है।\nकेवल 15MB या उससे छोटी फ़ाइलें दर्ज की जा सकती हैं।",
+      "videoTypeInvalid": "⚠️ केवल वीडियो फ़ाइलें (MP4, WebM आदि) अपलोड की जा सकती हैं।",
+      "videoSavedToast": "इवेंट वीडियो पंजीकृत हो गया।",
+      "videoDeletedToast": "इवेंट वीडियो हटा दिया गया।",
       "videoUrlPlaceholder": "YouTube या वीडियो URL",
       "goal1": "पहला लक्ष्य",
       "goal2": "दूसरा लक्ष्य",
@@ -4419,7 +4593,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -4460,7 +4634,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -4557,7 +4734,7 @@ function GameEngine() {
       "guideDiagStage17": "Stage 17 checks IndexedDB (DadTetrisDB / media_files) large-media connect, write, and read. A pass prints [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Stage 18 checks the dual-layer canvas (Background/Foreground) split rendering engine. A pass prints [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stage 19 checks ES module wiring (Storage, Audio, Render, UI, GameEngine). A pass prints [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 12/12] appears only when C1–C12 visual/behavior checks and the 1-1–19-1 suite all pass.",
+      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 15/15] appears only when C1–C15 visual/behavior checks and the 1-1–19-1 suite all pass.",
       "guideCh2Badge": "Chapter 2 · Five block skins",
       "guideCh2Lead": "Pick a skin in Settings and the main board plus NEXT/HOLD redraw instantly. Two live preview canvases (skin and ghost) show the texture without closing the modal.",
       "guideCh3Badge": "Chapter 3 · Board height (drop distance)",
@@ -4570,7 +4747,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 High-quality custom media via IndexedDB",
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
-      "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
+      "guideDiagPipelineBody": "Self-test runs 15 core E2E checks (C1–C15) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 15/15] prints only when every visual and behavior assertion passes.",
       "guideDiagCore1": "1) [DOM & layout] Dual canvas, board-centered profile card (idle/conquer flex), zero watermarks, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
       "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, fully isolated window/panel keys, per-target bulk put via #bulk-bg-file-input, canonical filenames",
@@ -4583,6 +4760,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -4713,8 +4893,8 @@ function GameEngine() {
       "diagClose": "关闭",
       "diagIdle": "空闲",
       "diagCert": "🎉 100% 认证！ （所有系统均可运行）",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ 一些检查失败 - 请参阅日志",
       "gameTitle": "DAD TETRIS",
       "pressStart": "按开始播放",
@@ -4870,8 +5050,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "没有可用槽位，已跳过：{name}",
       "eventVideo": "🎬 活动视频",
       "eventVideoHint": "关闭以隐藏得分和游戏结束庆祝弹出窗口。预览仍然有效。",
+      "eventVideoSizeHint": "⚡ 为保证流畅游戏，活动视频限制为 15MB 以下（建议 MP4）。",
       "preview": "▶️ 预览",
-      "fileSelect": "选择文件（MP4等）",
+      "fileSelect": "选择文件（最大 15MB）",
+      "deleteVideo": "🗑️ 删除",
+      "confirmDeleteVideo": "删除此活动视频？已保存的文件会立即清除。",
+      "videoTooLarge": "⚠️ [超出大小] 视频为 {size}MB。\n只能注册 15MB 以下的文件。",
+      "videoTypeInvalid": "⚠️ 仅可上传视频文件（MP4、WebM 等）。",
+      "videoSavedToast": "活动视频已注册。",
+      "videoDeletedToast": "活动视频已删除。",
       "videoUrlPlaceholder": "YouTube 或视频网址",
       "goal1": "第一个目标分数",
       "goal2": "第二个目标分数",
@@ -5048,7 +5235,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -5089,7 +5276,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -5186,7 +5376,7 @@ function GameEngine() {
       "guideDiagStage17": "第 17 阶段检查 IndexedDB (DadTetrisDB / media_files) 大媒体连接、写入和读取。通过打印 [🗄️ INDEXEDDB: PASS]。",
       "guideDiagStage18": "第 18 阶段检查双层画布（背景/前景）分割渲染引擎。通行证打印 [🖼️ DUAL CANVAS: PASS]。",
       "guideDiagStage19": "第 19 阶段检查 ES 模块接线（Storage、Audio、Render、UI、GameEngine）。通过打印 [📦 ESM MODULES: PASS]。",
-      "guideDiagHint": "💡 扫描结束时，每一项显示 ✅ PASS 或 🛠️ AUTO-FIXED。如果所有 7 个核心检查均通过，结果弹出窗口将显示“🎉 所有核心系统（双画布、5 种皮肤、IndexedDB、DAD 啦啦板）均以 100% 运行！[PASS 12/12]”。",
+      "guideDiagHint": "💡 扫描结束时，每一项显示 ✅ PASS 或 🛠️ AUTO-FIXED。如果所有 7 个核心检查均通过，结果弹出窗口将显示“🎉 所有核心系统（双画布、5 种皮肤、IndexedDB、DAD 啦啦板）均以 100% 运行！[PASS 15/15]”。",
       "guideCh2Badge": "第2章 五块皮肤",
       "guideCh2Lead": "在“设置”和主板中选择一个皮肤，然后立即进行“NEXT/HOLD”重画。两个实时预览画布（皮肤和幽灵）在不关闭模式的情况下显示纹理。",
       "guideCh3Badge": "第3章·板高（跌落距离）",
@@ -5199,7 +5389,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 通过 IndexedDB 的高质量定制媒体",
       "guideIndexedDbBody": "在“设置”中注册家庭照片、每个级别的背景、最喜欢的 mp3 和游戏结束视频。原件保留在浏览器配额中。设置（5 种皮肤、ROWS、音量）保留在 localStorage 中，与 IndexedDB 分开。",
       "guideIndexedDbHow": "💡 文件位于 DadTetrisDB 的 media_files 存储中。自检验证连接、写入、读取和删除。",
-      "guideDiagPipelineBody": "自检按顺序运行 7 个核心检查，然后继续执行现有的 1-1 到 19-1 套件。当核心 7 通过时，现代弹出窗口将打印 [PASS 12/12]。",
+      "guideDiagPipelineBody": "自检按顺序运行 7 个核心检查，然后继续执行现有的 1-1 到 19-1 套件。当核心 7 通过时，现代弹出窗口将打印 [PASS 15/15]。",
       "guideDiagCore1": "1) [DOM & 布局] 双画布 (#bg-canvas, #tetris-canvas), 160px 拉拉板 (#dad-cheer-banner), 皮肤/幽灵预览画布",
       "guideDiagCore2": "2) [块渲染引擎]所有5种皮肤的完整性（gemstone、glass、wire_glass、mecha、candy）",
       "guideDiagCore3": "3）【媒体存储】IndexedDB CRUD、#bulk-bg-file-input 多选、Blob/DataURL 顺序 put、#bulk-progress-bar",
@@ -5212,6 +5402,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 五种自定义霓虹灯颜色主题",
       "guideThemeBody": "点击“设置”→“游戏”中的圆形调色板样本即可立即重新着色边框、按钮、霓虹灯发光和强调文本。",
       "guideThemeHow": "💡 切换是即时的（0ms）并永久保存在localStorage中。",
@@ -5292,6 +5485,9 @@ function GameEngine() {
       "diagSaveFile": "💾 保存文件",
       "diagCopied": "📋 已复制日志",
       "diagSaved": "💾 已保存日志文件",
+      "guide_bg_inherit": "🖼️ 智能背景继承：没有专用图的关卡会自动接上您登记的默认背景。",
+      "guide_bg_common": "🌐 共用/个人背景：全家共用背景与个人自定义背景可分开管理。",
+      "guide_audio_restore": "🎬 音频自动平衡：活动影像播放时音乐会柔和降低，结束后精确恢复原音量。",
       "diagCopiedDone": "✅ 已复制!"
     },
     es: {
@@ -5342,8 +5538,8 @@ function GameEngine() {
       "diagClose": "Cerrar",
       "diagIdle": "inactivo",
       "diagCert": "🎉 100% certificado! (Todos los sistemas operativos)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Algunas comprobaciones fallaron: consulte el registro",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Pulsa Iniciar para jugar",
@@ -5499,8 +5695,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Sin hueco, omitido: {name}",
       "eventVideo": "🎬 Vídeos de eventos",
       "eventVideoHint": "Desactívala para ocultar las ventanas emergentes de celebración de puntuación y finalización del juego. La vista previa todavía funciona.",
+      "eventVideoSizeHint": "⚡ Para un juego fluido, los vídeos de evento están limitados a 15MB o menos (se recomienda MP4).",
       "preview": "▶️ Vista previa",
-      "fileSelect": "Elija el archivo (MP4, etc.)",
+      "fileSelect": "Elegir archivo (máx. 15MB)",
+      "deleteVideo": "🗑️ Eliminar",
+      "confirmDeleteVideo": "¿Eliminar este vídeo de evento? El archivo guardado se borrará al instante.",
+      "videoTooLarge": "⚠️ [Demasiado grande] El vídeo pesa {size}MB.\nSolo se pueden registrar archivos de 15MB o menos.",
+      "videoTypeInvalid": "⚠️ Solo se pueden subir archivos de vídeo (MP4, WebM, etc.).",
+      "videoSavedToast": "Vídeo de evento registrado.",
+      "videoDeletedToast": "Vídeo de evento eliminado.",
       "videoUrlPlaceholder": "URL de YouTube o vídeo",
       "goal1": "1er puntaje objetivo",
       "goal2": "Puntuación del segundo objetivo",
@@ -5677,7 +5880,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -5718,7 +5921,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -5815,7 +6021,7 @@ function GameEngine() {
       "guideDiagStage17": "La etapa 17 comprueba la conexión, escritura y lectura de medios grandes de IndexedDB (DadTetrisDB / media_files). Un pase imprime [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "La etapa 18 comprueba el motor de renderizado dividido del lienzo de doble capa (Fondo/Primer plano). Una pasada imprime [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "La etapa 19 verifica el cableado del módulo ES (Storage, Audio, Render, UI, GameEngine). Una pasada imprime [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 Cuando finaliza el escaneo, cada elemento muestra ✅ PASS o 🛠️ AUTO-FIJADO. Si se pasan las 7 comprobaciones principales, la ventana emergente de resultados muestra \"🎉 ¡Todos los sistemas centrales (lienzo dual, 5 máscaras, IndexedDB, tablero de animación DAD) están funcionando al 100%! [PASS 12/12]\".",
+      "guideDiagHint": "💡 Cuando finaliza el escaneo, cada elemento muestra ✅ PASS o 🛠️ AUTO-FIJADO. Si se pasan las 7 comprobaciones principales, la ventana emergente de resultados muestra \"🎉 ¡Todos los sistemas centrales (lienzo dual, 5 máscaras, IndexedDB, tablero de animación DAD) están funcionando al 100%! [PASS 15/15]\".",
       "guideCh2Badge": "Capítulo 2 · Cinco aspectos de bloque",
       "guideCh2Lead": "Elija una máscara en Configuración y el tablero principal más SIGUIENTE / MANTENER vuelva a dibujar al instante. Dos lienzos de vista previa en vivo (piel y fantasma) muestran la textura sin cerrar el modal.",
       "guideCh3Badge": "Capítulo 3 · Altura del tablero (distancia de caída)",
@@ -5828,7 +6034,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Medios personalizados de alta calidad a través de IndexedDB",
       "guideIndexedDbBody": "Registre fotos familiares, fondos por nivel, mp3 favorito y el video de finalización del juego en Configuración. Los originales permanecen en la cuota del navegador. Las configuraciones (5 máscaras, ROWS, volumen) permanecen en localStorage, separadas de IndexedDB.",
       "guideIndexedDbHow": "💡 Los archivos se encuentran en la tienda media_files de DadTetrisDB. La autoprueba verifica la conexión, la escritura, la lectura y la eliminación.",
-      "guideDiagPipelineBody": "La autoprueba ejecuta 7 comprobaciones principales en secuencia y luego continúa con el conjunto existente 1-1 a 19-1. Cuando pasan los 7 principales, la ventana emergente moderna imprime [PASS 12/12].",
+      "guideDiagPipelineBody": "La autoprueba ejecuta 7 comprobaciones principales en secuencia y luego continúa con el conjunto existente 1-1 a 19-1. Cuando pasan los 7 principales, la ventana emergente moderna imprime [PASS 15/15].",
       "guideDiagCore1": "1) [DOM y diseño] Lienzo doble (#bg-canvas, #tetris-canvas), tablero de animación de 160 píxeles (#dad-cheer-banner), lienzos de vista previa de apariencia/fantasma",
       "guideDiagCore2": "2) [Motor de renderizado de bloques] Integridad de las 5 máscaras (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Almacenamiento de medios] CRUD IndexedDB, #bulk-bg-file-input múltiple, put Blob/DataURL, #bulk-progress-bar",
@@ -5841,6 +6047,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Cinco temas de colores neón personalizados",
       "guideThemeBody": "Toque una muestra de paleta redonda en Configuración → Juego para cambiar instantáneamente el color de los bordes, los botones, el brillo de neón y resaltar el texto.",
       "guideThemeHow": "💡 El cambio es instantáneo (0ms) y se guarda para siempre en localStorage.",
@@ -5921,6 +6130,9 @@ function GameEngine() {
       "diagSaveFile": "💾 Guardar archivo",
       "diagCopied": "📋 Registro copiado",
       "diagSaved": "💾 Archivo de registro guardado",
+      "guide_bg_inherit": "🖼️ Herencia inteligente: los niveles sin imagen propia siguen mostrando el fondo predeterminado registrado.",
+      "guide_bg_common": "🌐 Fondos compartidos y personales: separe el set familiar de los slots personalizados.",
+      "guide_audio_restore": "🎬 Balance de audio: el vídeo de evento baja la música y restaura el volumen exacto al terminar.",
       "diagCopiedDone": "✅ ¡Copiado!"
     },
     ja: {
@@ -5971,8 +6183,8 @@ function GameEngine() {
       "diagClose": "閉じる",
       "diagIdle": "アイドル状態",
       "diagCert": "🎉 100% 認定! (すべてのシステムが稼働中)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ いくつかのチェックが失敗しました — ログを参照してください",
       "gameTitle": "DAD TETRIS",
       "pressStart": "スタートを押して再生します",
@@ -6128,8 +6340,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "空きスロットなし、スキップ: {name}",
       "eventVideo": "🎬 イベントビデオ",
       "eventVideoHint": "オフにすると、スコアとゲームオーバーのお祝いのポップアップが非表示になります。プレビューは引き続き機能します。",
+      "eventVideoSizeHint": "⚡ 快適なプレイのため、イベント動画は15MB以下（MP4推奨）に制限されています。",
       "preview": "▶️ プレビュー",
-      "fileSelect": "ファイルを選択（MP4など）",
+      "fileSelect": "ファイルを選択（最大15MB）",
+      "deleteVideo": "🗑️ 削除",
+      "confirmDeleteVideo": "このイベント動画を削除しますか？保存されたファイルはすぐに消えます。",
+      "videoTooLarge": "⚠️ [容量超過] 動画サイズは {size}MB です。\n15MB以下のファイルのみ登録できます。",
+      "videoTypeInvalid": "⚠️ 動画ファイル（MP4、WebMなど）のみアップロードできます。",
+      "videoSavedToast": "イベント動画を登録しました。",
+      "videoDeletedToast": "イベント動画を削除しました。",
       "videoUrlPlaceholder": "YouTube またはビデオの URL",
       "goal1": "第一目標スコア",
       "goal2": "第2目標スコア",
@@ -6306,7 +6525,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -6347,7 +6566,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -6444,7 +6666,7 @@ function GameEngine() {
       "guideDiagStage17": "ステージ 17 では、IndexedDB (DadTetrisDB / media_files) ラージメディアの接続、書き込み、読み取りをチェックします。パスでは [🗄️ INDEXEDDB: PASS] が出力されます。",
       "guideDiagStage18": "ステージ 18 では、デュアルレイヤー キャンバス (バックグラウンド/フォアグラウンド) 分割レンダリング エンジンをチェックします。パスには [🖼️ DUAL CANVAS: PASS] が印刷されます。",
       "guideDiagStage19": "ステージ 19 では、ES モジュールの配線 (Storage、Audio、Render、UI、GameEngine) をチェックします。パスでは [📦 ESM MODULES: PASS] が印刷されます。",
-      "guideDiagHint": "💡 スキャンが終了すると、各項目に ✅ PASS または 🛠️ AUTO-FIXED が表示されます。 7 つのコア チェックがすべて合格すると、結果ポップアップに「🎉 すべてのコア システム (デュアル キャンバス、5 スキン、IndexedDB、DAD 応援ボード) が 100% で実行されています! [PASS 12/12]」と表示されます。",
+      "guideDiagHint": "💡 スキャンが終了すると、各項目に ✅ PASS または 🛠️ AUTO-FIXED が表示されます。 7 つのコア チェックがすべて合格すると、結果ポップアップに「🎉 すべてのコア システム (デュアル キャンバス、5 スキン、IndexedDB、DAD 応援ボード) が 100% で実行されています! [PASS 15/15]」と表示されます。",
       "guideCh2Badge": "第2章・5つのブロックスキン",
       "guideCh2Lead": "設定でスキンを選択すると、メインボードに加えて、NEXT/HOLD で即座に再描画されます。 2 つのライブ プレビュー キャンバス (スキンとゴースト) には、モーダルを閉じずにテクスチャが表示されます。",
       "guideCh3Badge": "第3章・ボードの高さ（落下距離）",
@@ -6457,7 +6679,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 IndexedDB 経由の高品質カスタム メディア",
       "guideIndexedDbBody": "家族の写真、レベルごとの背景、お気に入りの MP3、ゲームオーバービデオを設定に登録します。オリジナルはブラウザのクォータ内に残ります。設定 (5 つのスキン、ROWS、ボリューム) は、IndexedDB とは別に、localStorage に残ります。",
       "guideIndexedDbHow": "💡 ファイルは、DadTetrisDB の media_files ストアに存在します。セルフテストでは、接続、書き込み、読み取り、削除を検証します。",
-      "guideDiagPipelineBody": "セルフテストは 7 つのコア チェックを順番に実行し、既存の 1-1 から 19-1 スイートを続行します。 Core 7 が合格すると、最新のポップアップに [PASS 12/12] が出力されます。",
+      "guideDiagPipelineBody": "セルフテストは 7 つのコア チェックを順番に実行し、既存の 1-1 から 19-1 スイートを続行します。 Core 7 が合格すると、最新のポップアップに [PASS 15/15] が出力されます。",
       "guideDiagCore1": "1) [DOM とレイアウト] デュアル キャンバス (#bg-canvas、#tetris-canvas)、160 ピクセル チア ボード (#dad-cheer-banner)、スキン/ゴースト プレビュー キャンバス",
       "guideDiagCore2": "2) [ブロック レンダー エンジン] 5 つのスキンすべての整合性 (gemstone、glass、wire_glass、mecha、candy)",
       "guideDiagCore3": "3) [メディアストレージ] IndexedDB CRUD・#bulk-bg-file-input 複数選択・Blob/DataURL 逐次 put・#bulk-progress-bar",
@@ -6470,6 +6692,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 5 つのカスタム ネオン カラー テーマ",
       "guideThemeBody": "「設定」→「ゲーム」で丸いパレットの見本をタップすると、枠線、ボタン、ネオンの輝き、アクセントのテキストの色が即座に変更されます。",
       "guideThemeHow": "💡 切り替えは瞬時 (0ms) で、localStorage に永久に保存されます。",
@@ -6550,6 +6775,9 @@ function GameEngine() {
       "diagSaveFile": "💾 ファイルに保存",
       "diagCopied": "📋 ログをコピーしました",
       "diagSaved": "💾 ログファイルを保存しました",
+      "guide_bg_inherit": "🖼️ スマート背景継承：専用画像がないレベルは登録済みの基本背景が自動で続きます。",
+      "guide_bg_common": "🌐 共通/個人背景：家族みんなの共通背景と自分専用カスタムを分けて管理できます。",
+      "guide_audio_restore": "🎬 オーディオ自動バランス：イベント映像中はBGMが静かに下がり、終了後に元の音量へ完全復帰します。",
       "diagCopiedDone": "✅ コピー完了!"
     },
     fr: {
@@ -6600,8 +6828,8 @@ function GameEngine() {
       "diagClose": "Fermer",
       "diagIdle": "Inactif",
       "diagCert": "🎉 100% certifié ! (Tous les systèmes opérationnels)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Certaines vérifications ont échoué — voir le journal",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Appuyez sur Démarrer pour jouer",
@@ -6757,8 +6985,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Plus d'emplacement, ignoré : {name}",
       "eventVideo": "🎬 Vidéos d'événements",
       "eventVideoHint": "Désactivez-la pour masquer les fenêtres contextuelles de score et de célébration de fin de partie. L'aperçu fonctionne toujours.",
+      "eventVideoSizeHint": "⚡ Pour un jeu fluide, les vidéos d'événement sont limitées à 15MB (MP4 recommandé).",
       "preview": "▶️ Aperçu",
-      "fileSelect": "Choisissez un fichier (MP4, etc.)",
+      "fileSelect": "Choisir un fichier (max 15MB)",
+      "deleteVideo": "🗑️ Supprimer",
+      "confirmDeleteVideo": "Supprimer cette vidéo d'événement ? Le fichier enregistré sera effacé immédiatement.",
+      "videoTooLarge": "⚠️ [Trop volumineux] Cette vidéo fait {size}MB.\nSeuls les fichiers de 15MB ou moins peuvent être enregistrés.",
+      "videoTypeInvalid": "⚠️ Seuls les fichiers vidéo (MP4, WebM, etc.) peuvent être importés.",
+      "videoSavedToast": "Vidéo d'événement enregistrée.",
+      "videoDeletedToast": "Vidéo d'événement supprimée.",
       "videoUrlPlaceholder": "URL YouTube ou vidéo",
       "goal1": "1er score cible",
       "goal2": "2ème score cible",
@@ -6935,7 +7170,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -6976,7 +7211,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -7073,7 +7311,7 @@ function GameEngine() {
       "guideDiagStage17": "L'étape 17 vérifie la connexion, l'écriture et la lecture des grands supports IndexedDB (DadTetrisDB / media_files). Un pass imprime [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "L'étape 18 vérifie le moteur de rendu divisé du canevas double couche (arrière-plan/premier plan). Un pass imprime [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "L'étape 19 vérifie le câblage du module ES (Storage, Audio, Render, UI, GameEngine). Un laissez-passer imprime [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 À la fin de l'analyse, chaque élément affiche ✅ PASS ou 🛠️ AUTO-FIXED. Si les 7 vérifications principales réussissent, la fenêtre contextuelle de résultat indique « 🎉 Tous les systèmes principaux (double toile, 5 skins, IndexedDB, DAD cheer board) fonctionnent à 100 % ! [PASS 12/12] ».",
+      "guideDiagHint": "💡 À la fin de l'analyse, chaque élément affiche ✅ PASS ou 🛠️ AUTO-FIXED. Si les 7 vérifications principales réussissent, la fenêtre contextuelle de résultat indique « 🎉 Tous les systèmes principaux (double toile, 5 skins, IndexedDB, DAD cheer board) fonctionnent à 100 % ! [PASS 15/15] ».",
       "guideCh2Badge": "Chapitre 2 · Cinq skins de bloc",
       "guideCh2Lead": "Choisissez un skin dans Paramètres et sur le tableau principal, puis redessinez NEXT/HOLD instantanément. Deux toiles d'aperçu en direct (peau et fantôme) affichent la texture sans fermer le modal.",
       "guideCh3Badge": "Chapitre 3 · Hauteur de la planche (distance de chute)",
@@ -7086,7 +7324,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Support personnalisé de haute qualité via IndexedDB",
       "guideIndexedDbBody": "Enregistrez les photos de famille, les arrière-plans par niveau, les mp3 préférés et la vidéo de fin de jeu dans Paramètres. Les originaux restent dans le quota du navigateur. Les paramètres (5 skins, ROWS, volume) restent dans localStorage, distincts de IndexedDB.",
       "guideIndexedDbHow": "Les fichiers 💡 se trouvent dans le magasin media_files de DadTetrisDB. L'autotest vérifie la connexion, l'écriture, la lecture et la suppression.",
-      "guideDiagPipelineBody": "L'autotest exécute 7 vérifications principales en séquence, puis continue avec la suite 1-1 à 19-1 existante. Lorsque le noyau 7 passe, la fenêtre contextuelle moderne imprime [PASS 12/12].",
+      "guideDiagPipelineBody": "L'autotest exécute 7 vérifications principales en séquence, puis continue avec la suite 1-1 à 19-1 existante. Lorsque le noyau 7 passe, la fenêtre contextuelle moderne imprime [PASS 15/15].",
       "guideDiagCore1": "1) [DOM et mise en page] Double toile (#bg-canvas, #tetris-canvas), tableau d'encouragement de 160 px (#dad-cheer-banner), toiles d'aperçu skin/fantôme",
       "guideDiagCore2": "2) [Moteur de rendu de bloc] Intégrité des 5 skins (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Stockage multimédia] CRUD IndexedDB, #bulk-bg-file-input multi, put Blob/DataURL, #bulk-progress-bar",
@@ -7099,6 +7337,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Cinq thèmes de couleurs néon personnalisés",
       "guideThemeBody": "Appuyez sur un échantillon de palette ronde dans Paramètres → Jeu pour recolorer instantanément les bordures, les boutons, la lueur au néon et accentuer le texte.",
       "guideThemeHow": "💡 Le changement est instantané (0 ms) et enregistré pour toujours dans localStorage.",
@@ -7179,6 +7420,9 @@ function GameEngine() {
       "diagSaveFile": "💾 Enregistrer le fichier",
       "diagCopied": "📋 Journal copié",
       "diagSaved": "💾 Fichier journal enregistré",
+      "guide_bg_inherit": "🖼️ Héritage intelligent : les niveaux sans image dédiée gardent votre fond par défaut enregistré.",
+      "guide_bg_common": "🌐 Fonds communs / perso : gérez le set familial à part des slots personnels.",
+      "guide_audio_restore": "🎬 Balance audio : la vidéo d'événement baisse la musique, puis restaure le volume exact.",
       "diagCopiedDone": "✅ Copié !"
     },
     de: {
@@ -7229,8 +7473,8 @@ function GameEngine() {
       "diagClose": "Schließen",
       "diagIdle": "Leerlauf",
       "diagCert": "🎉 100 % zertifiziert! (Alle Systeme betriebsbereit)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Einige Prüfungen sind fehlgeschlagen – siehe Protokoll",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Drücken Sie Start, um zu spielen",
@@ -7386,8 +7630,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Kein Slot frei, übersprungen: {name}",
       "eventVideo": "🎬 Veranstaltungsvideos",
       "eventVideoHint": "Deaktivieren Sie diese Option, um die Popup-Fenster für Spielstand und Game-Over-Feier auszublenden. Die Vorschau funktioniert immer noch.",
+      "eventVideoSizeHint": "⚡ Für flüssiges Spiel sind Event-Videos auf 15MB begrenzt (MP4 empfohlen).",
       "preview": "▶️ Vorschau",
-      "fileSelect": "Datei auswählen (MP4 usw.)",
+      "fileSelect": "Datei auswählen (max. 15MB)",
+      "deleteVideo": "🗑️ Löschen",
+      "confirmDeleteVideo": "Dieses Event-Video löschen? Die gespeicherte Datei wird sofort entfernt.",
+      "videoTooLarge": "⚠️ [Zu groß] Das Video ist {size}MB.\nEs können nur Dateien bis 15MB registriert werden.",
+      "videoTypeInvalid": "⚠️ Nur Videodateien (MP4, WebM usw.) können hochgeladen werden.",
+      "videoSavedToast": "Event-Video registriert.",
+      "videoDeletedToast": "Event-Video gelöscht.",
       "videoUrlPlaceholder": "YouTube- oder Video-URL",
       "goal1": "1. Zielpunktzahl",
       "goal2": "2. Zielpunktzahl",
@@ -7564,7 +7815,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -7605,7 +7856,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -7702,7 +7956,7 @@ function GameEngine() {
       "guideDiagStage17": "Stufe 17 prüft die Verbindung, das Schreiben und das Lesen großer Medien. Ein Pass gibt [🗄️ INDEXEDDB: PASS] aus.",
       "guideDiagStage18": "Stufe 18 überprüft die geteilte Rendering-Engine für die zweischichtige Leinwand (Hintergrund/Vordergrund). Ein Pass druckt [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stufe 19 prüft die Verkabelung des ES-Moduls (Speicher, Audio, Render, UI, GameEngine). Ein Pass druckt [📦 ESM-MODULE: PASS].",
-      "guideDiagHint": "💡 Wenn der Scan beendet ist, wird für jedes Element ✅ PASS oder 🛠️ AUTO-FIXED angezeigt. Wenn alle 7 Kernprüfungen erfolgreich sind, zeigt das Ergebnis-Popup „🎉 Alle Kernsysteme (Dual-Canvas, 5 Skins, IndexedDB, Papa-Cheerboard) laufen zu 100 %! [PASS 12/12]“.",
+      "guideDiagHint": "💡 Wenn der Scan beendet ist, wird für jedes Element ✅ PASS oder 🛠️ AUTO-FIXED angezeigt. Wenn alle 7 Kernprüfungen erfolgreich sind, zeigt das Ergebnis-Popup „🎉 Alle Kernsysteme (Dual-Canvas, 5 Skins, IndexedDB, Papa-Cheerboard) laufen zu 100 %! [PASS 15/15]“.",
       "guideCh2Badge": "Kapitel 2 · Fünf Block-Skins",
       "guideCh2Lead": "Wählen Sie in den Einstellungen einen Skin aus und zeichnen Sie die Hauptplatine sofort neu. Zwei Live-Vorschau-Leinwände (Skin und Ghost) zeigen die Textur, ohne das Modal zu schließen.",
       "guideCh3Badge": "Kapitel 3 · Bretthöhe (Fallabstand)",
@@ -7715,7 +7969,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Hochwertige kundenspezifische Medien über IndexedDB",
       "guideIndexedDbBody": "Registrieren Sie Familienfotos, Hintergründe pro Level, Lieblings-MP3 und das Game-Over-Video in den Einstellungen. Originale bleiben im Browser-Kontingent. Einstellungen (5 Skins, ROWS, Lautstärke) bleiben in localStorage, getrennt von IndexedDB.",
       "guideIndexedDbHow": "💡 Dateien befinden sich im media_files-Store von DadTetrisDB. Der Selbsttest überprüft das Verbinden, Schreiben, Lesen und Löschen.",
-      "guideDiagPipelineBody": "Der Selbsttest führt nacheinander 7 Kernprüfungen durch und fährt dann mit der bestehenden Suite 1-1 bis 19-1 fort. Wenn der Kern 7 bestanden wird, gibt das moderne Popup [PASS 12/12] aus.",
+      "guideDiagPipelineBody": "Der Selbsttest führt nacheinander 7 Kernprüfungen durch und fährt dann mit der bestehenden Suite 1-1 bis 19-1 fort. Wenn der Kern 7 bestanden wird, gibt das moderne Popup [PASS 15/15] aus.",
       "guideDiagCore1": "1) [DOM & Layout] Dual-Leinwand (#bg-canvas, #tetris-canvas), 160-Pixel-Cheerboard (#dad-cheer-banner), Skin/Geistervorschau-Leinwände",
       "guideDiagCore2": "2) [Block-Render-Engine] Integrität aller 5 Skins (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Medienspeicher] IndexedDB-CRUD, #bulk-bg-file-input, Blob/DataURL-Puts, #bulk-progress-bar",
@@ -7728,6 +7982,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Fünf benutzerdefinierte Neonfarbthemen",
       "guideThemeBody": "Tippen Sie unter „Einstellungen“ → „Spiel“ auf ein rundes Farbfeld, um Ränder, Schaltflächen, Neonlicht und Akzenttext sofort neu einzufärben.",
       "guideThemeHow": "💡 Der Wechsel erfolgt sofort (0 ms) und wird für immer in localStorage gespeichert.",
@@ -7808,6 +8065,9 @@ function GameEngine() {
       "diagSaveFile": "💾 Als Datei speichern",
       "diagCopied": "📋 Protokoll kopiert",
       "diagSaved": "💾 Protokolldatei gespeichert",
+      "guide_bg_inherit": "🖼️ Intelligente Vererbung: Level ohne eigenes Bild zeigen weiter den registrierten Standardhintergrund.",
+      "guide_bg_common": "🌐 Gemeinsam/persönlich: Familien-Set und persönliche Slots getrennt verwalten.",
+      "guide_audio_restore": "🎬 Audio-Balance: Event-Videos ducken die Musik und stellen die Original-Lautstärke wieder her.",
       "diagCopiedDone": "✅ Kopiert!"
     },
     "pt-BR": {
@@ -7858,8 +8118,8 @@ function GameEngine() {
       "diagClose": "Fechar",
       "diagIdle": "Inativo",
       "diagCert": "🎉 100% certificado! (Todos os sistemas operacionais)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Algumas verificações falharam — veja o log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Pressione Iniciar para jogar",
@@ -8015,8 +8275,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Sem slot, ignorado: {name}",
       "eventVideo": "🎬 Vídeos de eventos",
       "eventVideoHint": "Desative para ocultar pop-ups de pontuação e comemoração de fim de jogo. A visualização ainda funciona.",
+      "eventVideoSizeHint": "⚡ Para um jogo fluido, os vídeos de evento são limitados a 15MB (MP4 recomendado).",
       "preview": "▶️ Visualização",
-      "fileSelect": "Escolha o arquivo (MP4 etc.)",
+      "fileSelect": "Escolher arquivo (máx. 15MB)",
+      "deleteVideo": "🗑️ Excluir",
+      "confirmDeleteVideo": "Excluir este vídeo de evento? O arquivo salvo será removido imediatamente.",
+      "videoTooLarge": "⚠️ [Arquivo grande] O vídeo tem {size}MB.\nSó é possível registrar arquivos de até 15MB.",
+      "videoTypeInvalid": "⚠️ Somente arquivos de vídeo (MP4, WebM etc.) podem ser enviados.",
+      "videoSavedToast": "Vídeo de evento registrado.",
+      "videoDeletedToast": "Vídeo de evento excluído.",
       "videoUrlPlaceholder": "URL do YouTube ou vídeo",
       "goal1": "1ª pontuação alvo",
       "goal2": "2ª pontuação alvo",
@@ -8193,7 +8460,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -8234,7 +8501,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -8331,7 +8601,7 @@ function GameEngine() {
       "guideDiagStage17": "O estágio 17 verifica IndexedDB (DadTetrisDB / media_files) mídia grande conectada, escrita e lida. Uma passagem é impressa [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "O estágio 18 verifica o mecanismo de renderização dividida da tela de camada dupla (Background/Foreground). Um passe imprime [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "O estágio 19 verifica a fiação do módulo ES (Armazenamento, Áudio, Renderização, UI, GameEngine). Um passe é impresso [📦 MÓDULOS ESM: PASS].",
-      "guideDiagHint": "💡 Quando a varredura termina, cada item mostra ✅ PASS ou 🛠️ AUTO-FIXADO. Se todas as 7 verificações principais forem aprovadas, o pop-up de resultado mostrará \"🎉 Todos os sistemas principais (tela dupla, 5 skins, IndexedDB, quadro de torcida Papai) estão funcionando a 100%! [PASS 12/12]\".",
+      "guideDiagHint": "💡 Quando a varredura termina, cada item mostra ✅ PASS ou 🛠️ AUTO-FIXADO. Se todas as 7 verificações principais forem aprovadas, o pop-up de resultado mostrará \"🎉 Todos os sistemas principais (tela dupla, 5 skins, IndexedDB, quadro de torcida Papai) estão funcionando a 100%! [PASS 15/15]\".",
       "guideCh2Badge": "Capítulo 2 · Cinco skins de bloco",
       "guideCh2Lead": "Escolha um tema em Configurações e no quadro principal, além de NEXT/HOLD redesenhar instantaneamente. Duas telas de visualização ao vivo (pele e fantasma) mostram a textura sem fechar o modal.",
       "guideCh3Badge": "Capítulo 3 · Altura da prancha (distância de queda)",
@@ -8344,7 +8614,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Mídia personalizada de alta qualidade via IndexedDB",
       "guideIndexedDbBody": "Registre fotos de família, planos de fundo por nível, mp3 favorito e vídeo de fim de jogo em Configurações. Os originais permanecem na cota do navegador. As configurações (5 skins, ROWS, volume) permanecem em localStorage, separadas de IndexedDB.",
       "guideIndexedDbHow": "💡 Os arquivos ficam no armazenamento media_files de DadTetrisDB. O autoteste verifica a conexão, gravação, leitura e exclusão.",
-      "guideDiagPipelineBody": "O autoteste executa 7 verificações principais em sequência e, em seguida, continua com o conjunto existente de 1-1 a 19-1. Quando o núcleo 7 for aprovado, o pop-up moderno imprimirá [PASS 12/12].",
+      "guideDiagPipelineBody": "O autoteste executa 7 verificações principais em sequência e, em seguida, continua com o conjunto existente de 1-1 a 19-1. Quando o núcleo 7 for aprovado, o pop-up moderno imprimirá [PASS 15/15].",
       "guideDiagCore1": "1) [DOM e layout] Tela dupla (#bg-canvas, #tetris-canvas), quadro de torcida de 160px (#dad-cheer-banner), skin/telas de visualização fantasma",
       "guideDiagCore2": "2) [Mecanismo de renderização de bloco] Integridade de todas as 5 skins (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Armazenamento de mídia] CRUD IndexedDB, #bulk-bg-file-input, put Blob/DataURL, #bulk-progress-bar",
@@ -8357,6 +8627,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Cinco temas de cores neon personalizados",
       "guideThemeBody": "Toque em uma amostra redonda da paleta em Configurações → Jogo para recolorir instantaneamente bordas, botões, brilho neon e realçar texto.",
       "guideThemeHow": "💡 A troca é instantânea (0ms) e salva para sempre em localStorage.",
@@ -8437,6 +8710,9 @@ function GameEngine() {
       "diagSaveFile": "💾 Salvar arquivo",
       "diagCopied": "📋 Log copiado",
       "diagSaved": "💾 Arquivo de log salvo",
+      "guide_bg_inherit": "🖼️ Herança inteligente: níveis sem imagem própria continuam com o fundo padrão registrado.",
+      "guide_bg_common": "🌐 Fundo comum/pessoal: o conjunto da família fica separado dos slots pessoais.",
+      "guide_audio_restore": "🎬 Balanço de áudio: o vídeo de evento reduz a música e restaura o volume exato.",
       "diagCopiedDone": "✅ Copiado!"
     },
     ru: {
@@ -8487,8 +8763,8 @@ function GameEngine() {
       "diagClose": "Close",
       "diagIdle": "Idle",
       "diagCert": "🎉 100% certified! (All Systems Operational)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Some checks failed — see the log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Нажмите Старт, чтобы играть",
@@ -8644,8 +8920,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Нет слота, пропуск: {name}",
       "eventVideo": "🎬 Ролики событий",
       "eventVideoHint": "Выключите, чтобы не показывать поздравления. Предпросмотр останется.",
+      "eventVideoSizeHint": "⚡ Для плавной игры видео событий ограничены 15MB (рекомендуется MP4).",
       "preview": "▶️ Предпросмотр",
-      "fileSelect": "Выбрать файл (MP4 и др.)",
+      "fileSelect": "Выбрать файл (макс. 15MB)",
+      "deleteVideo": "🗑️ Удалить",
+      "confirmDeleteVideo": "Удалить это видео события? Сохранённый файл будет сразу стёрт.",
+      "videoTooLarge": "⚠️ [Слишком большой] Размер видео {size}MB.\nМожно регистрировать только файлы до 15MB.",
+      "videoTypeInvalid": "⚠️ Можно загружать только видеофайлы (MP4, WebM и др.).",
+      "videoSavedToast": "Видео события сохранено.",
+      "videoDeletedToast": "Видео события удалено.",
       "videoUrlPlaceholder": "YouTube или ссылка на видео",
       "goal1": "1-я цель",
       "goal2": "2-я цель",
@@ -8822,7 +9105,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -8863,7 +9146,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -8960,7 +9246,7 @@ function GameEngine() {
       "guideDiagStage17": "Stage 17 checks IndexedDB (DadTetrisDB / media_files) large-media connect, write, and read. A pass prints [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Stage 18 checks the dual-layer canvas (Background/Foreground) split rendering engine. A pass prints [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Stage 19 checks ES module wiring (Storage, Audio, Render, UI, GameEngine). A pass prints [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 12/12] appears only when C1–C12 visual/behavior checks and the 1-1–19-1 suite all pass.",
+      "guideDiagHint": "💡 When the scan ends, each item shows ✅ PASS or 🛠️ AUTO-FIXED. ALL GREEN [PASS 15/15] appears only when C1–C15 visual/behavior checks and the 1-1–19-1 suite all pass.",
       "guideCh2Badge": "Chapter 2 · Five block skins",
       "guideCh2Lead": "Pick a skin in Settings and the main board plus NEXT/HOLD redraw instantly. Two live preview canvases (skin and ghost) show the texture without closing the modal.",
       "guideCh3Badge": "Chapter 3 · Board height (drop distance)",
@@ -8973,7 +9259,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 High-quality custom media via IndexedDB",
       "guideIndexedDbBody": "Register family photos, per-level backgrounds, favorite mp3, and the game-over video in Settings. Originals stay in the browser quota. Settings (5 skins, ROWS, volume) remain in localStorage, separate from IndexedDB.",
       "guideIndexedDbHow": "💡 Files live in the media_files store of DadTetrisDB. Self-test verifies connect, write, read, and delete.",
-      "guideDiagPipelineBody": "Self-test runs 12 core E2E checks (C1–C12) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 12/12] prints only when every visual and behavior assertion passes.",
+      "guideDiagPipelineBody": "Self-test runs 15 core E2E checks (C1–C15) in sequence, then continues with the existing 1-1 through 19-1 suite. ALL GREEN [PASS 15/15] prints only when every visual and behavior assertion passes.",
       "guideDiagCore1": "1) [DOM & layout] Dual canvas, board-centered profile card (idle/conquer flex), zero watermarks, preview canvases, modal click guard",
       "guideDiagCore2": "2) [Block renderer] 5 skins (gemstone, glass, wire_glass, mecha, candy) and ghost cubes offscreen",
       "guideDiagCore3": "3) [Media storage] IndexedDB CRUD, fully isolated window/panel keys, per-target bulk put via #bulk-bg-file-input, canonical filenames",
@@ -8986,6 +9272,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Five custom neon color themes",
       "guideThemeBody": "Tap a round palette swatch in Settings → Game to instantly recolor borders, buttons, neon glow, and accent text.",
       "guideThemeHow": "💡 The switch is instant (0ms) and saved forever in localStorage.",
@@ -9066,6 +9355,9 @@ function GameEngine() {
       "diagSaveFile": "💾 Сохранить файл",
       "diagCopied": "📋 Журнал скопирован",
       "diagSaved": "💾 Файл журнала сохранён",
+      "guide_bg_inherit": "🖼️ Умное наследование: уровни без своего изображения показывают зарегистрированный фон по умолчанию.",
+      "guide_bg_common": "🌐 Общий/личный фон: семейный набор и личные слоты хранятся отдельно.",
+      "guide_audio_restore": "🎬 Автобаланс звука: ролик приглушает музыку и полностью возвращает громкость.",
       "diagCopiedDone": "✅ Скопировано!"
     },
     vi: {
@@ -9116,8 +9408,8 @@ function GameEngine() {
       "diagClose": "Đóng",
       "diagIdle": "Nhàn rỗi",
       "diagCert": "🎉 Được chứng nhận 100%! (Tất cả các hệ thống đều hoạt động)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Một số lần kiểm tra không thành công - xem nhật ký",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Nhấn Bắt đầu để chơi",
@@ -9273,8 +9565,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Hết ô, bỏ qua: {name}",
       "eventVideo": "🎬 Video sự kiện",
       "eventVideoHint": "Tắt để ẩn các cửa sổ bật lên về điểm số và lễ kết thúc trò chơi. Xem trước vẫn hoạt động.",
+      "eventVideoSizeHint": "⚡ Để chơi mượt, video sự kiện bị giới hạn 15MB trở xuống (nên dùng MP4).",
       "preview": "♥️ Xem trước",
-      "fileSelect": "Chọn tệp (MP4, v.v.)",
+      "fileSelect": "Chọn tệp (tối đa 15MB)",
+      "deleteVideo": "🗑️ Xóa",
+      "confirmDeleteVideo": "Xóa video sự kiện này? Tệp đã lưu sẽ bị xóa ngay.",
+      "videoTooLarge": "⚠️ [Quá lớn] Video nặng {size}MB.\nChỉ đăng ký được tệp 15MB trở xuống.",
+      "videoTypeInvalid": "⚠️ Chỉ tải lên được tệp video (MP4, WebM...).",
+      "videoSavedToast": "Đã đăng ký video sự kiện.",
+      "videoDeletedToast": "Đã xóa video sự kiện.",
       "videoUrlPlaceholder": "URL YouTube hoặc video",
       "goal1": "Điểm mục tiêu thứ 1",
       "goal2": "điểm mục tiêu thứ 2",
@@ -9451,7 +9750,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -9492,7 +9791,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -9589,7 +9891,7 @@ function GameEngine() {
       "guideDiagStage17": "Giai đoạn 17 kiểm tra IndexedDB (DadTetrisDB / media_files) kết nối, ghi và đọc phương tiện truyền thông lớn. Một thẻ in ra [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Giai đoạn 18 kiểm tra công cụ kết xuất phân tách canvas hai lớp (Background/Foreground). Một tấm thẻ in [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Giai đoạn 19 kiểm tra hệ thống dây điện của mô-đun ES (Bộ lưu trữ, Âm thanh, Kết xuất, Giao diện người dùng, GameEngine). Thẻ in ra [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 Khi quá trình quét kết thúc, mỗi mục sẽ hiển thị ✅ ĐẠT hoặc 🛠️ TỰ ĐỘNG CỐ ĐỊNH. Nếu tất cả 7 lần kiểm tra lõi đều vượt qua, cửa sổ bật lên kết quả hiển thị “🎉 Tất cả các hệ thống lõi (canvas kép, 5 giao diện, IndexedDB, bảng cổ vũ Bố) đang chạy ở mức 100%! [PASS 12/12]”.",
+      "guideDiagHint": "💡 Khi quá trình quét kết thúc, mỗi mục sẽ hiển thị ✅ ĐẠT hoặc 🛠️ TỰ ĐỘNG CỐ ĐỊNH. Nếu tất cả 7 lần kiểm tra lõi đều vượt qua, cửa sổ bật lên kết quả hiển thị “🎉 Tất cả các hệ thống lõi (canvas kép, 5 giao diện, IndexedDB, bảng cổ vũ Bố) đang chạy ở mức 100%! [PASS 15/15]”.",
       "guideCh2Badge": "Chương 2 · Da năm khối",
       "guideCh2Lead": "Chọn một giao diện trong Cài đặt và bảng chính cộng với TIẾP THEO16HOLD vẽ lại ngay lập tức. Hai khung vẽ xem trước trực tiếp (da và bóng) hiển thị kết cấu mà không đóng chế độ.",
       "guideCh3Badge": "Chương 3 · Chiều cao bảng (khoảng cách thả)",
@@ -9602,7 +9904,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Phương tiện tùy chỉnh chất lượng cao thông qua IndexedDB",
       "guideIndexedDbBody": "Đăng ký ảnh gia đình, hình nền theo cấp độ, mp3 yêu thích và video kết thúc trò chơi trong Cài đặt. Bản gốc vẫn nằm trong hạn ngạch của trình duyệt. Các cài đặt (5 giao diện, ROWS, âm lượng) vẫn ở localStorage, tách biệt với IndexedDB.",
       "guideIndexedDbHow": "💡 Các tập tin tồn tại trong kho lưu trữ media_files của DadTetrisDB. Tự kiểm tra xác minh kết nối, ghi, đọc và xóa.",
-      "guideDiagPipelineBody": "Quá trình tự kiểm tra chạy 7 bước kiểm tra cốt lõi theo trình tự, sau đó tiếp tục với bộ 1-1 đến 19-1 hiện có. Khi lõi 7 vượt qua, cửa sổ bật lên hiện đại sẽ in [PASS 12/12].",
+      "guideDiagPipelineBody": "Quá trình tự kiểm tra chạy 7 bước kiểm tra cốt lõi theo trình tự, sau đó tiếp tục với bộ 1-1 đến 19-1 hiện có. Khi lõi 7 vượt qua, cửa sổ bật lên hiện đại sẽ in [PASS 15/15].",
       "guideDiagCore1": "1) [DOM & bố cục] Canvas kép (#bg-canvas, #tetris-canvas), bảng cổ vũ 160px (#dad-cheer-banner), skin/ canvas xem trước ma",
       "guideDiagCore2": "2) [Block render engine] Tính toàn vẹn của cả 5 skin (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Bộ lưu trữ đa phương tiện] CRUD IndexedDB, #bulk-bg-file-input, put Blob/DataURL, #bulk-progress-bar",
@@ -9615,6 +9917,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Năm chủ đề màu neon tùy chỉnh",
       "guideThemeBody": "Chạm vào mẫu bảng màu tròn trong Cài đặt → Trò chơi để đổi màu ngay lập tức các đường viền, nút, ánh sáng neon và văn bản có dấu.",
       "guideThemeHow": "💡 Quá trình chuyển đổi diễn ra tức thời (0ms) và được lưu vĩnh viễn trong localStorage.",
@@ -9695,6 +10000,9 @@ function GameEngine() {
       "diagSaveFile": "💾 Lưu tệp",
       "diagCopied": "📋 Đã sao chép nhật ký",
       "diagSaved": "💾 Đã lưu tệp nhật ký",
+      "guide_bg_inherit": "🖼️ Kế thừa nền thông minh: màn không có ảnh riêng sẽ hiện nền mặc định đã đăng ký.",
+      "guide_bg_common": "🌐 Nền chung/cá nhân: tách bộ nền gia đình và slot tùy chỉnh của bạn.",
+      "guide_audio_restore": "🎬 Cân bằng âm thanh: video sự kiện hạ nhạc rồi khôi phục đúng âm lượng BGM.",
       "diagCopiedDone": "✅ Đã sao chép!"
     },
     id: {
@@ -9745,8 +10053,8 @@ function GameEngine() {
       "diagClose": "Tutup",
       "diagIdle": "Menganggur",
       "diagCert": "🎉 100% bersertifikat! (Semua Sistem Beroperasi)",
-      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
-      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C12 core suite complete (12/12 PASS)",
+      "diagAllGreen": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
+      "diagCoreSystemsOk": "[✅ ALL GREEN] DOM/render/event-chain E2E and C1–C15 core suite complete (15/15 PASS)",
       "diagFail": "⚠️ Beberapa pemeriksaan gagal — lihat log",
       "gameTitle": "DAD TETRIS",
       "pressStart": "Tekan Mulai untuk memutar",
@@ -9902,8 +10210,15 @@ function GameEngine() {
       "bulkStatusNoSlot": "Tidak ada slot, dilewati: {name}",
       "eventVideo": "🎬 Video acara",
       "eventVideoHint": "Nonaktifkan untuk menyembunyikan skor dan popup perayaan game over. Pratinjau masih berfungsi.",
+      "eventVideoSizeHint": "⚡ Agar permainan lancar, video event dibatasi 15MB atau kurang (MP4 disarankan).",
       "preview": "▶️ Pratinjau",
-      "fileSelect": "Pilih file (MP4 dll.)",
+      "fileSelect": "Pilih file (maks. 15MB)",
+      "deleteVideo": "🗑️ Hapus",
+      "confirmDeleteVideo": "Hapus video event ini? File tersimpan akan langsung dihapus.",
+      "videoTooLarge": "⚠️ [Terlalu besar] Video berukuran {size}MB.\nHanya file 15MB atau kurang yang dapat didaftarkan.",
+      "videoTypeInvalid": "⚠️ Hanya file video (MP4, WebM, dll.) yang dapat diunggah.",
+      "videoSavedToast": "Video event berhasil didaftarkan.",
+      "videoDeletedToast": "Video event dihapus.",
       "videoUrlPlaceholder": "URL YouTube atau video",
       "goal1": "skor sasaran pertama",
       "goal2": "skor sasaran ke-2",
@@ -10080,7 +10395,7 @@ function GameEngine() {
       "guideVizBulkDrop": "Pick many files at once and the smart engine maps names to slots.",
       "guideVizFileMap": "Any filename is stored under a canonical name per target. Window: default_bg.jpg / level_N.jpg. Panel: board_default_bg.jpg / board_level_N.jpg. A lone number in IMG_0008.jpg is not treated as a level.",
       "guideVizFxPreview": "keepDefault locks the idle shot, masterDisable is neon-only, Blur/Opacity keep blocks readable.",
-      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C12 E2E, then copy or save the integrity report.",
+      "guideVizF9How": "Press F9 or the ✏️ button to run C1–C15 E2E, then copy or save the integrity report.",
       "guideVizSkinTip": "Picking a skin redraws the board, NEXT, and HOLD immediately.",
       "guideCh1RulesTitle": "7 tetrominoes · line clears · score / level",
       "guideCh1RulesBody": "Stack I, O, T, S, Z, J, and L. Fill a row to clear it. 1 line = 100×Lv, 2 = 300×Lv, 3 = 500×Lv, Tetris (4) = 800×Lv. Clearing lines raises the level and speeds gravity.",
@@ -10121,7 +10436,10 @@ function GameEngine() {
       "guideIdleSplitWindow": "🖥️ Window: custom_bg_window_default / custom_bg_window_level_N, window blur/opacity. Bulk [window set] writes only these keys.",
       "guideIdleSplitBoard": "🎮 Panel: board_idle_bg_blob / custom_bg_board_level_N, panel blur/opacity. Bulk [panel set] writes only these keys.",
       "guideBgIsolateBody": "Window bulk upload and panel bulk upload are independent in behavior and storage. Shared alias bg_level_N is not used, so one target never copies onto the other.",
-      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guideLevelBgLiveBody": "On level-up, window reads custom_bg_window_level_N and panel reads custom_bg_board_level_N. Missing level customs inherit the registered Idle/Default image, then shared system backgrounds, then folder level_N.jpg. Keep-default holds only the window idle image.",
+      "guide_bg_inherit": "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+      "guide_bg_common": "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+      "guide_audio_restore": "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
       "guideDiagLevelBgSim": "Self-test walks Level 1→5→10→20, asserts window/panel store keys do not overlap, folder level images differ, and each target paints its own canvas/DOM background.",
       "guideDiagLevelBgSlots": "Window and panel Idle/Level 1–20 keys stay fully isolated (custom_bg_window_* vs custom_bg_board_* / bg_panel_*). Missing customs load per-target fallbacks.",
       "guideDiagLevelBgInterlock": "Master-off, keep-default, and blur/opacity values survive live level switches on DOM/Canvas.",
@@ -10218,7 +10536,7 @@ function GameEngine() {
       "guideDiagStage17": "Tahap 16 memeriksa jumlah baris papan dinamis (20 / 24 / 28) dan sesi seluler mengunci ROWS=20. Cetakan pass [📏 UKURAN PAPAN: PASS].\n0\nTahap 17 memeriksa IndexedDB (DadTetrisDB / media_files) koneksi media besar, tulis, dan baca. Cetakan pass [🗄️ INDEXEDDB: PASS].",
       "guideDiagStage18": "Tahap 18 memeriksa mesin rendering terpisah kanvas dua lapis (Latar Belakang/Latar Depan). Cetakan pas [🖼️ DUAL CANVAS: PASS].",
       "guideDiagStage19": "Tahap 19 memeriksa kabel modul ES (Penyimpanan, Audio, Render, UI, GameEngine). Sebuah cetakan pass [📦 ESM MODULES: PASS].",
-      "guideDiagHint": "💡 Saat pemindaian berakhir, setiap item menampilkan ✅ PASS atau 🛠️ AUTO-FIXED. Jika ketujuh pemeriksaan inti lolos, popup hasil menunjukkan “🎉 Semua sistem inti (kanvas ganda, 5 skin, IndexedDB, papan dukungan Ayah) berjalan pada 100%! [LULUS 12/12]\".",
+      "guideDiagHint": "💡 Saat pemindaian berakhir, setiap item menampilkan ✅ PASS atau 🛠️ AUTO-FIXED. Jika ketujuh pemeriksaan inti lolos, popup hasil menunjukkan “🎉 Semua sistem inti (kanvas ganda, 5 skin, IndexedDB, papan dukungan Ayah) berjalan pada 100%! [LULUS 15/15]\".",
       "guideCh2Badge": "Bab 2 · Lima blok kulit",
       "guideCh2Lead": "Pilih skin di Pengaturan dan papan utama plus gambar ulang NEXT/HOLD secara instan. Dua kanvas pratinjau langsung (kulit dan hantu) menampilkan tekstur tanpa menutup modal.",
       "guideCh3Badge": "Bab 3 · Tinggi papan (jarak jatuh)",
@@ -10231,7 +10549,7 @@ function GameEngine() {
       "guideIndexedDbTitle": "💾 Media khusus berkualitas tinggi melalui IndexedDB",
       "guideIndexedDbBody": "Daftarkan foto keluarga, latar belakang per level, mp3 favorit, dan video game-over di Pengaturan. Dokumen asli tetap berada dalam kuota browser. Setting (5 skin, ROWS, volume) tetap di localStorage, terpisah dari IndexedDB.",
       "guideIndexedDbHow": "💡 File ada di media_files penyimpanan DadTetrisDB. Tes mandiri memverifikasi koneksi, tulis, baca, dan hapus.",
-      "guideDiagPipelineBody": "Tes mandiri menjalankan 7 pemeriksaan inti secara berurutan, kemudian dilanjutkan dengan rangkaian 1-1 hingga 19-1 yang ada. Ketika inti 7 lolos, popup modern mencetak [PASS 12/12].",
+      "guideDiagPipelineBody": "Tes mandiri menjalankan 7 pemeriksaan inti secara berurutan, kemudian dilanjutkan dengan rangkaian 1-1 hingga 19-1 yang ada. Ketika inti 7 lolos, popup modern mencetak [PASS 15/15].",
       "guideDiagCore1": "1) [DOM & tata letak] Kanvas ganda (#bg-canvas, #tetris-canvas), papan sorak 160 piksel (#dad-cheer-banner), kanvas pratinjau skin/hantu",
       "guideDiagCore2": "2) [Blokir mesin render] Integritas kelima skin (gemstone, glass, wire_glass, mecha, candy)",
       "guideDiagCore3": "3) [Penyimpanan media] CRUD IndexedDB, #bulk-bg-file-input, put Blob/DataURL, #bulk-progress-bar",
@@ -10244,6 +10562,9 @@ function GameEngine() {
       "guideDiagCore10": "10) [Audio interlock] BGM/SFX GainNode.gain.value 0-1, mute cuts output, DAD timestop pitch bend",
       "guideDiagCore11": "11) [Rules/timestop] 1000-10000ms K-key inject, Standard/Dual Queue next layout, garbage lines and drop multiplier",
       "guideDiagCore12": "12) [Boot/storage] First canvas paint after IndexedDB hydration, distinct folder level backgrounds, diagnostic Memory Snapshot restore",
+      "guideDiagCore13": "13) [BG inherit] resolveLevelBg(board, 99) falls back through Idle/Default, shared system slots, then factory assets",
+      "guideDiagCore14": "14) [Shared/personal storage] custom_bg_* and common_bg_* keys stay isolated in IndexedDB",
+      "guideDiagCore15": "15) [BGM restore] duckBgm then restoreBgm returns GainNode to the saved volume (dad_tetris_bgm_vol)",
       "guideThemeTitle": "🎨 Lima tema warna neon khusus",
       "guideThemeBody": "Ketuk contoh palet bulat di Pengaturan → Game untuk langsung mewarnai ulang batas, tombol, cahaya neon, dan teks aksen.",
       "guideThemeHow": "💡 Peralihannya instan (0 ms) dan disimpan selamanya dalam localStorage.",
@@ -10465,7 +10786,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.3.15-circle";
+  const APP_VERSION = "1.4.3-video-opt";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
@@ -10735,6 +11056,8 @@ function GameEngine() {
   };
   const TOGGLE_KEYS = new Set(["sound", "shake", "particles", "ghost", "bgm", "videosEnabled", "bgEnabled", "levelBgEnabled", "keepDefaultWindowBg", "disableAllCustomBg", "autoRecordMode", "dadSpecial", "haptic"]);
   const VIDEO_KEYS = ["goal1", "goal2", "gameover"];
+  const MAX_VIDEO_SIZE_MB = 15;
+  const MAX_VIDEO_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 
   const TYPES = ["I", "J", "L", "O", "S", "T", "Z"];
   const COLORS = {
@@ -16552,6 +16875,35 @@ function GameEngine() {
     return `video-${kind}`;
   }
 
+  function eventVideoAliasKey(kind) {
+    return `event_video_${kind}`;
+  }
+
+  function isAllowedVideoFile(file) {
+    if (!file) {
+      return false;
+    }
+    const type = String(file.type || "").toLowerCase();
+    if (type.startsWith("video/")) {
+      return true;
+    }
+    if (type && type !== "application/octet-stream") {
+      return false;
+    }
+    const name = String(file.name || "").toLowerCase();
+    return /\.(mp4|webm|mov|m4v|ogg|ogv)$/.test(name);
+  }
+
+  function hasDeletableEventVideo(kind) {
+    if (!VIDEO_KEYS.includes(kind)) {
+      return false;
+    }
+    const blob = videoBlobs[kind];
+    const fileName = settings.videoFileNames && settings.videoFileNames[kind];
+    const url = settings.videoUrls && settings.videoUrls[kind];
+    return !!(blob || (fileName && String(fileName).trim()) || (url && String(url).trim()));
+  }
+
   async function hydrateMedia() {
     try {
     restoreProfileFromStorage();
@@ -16604,7 +16956,10 @@ function GameEngine() {
       applyBundledBgm();
     }
     for (const kind of VIDEO_KEYS) {
-      const url = await mediaStore.get(videoStoreKey(kind));
+      let url = await mediaStore.get(videoStoreKey(kind));
+      if (!url) {
+        url = await mediaStore.get(eventVideoAliasKey(kind));
+      }
       if (url) {
         videoBlobs[kind] = { url, name: settings.videoFileNames[kind] || "video" };
       }
@@ -19494,6 +19849,7 @@ function GameEngine() {
   function revokeVideoBlob(kind) {
     videoBlobs[kind] = null;
     mediaStore.del(videoStoreKey(kind));
+    mediaStore.del(eventVideoAliasKey(kind));
   }
 
   function resolveVideoSource(kind) {
@@ -19534,6 +19890,8 @@ function GameEngine() {
     for (const key of VIDEO_KEYS) {
       const status = document.getElementById(`video-status-${key}`);
       const input = document.querySelector(`[data-video-url="${key}"]`);
+      const delBtn = document.querySelector(`[data-delete-video="${key}"]`);
+      const hasVideo = hasDeletableEventVideo(key);
       if (status) {
         status.textContent = videoStatusText(key);
         status.classList.toggle("is-ready", isVideoReady(key));
@@ -19541,7 +19899,84 @@ function GameEngine() {
       if (input && document.activeElement !== input) {
         input.value = settings.videoUrls[key] || "";
       }
+      if (delBtn) {
+        delBtn.hidden = !hasVideo;
+        delBtn.disabled = !hasVideo;
+        delBtn.classList.toggle("is-armed", hasVideo);
+        delBtn.setAttribute("aria-disabled", hasVideo ? "false" : "true");
+      }
     }
+  }
+
+  function refreshVideoSlotUI(slotKey) {
+    syncVideoSettingsUi();
+    return slotKey;
+  }
+
+  async function handleEventVideoUpload(file, slotKey) {
+    if (!file || !VIDEO_KEYS.includes(slotKey)) {
+      return false;
+    }
+    if (file.size > MAX_VIDEO_BYTES) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      window.alert(t("videoTooLarge", { size: fileSizeMB }));
+      return false;
+    }
+    if (!String(file.type || "").startsWith("video/") && !isAllowedVideoFile(file)) {
+      window.alert(t("videoTypeInvalid"));
+      return false;
+    }
+    let ok = false;
+    try {
+      ok = await mediaStore.put(videoStoreKey(slotKey), file);
+    } catch (err) {
+      ok = false;
+      try {
+        console.error("[DadTetrisDB] video save failed", slotKey, err);
+      } catch (ignore) {
+        /* ignore */
+      }
+    }
+    if (!ok) {
+      try {
+        console.error("[DadTetrisDB] video save failed", slotKey);
+      } catch (err) {
+        /* ignore */
+      }
+      return false;
+    }
+    videoBlobs[slotKey] = { url: mediaStore.peek(videoStoreKey(slotKey)), name: file.name };
+    settings.videoFileNames[slotKey] = file.name;
+    settings.videoUrls[slotKey] = "";
+    saveSettings();
+    refreshVideoSlotUI(slotKey);
+    showNeonToast(t("videoSavedToast"), { ms: 1800 });
+    return true;
+  }
+
+  async function deleteEventVideo(kind) {
+    if (!VIDEO_KEYS.includes(kind) || !hasDeletableEventVideo(kind)) {
+      return false;
+    }
+    const ok = await showIngameConfirm(t("confirmDeleteVideo"));
+    if (!ok) {
+      return false;
+    }
+    revokeVideoBlob(kind);
+    settings.videoFileNames[kind] = "";
+    settings.videoUrls[kind] = "";
+    const fileInput = document.querySelector(`[data-video-file="${kind}"]`);
+    if (fileInput) {
+      fileInput.value = "";
+    }
+    const urlInput = document.querySelector(`[data-video-url="${kind}"]`);
+    if (urlInput) {
+      urlInput.value = "";
+    }
+    saveSettings();
+    refreshVideoSlotUI(kind);
+    showNeonToast(t("videoDeletedToast"), { ms: 1600 });
+    return true;
   }
 
   function stopCelebrateMedia() {
@@ -19608,6 +20043,7 @@ function GameEngine() {
         celebrateVideo.classList.add("hidden");
         celebrateStage.classList.add("is-fallback");
         celebrateFallback.textContent = text;
+        restoreBgmAfterCelebrate(false);
         scheduleCelebrateFallbackResume();
       });
     }
@@ -19684,6 +20120,66 @@ function GameEngine() {
     showCelebrate(kind);
   }
 
+  function attachEventVideoAudioHook(videoElement, modalCloseBtn) {
+    if (!videoElement) {
+      return;
+    }
+
+    const onVideoStart = () => {
+      if (window.soundManager && typeof window.soundManager.duckBgm === "function") {
+        window.soundManager.duckBgm(0.1, 0.2);
+      }
+    };
+
+    const onVideoEnd = () => {
+      if (window.soundManager && typeof window.soundManager.restoreBgm === "function") {
+        window.soundManager.restoreBgm(0.3);
+      }
+    };
+
+    if (videoElement.dataset.bgmHookBound !== "1") {
+      videoElement.dataset.bgmHookBound = "1";
+      videoElement.addEventListener("play", onVideoStart);
+      videoElement.addEventListener("ended", onVideoEnd);
+      videoElement.addEventListener("pause", onVideoEnd);
+      videoElement.addEventListener("error", onVideoEnd);
+    }
+
+    if (modalCloseBtn && modalCloseBtn.dataset.bgmHookBound !== "1") {
+      modalCloseBtn.dataset.bgmHookBound = "1";
+      modalCloseBtn.addEventListener("click", onVideoEnd);
+    }
+  }
+  window.attachEventVideoAudioHook = attachEventVideoAudioHook;
+
+  function restoreBgmAfterCelebrate(fromReset) {
+    try {
+      if (sfx) {
+        sfx.muted = false;
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    const dur = fromReset ? 0 : 0.3;
+    try {
+      if (bgm && typeof bgm.restoreAfterVideo === "function") {
+        bgm.restoreAfterVideo(dur);
+        return;
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    try {
+      if (sfx && typeof sfx.restoreBgm === "function") {
+        sfx.restoreBgm(dur);
+      } else if (bgm && typeof bgm.applyVolume === "function") {
+        bgm.applyVolume();
+      }
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
   function closeCelebrate(fromReset) {
     window.clearTimeout(celebrateFallbackTimer);
     celebrateFallbackTimer = 0;
@@ -19695,13 +20191,13 @@ function GameEngine() {
     if (fromReset) {
       celebrateQueue.length = 0;
       celebratePreview = false;
-      sfx.muted = false;
+      restoreBgmAfterCelebrate(true);
       bgm.stopFade();
       return;
     }
     if (celebratePreview) {
       celebratePreview = false;
-      sfx.muted = false;
+      restoreBgmAfterCelebrate(false);
       if (settingsOpen && !paused && !gameOver) {
         bgm.fadeIn();
       }
@@ -19711,6 +20207,7 @@ function GameEngine() {
       showCelebrate(celebrateQueue.shift());
       return;
     }
+    restoreBgmAfterCelebrate(false);
     if (gameOver) {
       showGameOverlay("gameOver");
       sfx.muted = false;
@@ -22834,6 +23331,9 @@ function GameEngine() {
     { id: "C10", title: "C10 [4중 인터락] 볼륨 슬라이더 · GainNode · 뮤트" },
     { id: "C11", title: "C11 [4중 인터락] keepDefaultBg · 타임스톱 · Dual Queue · 가비지" },
     { id: "C12", title: "C12 [E2E] 레벨업 대상별 배경 · 폴더 JPG 구분 · 부팅 페인트" },
+    { id: "C13", title: "C13 [배경 상속] resolveLevelBg 미등록 레벨 → Idle/Default 폴백" },
+    { id: "C14", title: "C14 [스토리지] custom_bg_* / common_bg_* 2단계 키 격리" },
+    { id: "C15", title: "C15 [오디오] duckBgm → restoreBgm GainNode 원볼륨 복원" },
     { id: "1-1", title: "1-1 착지 카운트다운 · 선명도 부스트" },
     { id: "1-2", title: "1-2 X축 절대 관통 (좌/우 Ghost Phase)" },
     { id: "1-3", title: "1-3 Y축 스텝 하강 · 우물 파고들기" },
@@ -22893,6 +23393,9 @@ function GameEngine() {
     { id: "10", label: "10) 오디오 인터락" },
     { id: "11", label: "11) 룰/타임스톱" },
     { id: "12", label: "12) 부팅/스토리지" },
+    { id: "13", label: "13) 배경 상속 폴백" },
+    { id: "14", label: "14) 공통/개인 배경 격리" },
+    { id: "15", label: "15) 영상 후 BGM 복원" },
   ];
 
   function diagDelay(ms) {
@@ -23343,7 +23846,7 @@ function GameEngine() {
     if (s === "7-4") {
       return 4000;
     }
-    if (s === "C8" || s === "C1" || s === "C9" || s === "C10" || s === "C11" || s === "C12") {
+    if (s === "C8" || s === "C1" || s === "C9" || s === "C10" || s === "C11" || s === "C12" || s === "C13" || s === "C14" || s === "C15") {
       return 8000;
     }
     if (s === "C2") {
@@ -23423,7 +23926,7 @@ function GameEngine() {
   }
 
   function diagCoreResultText() {
-    const ids = (CORE_DIAG_IDS && CORE_DIAG_IDS.length) ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
+    const ids = (CORE_DIAG_IDS && CORE_DIAG_IDS.length) ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15"];
     const passed = ids.filter((id) => {
       const el = document.querySelector(`[data-diag-badge="${id}"]`);
       return !!(el && (el.classList.contains("is-pass") || el.classList.contains("is-fix")));
@@ -26268,6 +26771,155 @@ function GameEngine() {
       const ok = guideOk && bootFlag && bootOrder && idbReady && painted && restored && levelBgOk;
       return ok ? "pass" : "fail";
     },
+    "C13": async () => {
+      const guideOk = diagGuideSync(["guide_bg_inherit", "guideLevelBgLiveBody", "guideDiagCore13"]);
+      let inheritOk = false;
+      try {
+        if (typeof hydrateBgSlot === "function") {
+          await hydrateBgSlot("board", "default");
+          await hydrateBgSlot("board", 20);
+        }
+        if (typeof hydrateCommonBgSlot === "function") {
+          await hydrateCommonBgSlot("board", "default");
+          await hydrateCommonBgSlot("board", 20);
+        }
+        const personal99 = (typeof getMediaBlob === "function")
+          ? await getMediaBlob("custom_bg_board_level_99")
+          : "";
+        const resolved = (typeof resolveLevelBg === "function")
+          ? await resolveLevelBg("board", 99)
+          : "";
+        const idle = (typeof loadIdleBgData === "function" && loadIdleBgData("board")) || "";
+        const commonIdle = (typeof loadCommonBgData === "function" && loadCommonBgData("board", "default")) || "";
+        const clampedCustom = (typeof loadBgData === "function" && loadBgData("board", playLevel(99))) || "";
+        const expected = (typeof pickInheritedBgUrl === "function" && pickInheritedBgUrl("board", 99))
+          || (typeof folderLevelBgSrc === "function" && folderLevelBgSrc(playLevel(99)))
+          || "";
+        if (personal99) {
+          inheritOk = resolved === personal99;
+        } else if (clampedCustom) {
+          inheritOk = resolved === clampedCustom || resolved === idle || resolved === expected;
+        } else if (idle) {
+          inheritOk = resolved === idle || resolved === expected;
+        } else if (commonIdle) {
+          inheritOk = resolved === commonIdle || resolved === expected;
+        } else {
+          inheritOk = !!resolved && /level_|default_bg|blob:|data:/i.test(String(resolved));
+        }
+        diagLog(`[C13 INHERIT] lv99Key=${personal99 ? "hit" : "empty"} idle=${idle ? "hit" : "empty"} commonIdle=${commonIdle ? "hit" : "empty"} resolved=${resolved ? "ok" : "empty"} inherit=${inheritOk}`);
+      } catch (err) {
+        diagLog(`C13: ${err && err.message ? err.message : err}`);
+        inheritOk = false;
+      }
+      const fnOk = typeof resolveLevelBg === "function" && typeof pickInheritedBgUrl === "function";
+      const ok = guideOk && fnOk && inheritOk;
+      return ok ? "pass" : "fail";
+    },
+    "C14": async () => {
+      const guideOk = diagGuideSync(["guide_bg_common", "guideBgIsolateBody", "guideDiagCore14"]);
+      let isolated = false;
+      try {
+        const slots = ["default", 1, 10, 20];
+        const targets = ["window", "board"];
+        isolated = typeof bgStoreKey === "function" && typeof commonBgStoreKey === "function";
+        targets.forEach((dest) => {
+          slots.forEach((slot) => {
+            const personal = bgStoreKey(dest, slot);
+            const common = commonBgStoreKey(dest, slot);
+            if (!personal || !common || personal === common) {
+              isolated = false;
+            }
+            if (String(personal).indexOf("custom_bg_") !== 0 || String(common).indexOf("common_bg_") !== 0) {
+              isolated = false;
+            }
+            if (typeof bgCandidateKeys === "function") {
+              const keys = bgCandidateKeys(dest, slot) || [];
+              if (keys.some((key) => /^common_bg_/.test(String(key || "")))) {
+                isolated = false;
+              }
+            }
+          });
+        });
+        if (typeof isOwnedBgStoreKey === "function") {
+          if (isOwnedBgStoreKey("common_bg_window_default", "window") || isOwnedBgStoreKey("common_bg_board_level_1", "board")) {
+            isolated = false;
+          }
+        }
+        const winLv1 = bgStoreKey("window", 1);
+        const boardLv1 = bgStoreKey("board", 1);
+        if (winLv1 === boardLv1) {
+          isolated = false;
+        }
+        diagLog(`[C14 ISOLATE] window=${winLv1} board=${boardLv1} commonWin=${commonBgStoreKey("window", "default")} isolated=${isolated}`);
+      } catch (err) {
+        diagLog(`C14: ${err && err.message ? err.message : err}`);
+        isolated = false;
+      }
+      const ok = guideOk && isolated;
+      return ok ? "pass" : "fail";
+    },
+    "C15": async () => {
+      const guideOk = diagGuideSync(["guide_audio_restore", "guideCh4AudioBody", "guideDiagCore15"]);
+      const mgr = (typeof soundManager !== "undefined" && soundManager)
+        || window.soundManager
+        || sfx;
+      let restoreOk = false;
+      let duckOk = false;
+      const prevDucked = !!(mgr && mgr.bgmDucked);
+      const prevRatio = mgr && mgr.bgmDuckRatio;
+      try {
+        if (mgr && typeof mgr.ensureGraph === "function") {
+          mgr.ensureGraph();
+        }
+        const hookOk = typeof attachEventVideoAudioHook === "function"
+          || typeof window.attachEventVideoAudioHook === "function";
+        const duckFn = mgr && typeof mgr.duckBgm === "function";
+        const restoreFn = mgr && typeof mgr.restoreBgm === "function";
+        const gain = mgr && mgr.bgmGain;
+        if (duckFn && restoreFn && gain) {
+          const original = typeof mgr.getBgmVolumeSetting === "function"
+            ? mgr.getBgmVolumeSetting()
+            : (clampPercent(settings.bgmVolume, SETTING_DEFAULTS.bgmVolume) / 100);
+          mgr.duckBgm(0.1, 0);
+          await diagDelay(40);
+          const ducked = Number(gain.gain.value);
+          duckOk = original <= 0.001 ? ducked <= 0.02 : Math.abs(ducked - original * 0.1) <= 0.05;
+          mgr.restoreBgm(0);
+          await diagDelay(40);
+          const restored = Number(gain.gain.value);
+          const lsRaw = Number((function () {
+            try {
+              return localStorage.getItem("dad_tetris_bgm_vol") || localStorage.getItem("bgmVolume") || settings.bgmVolume;
+            } catch (lsErr) {
+              return settings.bgmVolume;
+            }
+          })());
+          const lsUnit = Number.isFinite(lsRaw) ? (lsRaw > 1 ? lsRaw / 100 : lsRaw) : original;
+          const want = (mgr.muted || settings.bgm === false) ? 0 : (Number.isFinite(original) ? original : lsUnit);
+          restoreOk = Math.abs(restored - want) <= 0.02 && hookOk;
+          diagLog(`[C15 BGM] orig=${original.toFixed(3)} ducked=${ducked.toFixed(3)} restored=${restored.toFixed(3)} want=${want.toFixed(3)} duck=${duckOk} hook=${hookOk}`);
+        } else {
+          diagLog(`C15 missing duck/restore/gain duckFn=${!!duckFn} restoreFn=${!!restoreFn} gain=${!!gain}`);
+        }
+      } catch (err) {
+        diagLog(`C15: ${err && err.message ? err.message : err}`);
+        restoreOk = false;
+      } finally {
+        try {
+          if (mgr && typeof mgr.restoreBgm === "function") {
+            mgr.bgmDucked = false;
+            mgr.restoreBgm(0);
+          }
+          if (prevDucked && mgr) {
+            mgr.bgmDuckRatio = prevRatio;
+          }
+        } catch (restoreErr) {
+          /* keep remaining diags */
+        }
+      }
+      const ok = guideOk && duckOk && restoreOk;
+      return ok ? "pass" : "fail";
+    },
     "1-1": async (ctx) => {
       let fixed = false;
       settings.dadSpecial = true;
@@ -28896,7 +29548,7 @@ function GameEngine() {
       diagLog("[📦 ESM MODULES: PASS]");
     }
 
-    const coreIds = CORE_DIAG_IDS && CORE_DIAG_IDS.length ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"];
+    const coreIds = CORE_DIAG_IDS && CORE_DIAG_IDS.length ? CORE_DIAG_IDS : ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15"];
     const corePassed = coreIds.filter((id) => {
       const el = document.querySelector(`[data-diag-badge="${id}"]`);
       return !!(el && (el.classList.contains("is-pass") || el.classList.contains("is-fix")));
@@ -28918,7 +29570,7 @@ function GameEngine() {
         const core = document.createElement("p");
         core.className = "diag-cert diag-core-systems diag-all-green";
         core.setAttribute("role", "status");
-        core.textContent = t("diagCoreSystemsOk") || t("diagAllGreen") || `[✅ ALL GREEN] C1–C12 E2E 전수 검증 완료 (${coreIds.length}/${coreIds.length} PASS)`;
+        core.textContent = t("diagCoreSystemsOk") || t("diagAllGreen") || `[✅ ALL GREEN] C1–C15 E2E 전수 검증 완료 (${coreIds.length}/${coreIds.length} PASS)`;
         log.parentNode.insertBefore(core, log);
       }
       log.parentNode.insertBefore(cert, log);
@@ -30670,11 +31322,14 @@ function GameEngine() {
 
   bindEl("celebrate-close", "click", () => closeCelebrate());
   bindEl("celebrate-backdrop", "click", () => closeCelebrate());
+  attachEventVideoAudioHook(celebrateVideo, document.getElementById("celebrate-close"));
+  attachEventVideoAudioHook(celebrateVideo, document.getElementById("celebrate-backdrop"));
   celebrateVideo.addEventListener("ended", () => closeCelebrate());
   celebrateVideo.addEventListener("error", () => {
     if (!celebrateOpen) {
       return;
     }
+    restoreBgmAfterCelebrate(false);
     celebrateVideo.classList.add("hidden");
     celebrateStage.classList.add("is-fallback");
     if (!celebrateFallback.textContent) {
@@ -30704,28 +31359,20 @@ function GameEngine() {
       const kind = input.dataset.videoFile;
       const file = input.files && input.files[0];
       if (!VIDEO_KEYS.includes(kind) || !file) {
+        input.value = "";
         return;
       }
-      mediaStore.put(videoStoreKey(kind), file).then((ok) => {
-        if (!ok) {
-          try {
-            console.error("[DadTetrisDB] video save failed", kind);
-          } catch (err) {
-            /* ignore */
-          }
-        }
-      }).catch((err) => {
-        try {
-          console.error("[DadTetrisDB] video save failed", kind, err);
-        } catch (ignore) {
-          /* ignore */
-        }
+      Promise.resolve(handleEventVideoUpload(file, kind)).finally(() => {
+        input.value = "";
       });
-      videoBlobs[kind] = { url: mediaStore.peek(videoStoreKey(kind)), name: file.name };
-      settings.videoFileNames[kind] = file.name;
-      settings.videoUrls[kind] = "";
-      saveSettings();
-      syncVideoSettingsUi();
+    });
+  });
+
+  document.querySelectorAll("[data-delete-video]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteEventVideo(btn.dataset.deleteVideo);
     });
   });
 
@@ -30910,7 +31557,8 @@ function GameEngine() {
         mgr.sfxGain.gain.value = clampPercent(settings.soundVolume, SETTING_DEFAULTS.soundVolume) / 100;
       }
       if (mgr.bgmGain && !mgr.muted) {
-        mgr.bgmGain.gain.value = clampPercent(settings.bgmVolume, SETTING_DEFAULTS.bgmVolume) / 100;
+        const ducked = mgr.bgmDucked ? Math.max(0, Math.min(1, Number(mgr.bgmDuckRatio) || 0.1)) : 1;
+        mgr.bgmGain.gain.value = (clampPercent(settings.bgmVolume, SETTING_DEFAULTS.bgmVolume) / 100) * ducked;
       }
     } catch (err) { /* audio graph optional */ }
     return n;
