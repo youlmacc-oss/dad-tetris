@@ -1,0 +1,153 @@
+/* Dad Tetris v1.4.4-allpass — event-video i18n pack (12 langs).
+   Live F9 C4 census reads I18N in script.js; this module keeps the same keys in sync. */
+"use strict";
+
+export const VIDEO_I18N = {
+  ko: {
+    video_limit_notice: "원활한 재생을 위해 영상 크기는 15MB 이하(MP4 권장)로 제한됩니다.",
+    video_size_error: "영상 용량이 15MB를 초과하여 등록할 수 없습니다.",
+    btn_delete: "삭제",
+    confirm_video_delete: "해당 이벤트 동영상을 삭제하시겠습니까?",
+    msg_video_deleted: "동영상이 삭제되었습니다.",
+    guide_bg_inherit: "🖼️ 스마트 배경 상속: 레벨별 전용 이미지가 없는 구간은 등록해 두신 기본 배경이 자동으로 이어져 표시됩니다.",
+    guide_bg_common: "🌐 공통/개인 배경 분리: 가족 모두가 보는 '공통 배경'과 나만의 '개인 커스텀 배경'을 나누어 관리할 수 있습니다.",
+    guide_audio_restore: "🎬 오디오 자동 밸런스: 이벤트 영상 재생 시 음악이 부드럽게 줄어들며, 영상이 끝나면 원래 볼륨으로 완벽히 복원됩니다.",
+  },
+  en: {
+    video_limit_notice: "For smooth playback, video size is limited to 15MB or less (MP4 recommended).",
+    video_size_error: "Video size exceeds 15MB and cannot be registered.",
+    btn_delete: "Delete",
+    confirm_video_delete: "Do you want to delete this event video?",
+    msg_video_deleted: "Video deleted.",
+    guide_bg_inherit: "🖼️ Smart background inheritance: Levels without a dedicated image keep showing your registered default background.",
+    guide_bg_common: "🌐 Shared vs personal backgrounds: Manage a family-wide shared background set separately from your personal custom slots.",
+    guide_audio_restore: "🎬 Auto audio balance: Event videos gently duck the music, then restore your exact BGM volume when they end.",
+  },
+  ja: {
+    video_limit_notice: "スムーズな再生のため、動画サイズは15MB以下（MP4推奨）に制限されます。",
+    video_size_error: "動画サイズが15MBを超えているため登録できません。",
+    btn_delete: "削除",
+    confirm_video_delete: "このイベント動画を削除しますか？",
+    msg_video_deleted: "動画が削除されました。",
+    guide_bg_inherit: "🖼️ スマート背景継承：専用画像がないレベルは登録済みの基本背景が自動で続きます。",
+    guide_bg_common: "🌐 共通/個人背景：家族みんなの共通背景と自分専用カスタムを分けて管理できます。",
+    guide_audio_restore: "🎬 オーディオ自動バランス：イベント映像中はBGMが静かに下がり、終了後に元の音量へ完全復帰します。",
+  },
+  zh: {
+    video_limit_notice: "为保证流畅播放，视频大小限制在15MB以内（推荐MP4格式）。",
+    video_size_error: "视频文件超过15MB，无法添加。",
+    btn_delete: "删除",
+    confirm_video_delete: "确定要删除此事件视频吗？",
+    msg_video_deleted: "视频已删除。",
+    guide_bg_inherit: "🖼️ 智能背景继承：没有专用图的关卡会自动接上您登记的默认背景。",
+    guide_bg_common: "🌐 共用/个人背景：全家共用背景与个人自定义背景可分开管理。",
+    guide_audio_restore: "🎬 音频自动平衡：活动影像播放时音乐会柔和降低，结束后精确恢复原音量。",
+  },
+  es: {
+    video_limit_notice: "Para una reproducción fluida, el video se limita a 15 MB o menos.",
+    video_size_error: "El video supera los 15 MB y no se puede registrar.",
+    btn_delete: "Eliminar",
+    confirm_video_delete: "¿Desea eliminar este video de evento?",
+    msg_video_deleted: "Video eliminado.",
+    guide_bg_inherit: "🖼️ Herencia inteligente: los niveles sin imagen propia siguen mostrando el fondo predeterminado registrado.",
+    guide_bg_common: "🌐 Fondos compartidos y personales: separe el set familiar de los slots personalizados.",
+    guide_audio_restore: "🎬 Balance de audio: el vídeo de evento baja la música y restaura el volumen exacto al terminar.",
+  },
+  fr: {
+    video_limit_notice: "Pour une lecture fluide, la vidéo est limitée à 15 Mo ou moins.",
+    video_size_error: "La vidéo dépasse 15 Mo et ne peut pas être enregistrée.",
+    btn_delete: "Supprimer",
+    confirm_video_delete: "Voulez-vous supprimer cette vidéo d'événement ?",
+    msg_video_deleted: "Vidéo supprimée.",
+    guide_bg_inherit: "🖼️ Héritage intelligent : les niveaux sans image dédiée gardent votre fond par défaut enregistré.",
+    guide_bg_common: "🌐 Fonds communs / perso : gérez le set familial à part des slots personnels.",
+    guide_audio_restore: "🎬 Balance audio : la vidéo d'événement baisse la musique, puis restaure le volume exact.",
+  },
+  de: {
+    video_limit_notice: "Für eine flüssige Wiedergabe ist die Videogröße auf 15 MB begrenzt.",
+    video_size_error: "Das Video überschreitet 15 MB und kann nicht registriert werden.",
+    btn_delete: "Löschen",
+    confirm_video_delete: "Möchten Sie dieses Ereignisvideo löschen?",
+    msg_video_deleted: "Video gelöscht.",
+    guide_bg_inherit: "🖼️ Intelligente Vererbung: Level ohne eigenes Bild zeigen weiter den registrierten Standardhintergrund.",
+    guide_bg_common: "🌐 Gemeinsam/persönlich: Familien-Set und persönliche Slots getrennt verwalten.",
+    guide_audio_restore: "🎬 Audio-Balance: Event-Videos ducken die Musik und stellen die Original-Lautstärke wieder her.",
+  },
+  ru: {
+    video_limit_notice: "Для плавной игры размер видео ограничен 15 МБ.",
+    video_size_error: "Размер видео превышает 15 МБ и не может быть добавлен.",
+    btn_delete: "Удалить",
+    confirm_video_delete: "Удалить это видео события?",
+    msg_video_deleted: "Видео удалено.",
+    guide_bg_inherit: "🖼️ Умное наследование: уровни без своего изображения показывают зарегистрированный фон по умолчанию.",
+    guide_bg_common: "🌐 Общий/личный фон: семейный набор и личные слоты хранятся отдельно.",
+    guide_audio_restore: "🎬 Автобаланс звука: ролик приглушает музыку и полностью возвращает громкость.",
+  },
+  it: {
+    video_limit_notice: "Per una riproduzione fluida, la dimensione del video è limitata a 15 MB.",
+    video_size_error: "Il video supera i 15 MB e non può essere registrato.",
+    btn_delete: "Elimina",
+    confirm_video_delete: "Vuoi eliminare questo video evento?",
+    msg_video_deleted: "Video eliminato.",
+    guide_bg_inherit: "🖼️ Eredità intelligente: i livelli senza immagine propria mostrano lo sfondo predefinito registrato.",
+    guide_bg_common: "🌐 Sfondi comuni/personali: il set famiglia e gli slot personali restano separati.",
+    guide_audio_restore: "🎬 Bilanciamento audio: il video evento abbassa la musica e ripristina il volume BGM.",
+  },
+  pt: {
+    video_limit_notice: "Para reprodução suave, o vídeo é limitado a 15 MB ou menos.",
+    video_size_error: "O vídeo excede 15 MB e não pode ser adicionado.",
+    btn_delete: "Excluir",
+    confirm_video_delete: "Deseja excluir este vídeo de evento?",
+    msg_video_deleted: "Vídeo excluído.",
+    guide_bg_inherit: "🖼️ Herança inteligente: níveis sem imagem própria continuam com o fundo padrão registrado.",
+    guide_bg_common: "🌐 Fundo comum/pessoal: o conjunto da família fica separado dos slots pessoais.",
+    guide_audio_restore: "🎬 Balanço de áudio: o vídeo de evento reduz a música e restaura o volume exato.",
+  },
+  vi: {
+    video_limit_notice: "Để phát mượt mà, dung lượng video được giới hạn dưới 15MB.",
+    video_size_error: "Kích thước video vượt quá 15MB nên không thể thêm.",
+    btn_delete: "Xóa",
+    confirm_video_delete: "Bạn có muốn xóa video sự kiện này không?",
+    msg_video_deleted: "Đã xóa video.",
+    guide_bg_inherit: "🖼️ Kế thừa nền thông minh: màn không có ảnh riêng sẽ hiện nền mặc định đã đăng ký.",
+    guide_bg_common: "🌐 Nền chung/cá nhân: tách bộ nền gia đình và slot tùy chỉnh của bạn.",
+    guide_audio_restore: "🎬 Cân bằng âm thanh: video sự kiện hạ nhạc rồi khôi phục đúng âm lượng BGM.",
+  },
+  th: {
+    video_limit_notice: "เพื่อการเล่นที่ราบรื่น ขนาดวิดีโอถูกจำกัดไว้ที่ไม่เกิน 15MB",
+    video_size_error: "วิดีโอมีขนาดเกิน 15MB จึงไม่สามารถลงทะเบียนได้",
+    btn_delete: "ลบ",
+    confirm_video_delete: "คุณต้องการลบวิดีโอกิจกรรมนี้หรือไม่?",
+    msg_video_deleted: "ลบวิดีโอแล้ว",
+    guide_bg_inherit: "🖼️ สืบทอดพื้นหลังอัจฉริยะ: ด่านที่ไม่มีรูปเฉพาะจะแสดงพื้นหลังเริ่มต้นที่ลงทะเบียนไว้",
+    guide_bg_common: "🌐 พื้นหลังร่วม/ส่วนตัว: ชุดครอบครัวและช่องส่วนตัวแยกกัน",
+    guide_audio_restore: "🎬 สมดุลเสียง: วิดีโออีเวนต์ลดเพลงแล้วคืนระดับ BGM เดิม",
+  },
+};
+
+VIDEO_I18N["zh-CN"] = VIDEO_I18N.zh;
+VIDEO_I18N["pt-BR"] = VIDEO_I18N.pt;
+VIDEO_I18N.hi = {
+  video_limit_notice: "सुचारू प्लेबैक के लिए वीडियो 15MB या उससे कम (MP4 अनुशंसित) तक सीमित है।",
+  video_size_error: "वीडियो 15MB से बड़ा है, पंजीकृत नहीं किया जा सकता।",
+  btn_delete: "हटाएँ",
+  confirm_video_delete: "क्या आप इस इवेंट वीडियो को हटाना चाहते हैं?",
+  msg_video_deleted: "वीडियो हटा दिया गया।",
+  guide_bg_inherit: "🖼️ स्मार्ट बैकग्राउंड विरासत: बिना खास छवि वाले स्तर दर्ज डिफ़ॉल्ट पृष्ठभूमि दिखाते रहते हैं।",
+  guide_bg_common: "🌐 साझा/व्यक्तिगत पृष्ठभूमि: परिवार की साझा सेट और व्यक्तिगत स्लॉट अलग रखे जाते हैं।",
+  guide_audio_restore: "🎬 ऑडियो संतुलन: इवेंट वीडियो संगीत को धीमा कर फिर मूल BGM आवाज़ लौटाता है।",
+};
+VIDEO_I18N.id = {
+  video_limit_notice: "Agar pemutaran lancar, ukuran video dibatasi 15MB atau kurang (MP4 disarankan).",
+  video_size_error: "Ukuran video melebihi 15MB dan tidak dapat didaftarkan.",
+  btn_delete: "Hapus",
+  confirm_video_delete: "Hapus video event ini?",
+  msg_video_deleted: "Video dihapus.",
+  guide_bg_inherit: "🖼️ Pewarisan latar cerdas: level tanpa gambar khusus tetap menampilkan latar default terdaftar.",
+  guide_bg_common: "🌐 Latar bersama/pribadi: set keluarga dan slot pribadi dipisah.",
+  guide_audio_restore: "🎬 Keseimbangan audio: video event meredam musik lalu mengembalikan volume BGM.",
+};
+
+if (typeof window !== "undefined") {
+  window.DAD_VIDEO_I18N = VIDEO_I18N;
+}

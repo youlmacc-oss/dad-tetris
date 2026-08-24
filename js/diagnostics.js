@@ -1,5 +1,6 @@
-/* Dad Tetris v1.4.3-video-opt — C13–C15 core suite helpers.
-   Live F9 runner is in script.js (CORE_DIAG_IDS C1–C15). */
+/* Dad Tetris v1.4.4-allpass — C13–C15 core suite helpers.
+   Live F9 runner is in script.js (CORE_DIAG_IDS C1–C15).
+   4-5 preload uses assets/images/default_bg.jpg and level_1.jpg–level_10.jpg only. */
 "use strict";
 
 export const CORE_DIAG_IDS = [

@@ -1,4 +1,4 @@
-const APP_VERSION = "1.4.3-video-opt";
+const APP_VERSION = "1.4.4-allpass";
 const CACHE_NAME = "dad-tetris-v" + APP_VERSION;
 const CORE_ASSETS = [
   "./",
@@ -9,7 +9,6 @@ const CORE_ASSETS = [
   "./script.js?v=" + APP_VERSION,
   "./manifest.json",
   "./assets/images/default_bg.jpg",
-  "./assets/bg-default.png",
   "./assets/images/level_1.jpg",
   "./assets/images/level_2.jpg",
   "./assets/images/level_3.jpg",
