@@ -9455,11 +9455,11 @@ select,
   .app-container,
   #app-container {
     width: 100% !important;
-    height: calc(100dvh - 48px) !important;
+    height: 100dvh !important;
     flex: 1 1 auto !important;
     min-height: 0 !important;
     max-width: 480px !important;
-    max-height: calc(100dvh - 48px) !important;
+    max-height: 100dvh !important;
     margin: 0 auto !important;
     display: flex !important;
     flex-direction: column !important;
@@ -9478,11 +9478,11 @@ select,
     flex: 1 1 auto !important;
     width: 100% !important;
     min-height: 0 !important;
-    height: calc(100dvh - 58px) !important;
-    max-height: calc(100dvh - 58px) !important;
+    height: 100% !important;
+    max-height: 100% !important;
     display: grid !important;
     grid-template-columns: minmax(0, min(65%, calc(100% - 110px))) minmax(105px, 1fr) !important;
-    grid-template-rows: auto calc(100dvh - 190px) minmax(34px, 1fr) !important;
+    grid-template-rows: auto calc(100dvh - 190px) 48px minmax(34px, 1fr) !important;
     justify-content: start !important;
     align-items: stretch !important;
     gap: 4px !important;
@@ -9974,7 +9974,7 @@ select,
   #dad-cheer-banner,
   .dad-cheer-banner {
     grid-column: 1 / -1 !important;
-    grid-row: 3 !important;
+    grid-row: 4 !important;
     display: flex !important;
     flex-direction: row !important;
     justify-content: space-between !important;
@@ -9984,7 +9984,7 @@ select,
     min-height: 34px !important;
     max-height: none !important;
     flex: 1 1 auto !important;
-    padding: 4px 10px !important;
+    padding: 4px 10px max(4px, env(safe-area-inset-bottom, 4px)) 10px !important;
     margin: 0 !important;
     box-sizing: border-box !important;
     background: linear-gradient(90deg, rgba(8, 20, 38, 0.92), rgba(16, 34, 64, 0.96), rgba(8, 20, 38, 0.92)) !important;
@@ -10056,8 +10056,10 @@ select,
   #mobile-controls,
   #mobile-controls.mobile-controls {
     display: flex !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
     width: 100% !important;
-    max-width: 468px !important;
+    max-width: 100% !important;
     height: 48px !important;
     min-height: 48px !important;
     max-height: 48px !important;
@@ -10074,7 +10076,7 @@ select,
     left: auto !important;
     right: auto !important;
     bottom: auto !important;
-    padding: 0 2px max(4px, env(safe-area-inset-bottom, 4px)) 2px !important;
+    padding: 0 2px !important;
     box-sizing: border-box !important;
     z-index: 30 !important;
   }

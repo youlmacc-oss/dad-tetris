@@ -1,4 +1,4 @@
-/* DAD TETRIS — v1.4.4-allpass single-file bundle (no ES modules) */
+/* DAD TETRIS — v1.4.5-mobile single-file bundle (no ES modules) */
 (function () {
 "use strict";
 
@@ -10976,7 +10976,7 @@ function GameEngine() {
   const BOARD_IDLE_BG_FLAG = "dad_tetris_board_idle_bg_custom";
   const LEVEL_MAX = 20;
   const LEVEL_BG_MAX = 20;
-  const APP_VERSION = "1.4.4-allpass";
+  const APP_VERSION = "1.4.5-mobile";
   window.__DAD_TETRIS_VERSION = APP_VERSION;
   const BUNDLED_LEVEL_BG_MAX = 10;
   const BUNDLED_IDLE_BG_JPG = "assets/images/default_bg.jpg";
