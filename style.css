@@ -10582,6 +10582,12 @@ select,
   font-size: 18px !important;
 }
 
+@media screen and (max-width: 768px) {
+  #overlay.overlay.is-start #overlay-hint {
+    font-size: 13px !important;
+  }
+}
+
 body.diag-running.diag-measure-profile #overlay,
 body.hide-board-idle.diag-measure-profile #overlay,
 body.diag-running.diag-measure-profile #start-overlay,
